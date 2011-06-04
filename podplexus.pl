@@ -112,7 +112,10 @@ use strict;
 		die $self->module(), " doesn't define sub $sub_name" unless @$subs;
 		die $self->module(), " defines too many subs $sub_name" if @$subs > 1;
 
-		return $subs->[0]->content();
+		return(
+			"# From " . $self->module() . "\n\n" .
+			$subs->[0]->content()
+		);
 	}
 
 	### End public accessors!
@@ -153,12 +156,120 @@ use strict;
 		return $output;
 	}
 
+	sub elementaldump {
+		my $self = shift();
+		use YAML;
+		print YAML::Dump($self->elemental());
+		exit;
+	}
+
 	sub ppidump {
 		my $self = shift();
 		use PPI::Dumper;
 		my $d = PPI::Dumper->new( $self->ppi() );
 		$d->print();
 		exit;
+	}
+
+	sub expand_commands {
+		my $self = shift();
+
+		my $doc = $self->elemental();
+
+		NODE: for my $i (reverse(0 .. $#{ $doc->children() })) {
+			my $node = $doc->children->[ $i ];
+
+			next NODE unless $node->isa('Pod::Elemental::Element::Generic::Command');
+
+			### for example -> code example
+
+			if (
+				$node->{command} eq 'for' and
+				$node->{content} =~ /^\s*example\s+(\S.*?)\s*$/
+			) {
+				my (@args) = split(/\s+/, $1);
+
+				die "too many args for example" if @args > 2;
+				die "not enough args for example" if @args < 1;
+
+				my ($link, $content);
+				if (@args == 2) {
+					$link = "From L<$args[0]/$args[1]> ...\n\n";
+					$content = $self->library()->get_module($args[0])->sub($args[1]);
+				}
+				elsif ($args[0] =~ /:/) {
+					$link = "From L<$args[0]> ...\n\n";
+					$content = $self->library()->get_module($args[0])->code();
+				}
+				else {
+					$link = "From L</$args[0]> ...\n\n";
+					$content = $self->sub($args[0]);
+				}
+
+				# Indent two spaces.  Remove leading and trailing blank lines.
+				$content =~ s/^/  /mg;
+				$content =~ s/\A(^\s*$)+//m;
+				$content =~ s/(^\s*$)+\Z//m;
+
+				splice(
+					@{$doc->children()}, $i, 1,
+					Pod::Elemental::Element::Generic::Text->new(
+						content => $link . $content,
+					),
+					Pod::Elemental::Element::Generic::Blank->new(
+						content => "\n",
+					),
+				);
+
+				next NODE;
+			}
+
+			### Abstract -> NAME
+
+			if ($node->{command} eq 'abstract') {
+				splice(
+					@{$doc->children()}, $i, 1,
+					Pod::Elemental::Element::Generic::Command->new(
+						command => "head1",
+						content => "NAME\n",
+					),
+					Pod::Elemental::Element::Generic::Blank->new(
+						content => "\n",
+					),
+					Pod::Elemental::Element::Generic::Text->new(
+						content => $self->module() . " - " . $node->content()
+					),
+				);
+				next NODE;
+			}
+
+			### Copyright boilerplate.
+
+			if ($node->{command} eq 'copyright') {
+				my ($year, $whom) = ($node->{content} =~ /^\s*(\S+)\s+(.*?)\s*$/);
+
+				splice(
+					@{$doc->children()}, $i, 1,
+					Pod::Elemental::Element::Generic::Command->new(
+						command => "head1",
+						content => "COPYRIGHT AND LICENSE\n",
+					),
+					Pod::Elemental::Element::Generic::Blank->new(
+						content => "\n",
+					),
+					Pod::Elemental::Element::Generic::Text->new(
+						content => (
+							$self->module() . " is Copyright $year by $whom\n" .
+							"All rights are reserved.\n" .
+							$self->module() .
+							" is released under the same terms as Perl itself.\n"
+						),
+					),
+				);
+
+				next NODE;
+			}
+		}
 	}
 
 	no Moose;
@@ -248,11 +359,25 @@ $lib->add_files(
 );
 
 my $doc = $lib->get_document("lib/App/PipeFilter/Generic.pm");
+$doc->expand_commands();
+
+#$doc->elementaldump();
 #$doc->ppidump();
 print $doc->render(), "\n";
 
 
 __END__
+
+(.+)?  ::  \w+\(\)
+perl -wlne 'if (/^\s* ([^()]+[^:])? (?:::)? (\w+\(\))? /x) { print "($1) ($2)" } else { print "nomatch" }'
+
+
+  - !!perl/hash:Pod::Elemental::Element::Generic::Command
+    command: for
+    content: "example App::PipeFilter::JsonToYaml\n"
+    start_line: 49
+
+
 
 -r--r--r--  1 root  admin  1018 Aug 24  2010 Autoblank.pm
 -r--r--r--  1 root  admin   815 Aug 24  2010 Autochomp.pm
