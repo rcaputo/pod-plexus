@@ -255,12 +255,14 @@ sub expand_commands {
 
 	my $doc = $self->elemental();
 
-	NODE: for my $i (reverse(0 .. $#{ $doc->children() })) {
-		my $node = $doc->children->[ $i ];
+	my $i = @{ $doc->children() };
+	NODE: while ($i--) {
+
+		my $node = $doc->children->[$i];
 
 		next NODE unless $node->isa('Pod::Elemental::Element::Generic::Command');
 
-		### for example -> code example
+		### "=for example (spec)" -> code example sourced from (spec).
 
 		if (
 			$node->{command} eq 'for' and
@@ -289,6 +291,7 @@ sub expand_commands {
 			}
 
 			# Indent two spaces.  Remove leading and trailing blank lines.
+			# TODO - Better indenting for things that are already indented.
 			$content =~ s/\A(^\s*$)+//m;
 			$content =~ s/(^\s*$)+\Z//m;
 			$content =~ s/^/  /mg;
@@ -306,7 +309,7 @@ sub expand_commands {
 			next NODE;
 		}
 
-		### Abstract -> NAME
+		### "=abstract (text)" -> "=head1 NAME\n\n(module) - (text)\n\n".
 
 		if ($node->{command} eq 'abstract') {
 			splice(
@@ -325,7 +328,8 @@ sub expand_commands {
 			next NODE;
 		}
 
-		### Copyright boilerplate.
+		### "=copyright (years) (whom)" -> "=head1 COPYRIGHT AND LICENSE"
+		### boilerplate.
 
 		if ($node->{command} eq 'copyright') {
 			my ($year, $whom) = ($node->{content} =~ /^\s*(\S+)\s+(.*?)\s*$/);
