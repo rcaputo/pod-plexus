@@ -1,0 +1,101 @@
+[_] 2% Stability.
+	[_] 4% Release 1.0
+		[_] 0% Architecture.
+			[_] 0% Three distributions.
+				[_] 0% Pod-Plexus comprising the modules that do the work.
+				[_] 0% App-Pod-Plexus stand-alone command line tool.
+				[_] 0% Pod-Weaver-Plugin-Plexus to bind with Pod::Weaver.
+					[_] 0% Learn how Pod::Weaver does this sort of thing.
+		[_] 28% Additional declarative syntax.
+			[_] 33% =for example (class) (method)
+				[X] 100% Methods implemented as Perl subs.
+				[_] 0% Methods implemented as declarative "method" syntax.
+				[_] 0% Methods implemented via attribute "handles" clauses.
+				Perhaps find them based on "=method".
+			[_] 0% =for example (class) (attribute)
+				[_] 0% Attributes implemented as "has".
+				[_] 0% Attributes implemented as Reflex's "has_many".
+				Perhaps find them based on "=attribute".
+			[X] 100% =copyright (years) (whom)
+				| =head1 COPYRIGHT AND LICENSE
+				|
+				| [% module 0%] is Copyright [% years %] by [% whom %].
+				| All rights are reserved.
+				| [% module 0%] is released under the same terms as Perl itself.
+			[X] 100% =abstract (description)
+				| =head1 NAME
+				|
+				| [% module 0%] - [% description %]
+			[_] 0% =attribute (name)
+				[_] 0% Pod::Elemental and/or Pod::Weaver can gather attributes.
+			[_] 25% =consumes (role)
+				[_] 50% Detect and assimilate them into a "consumes" attribute.
+					Multiple allowed.
+					See Ancestry.
+					[X] 100% PPI detection.
+					[_] 0% Class::MOP detection.
+				[_] 0% Auto-include documentation from the role being consumed.
+					[_] 0% Flatten out the documentation.
+					[_] 0% At least reference the role for methods it provides.
+						It may be too hard to import meaningful documentation.
+						Role docs may not be appropriate for classes that consume them.
+			[_] 25% =extends (class)
+				[_] 50% Detect and assimilate them into a "extends" attribute.
+					Multiple allowed.
+					See Ancestry.
+					[X] 100% PPI detection.
+					[_] 0% Class::MOP detection.
+				[_] 0% Support eplicit syntax when heuristics fail us.
+			[_] 0% =license (?)
+				Implied in =copyright at the moment.
+				[_] 0% Needs more licensing options.
+				[_] 0% Delegate to Pod::Weaver?
+			[_] 0% =method (name)
+				[_] 0% Pod::Elemental and/or Pod::Weaver can gather attributes.
+			[_] 0% =bugs
+				Standard bugs section.
+				Build URL from distribution name.
+		[_] 0% Documentation.
+			[_] 0% Bonus points if it can document itself.
+		[_] 0% Boilerplates.
+			[_] 0% Ancestry.
+				[_] 0% Based on what is put into extends() and consumes().
+				[_] 0% Also list known classes that extend or consume this one.
+		[_] 0% Dist::Zilla administrivia.
+			[_] 0% Break podplexus.pl into libraries.
+			[_] 0% Tests.
+				Although it will be used to document itself.
+			[_] 0% dist.ini
+			[_] 0% MANIFEST.SKIP
+		[_] 0% Do as little as possible.
+			The project is currently doing too much.
+			[_] 0% Delegate as much to Pod::Weaver as possible.
+			[_] 0% Consider making this a Pod::Weaver plugin.
+				[_] 0% Get help making this so.
+			[_] 0% Consider supporting Dist::Zilla directly.
+				[_] 0% Get help making this so.
+	[_] 0% Future / Nice To Have
+		[_] 0% Use Class::MOP to intuit attribute, consumes, extends, and method.
+			Load the module in question.
+			Introspect to find attributes, methods, roles and base classes.
+			Create default documentation for those that aren't already documented.
+		[_] 0% Automatically include implementation in the documentation.
+			Append an "Implementation: (example)" to the ends of method, attribute, etc.
+			Perhaps make it a flag.
+			Rather than "=method xyz ... =for example xyz".
+			Achieves a form of Literate Programming.
+Implementation notes.
+	Document represents a parsed document.
+		Includes PPI information.
+		Includes Pod::Elemental information.
+		Includes Class::MOP information.
+		Implements low-level accessors to each form of internal information.
+		Implements high-level accessors and mutators to work on a POD level.
+		Bits may be called from Template::Toolkit.
+			Although high-level syntax will make this mostly pointless.
+	Library represents a collection of all documents for a distribution.
+		Includes documents indexed by relative path.
+		Includes documents indexed by main package name.
+		Implements accessors to find particular documents by path or module.
+		Accessors may be used from Template::Toolkit.
+			Although high-level syntax will make this mostly pointless.

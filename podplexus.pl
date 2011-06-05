@@ -10,6 +10,8 @@ use strict;
 	use PPI;
 	use Pod::Elemental;
 
+	use feature 'switch';
+
 	use PPI::Lexer;
 	$PPI::Lexer::STATEMENT_CLASSES{with} = 'PPI::Statement::Include';
 
@@ -27,6 +29,28 @@ use strict;
 		isa     => 'PPI::Document',
 		lazy    => 1,
 		default => sub { PPI::Document->new( shift()->pathname() ) },
+	);
+
+	has extends => (
+		is       => 'rw',
+		isa      => 'HashRef[Str]',
+		traits   => [ 'Hash' ],
+		handles  => {
+			has_base => 'exists',
+			add_base => 'set',
+			get_base => 'get',
+		},
+	);
+
+	has consumes => (
+		is       => 'rw',
+		isa      => 'HashRef[Str]',
+		traits   => [ 'Hash' ],
+		handles  => {
+			has_role => 'exists',
+			add_role => 'set',
+			get_role => 'get',
+		},
 	);
 
 	has elemental => (
@@ -169,6 +193,70 @@ use strict;
 		my $d = PPI::Dumper->new( $self->ppi() );
 		$d->print();
 		exit;
+	}
+
+	sub collect_ancestry {
+		my $self = shift();
+
+		my $ppi = $self->ppi();
+
+		my $includes = $ppi->find(
+			sub {
+				$_[1]->isa('PPI::Statement::Include') or (
+					$_[1]->isa('PPI::Statement') and
+					$_[1]->child(0)->isa('PPI::Token::Word') and
+					$_[1]->child(0)->content() eq 'extends'
+				)
+			}
+		);
+
+		foreach (@$includes) {
+			my $type = $_->child(0)->content();
+
+			# Remove "type".
+			my @children = $_->children();
+			splice(@children, 0, 1);
+
+			my @stuff;
+			foreach (@children) {
+				if ($_->isa('PPI::Token::Word')) {
+					push @stuff, $_->content();
+					next;
+				}
+
+				if ($_->isa('PPI::Structure::List')) {
+					push @stuff, map { $_->string() } @{ $_->find('PPI::Token::Quote') };
+					next;
+				}
+
+				if ($_->isa('PPI::Token::QuoteLike::Words')) {
+					push @stuff, $_->literal();
+					next;
+				}
+
+				if ($_->isa('PPI::Token::Quote')) {
+					push @stuff, $_->string();
+					next;
+				}
+
+				# Ignore the others.
+			}
+
+			given ($type) {
+				when ('use') {
+					# TODO - What do we care?
+				}
+				when ('extends') {
+					$self->add_base($_, 1) foreach @stuff;
+				}
+				when ('with') {
+					$self->add_role($_, 1) foreach @stuff;
+				}
+				default {
+					die "odd type '$type'";
+				}
+			}
+		}
 	}
 
 	sub expand_commands {
@@ -359,40 +447,10 @@ $lib->add_files(
 );
 
 my $doc = $lib->get_document("lib/App/PipeFilter/Generic.pm");
+
+$doc->collect_ancestry();
 $doc->expand_commands();
 
 #$doc->elementaldump();
 #$doc->ppidump();
 print $doc->render(), "\n";
-
-
-__END__
-
-(.+)?  ::  \w+\(\)
-perl -wlne 'if (/^\s* ([^()]+[^:])? (?:::)? (\w+\(\))? /x) { print "($1) ($2)" } else { print "nomatch" }'
-
-
-  - !!perl/hash:Pod::Elemental::Element::Generic::Command
-    command: for
-    content: "example App::PipeFilter::JsonToYaml\n"
-    start_line: 49
-
-
-
--r--r--r--  1 root  admin  1018 Aug 24  2010 Autoblank.pm
--r--r--r--  1 root  admin   815 Aug 24  2010 Autochomp.pm
--r--r--r--  1 root  admin  1409 Aug 24  2010 Command.pm
--r--r--r--  1 root  admin  2966 Aug 24  2010 Document.pm
-drwxr-xr-x  5 root  admin   170 May 21 20:36 Element/
--r--r--r--  1 root  admin  1072 Aug 24  2010 Flat.pm
--r--r--r--  1 root  admin  1584 Aug 24  2010 Node.pm
--r--r--r--  1 root  admin  2350 Aug 24  2010 Objectifier.pm
--r--r--r--  1 root  admin  2283 Aug 24  2010 Paragraph.pm
--r--r--r--  1 root  admin  3218 Nov 29  2009 PerlMunger.pm
--r--r--r--  1 root  admin  3533 Aug 24  2010 Selectors.pm
-drwxr-xr-x  5 root  admin   170 May 21 20:36 Transformer/
--r--r--r--  1 root  admin  1179 Aug 24  2010 Transformer.pm
--r--r--r--  1 root  admin  1252 Aug 24  2010 Types.pm
-
-
-
