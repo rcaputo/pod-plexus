@@ -1,0 +1,51 @@
+Writing good documentation is hard.  It describes a moving target, so
+it multiplies the engineering effort to change anything.  I think
+there are some basic ways to reduce the effort.
+
+1. Reuse as much code as possible in the documentation.  Whenever
+possible, documentation examples should come from the code itself.
+
+2. Reuse as much documentation as possible.  Summaries of base class
+interfaces may be reused in subclass implementations.  Roles provide
+implementation to the classes that consume them; they should also
+provide the supporting documentation.
+
+3. More, I'm sure, as it goes along.
+
+Over time, this repository will include three Perl distributions to
+make things easier for me---and I hope for many others.
+
+See TODO.otl for the roadmap to release 1.0 and beyond.
+
+The pod-plexus distribution will implement a meta-POD markup
+translator based on Pod::Elemental, PPI and perhaps Moose or
+Class::MOP.  It already includes basic syntax for:
+
+	=abstract (brief description)
+
+		Replaced by "=head1 NAME\n\n(module) - (brief description)\n\n"
+
+	=for example (module) (sub)
+
+		Replaced by the implementation of (module) and/or (sub).
+
+	=copyright (year/s) (whom)
+
+		Replaced by a "=head1 COPYRIGHT AND LICENSE" boilerplate section.
+
+	Template::Toolkit expansion.
+
+		In cases where there's no declarative POD syntax, the
+		documentation can symbolically refer to aspects of the
+		distribution and modules it contains.
+
+		Using the templates is considered a rapid design hack.  One should
+		replace template use with declarative syntax once concepts have
+		been proven.
+
+The podplexus.pl utility is a small proof of concept.  It takes two or
+more parameters: the file that will have its documentation
+transformed, and one or more root directories from which supporting
+modules will be gathered.  For example:
+
+	podplexus.pl  lib/Foo.pm  lib
