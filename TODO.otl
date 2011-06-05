@@ -1,11 +1,23 @@
-[_] 2% Stability.
-	[_] 4% Release 1.0
-		[_] 0% Architecture.
-			[_] 0% Three distributions.
-				[_] 0% Pod-Plexus comprising the modules that do the work.
+[_] 3% Stability.
+	[_] 7% Release 1.0
+		[_] 16% Architecture.
+			[_] 16% Three distributions.
+				[_] 50% Pod-Plexus comprising the modules that do the work.
+					[X] 100% Reorganize files.
+					[_] 0% Dist::Zilla administrivia.
+						(see checklist below)
 				[_] 0% App-Pod-Plexus stand-alone command line tool.
+					[_] 0% Reorganize files.
+					[_] 0% Decide how this will work.
+					[_] 0% Implement.
+					[_] 0% Dist::Zilla administrivia.
+						(see checklist below)
 				[_] 0% Pod-Weaver-Plugin-Plexus to bind with Pod::Weaver.
 					[_] 0% Learn how Pod::Weaver does this sort of thing.
+					[_] 0% Decide how this will work.
+					[_] 0% Implement.
+					[_] 0% Dist::Zilla administrivia.
+						(see checklist below)
 		[_] 28% Additional declarative syntax.
 			[_] 33% =for example (class) (method)
 				[X] 100% Methods implemented as Perl subs.
