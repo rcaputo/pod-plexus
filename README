@@ -15,7 +15,7 @@ provide the supporting documentation.
 Over time, this repository will include three Perl distributions to
 make things easier for me---and I hope for many others.
 
-See TODO.otl for the roadmap to release 1.0 and beyond.
+See TODO for the roadmap to release 1.0 and beyond.
 
 The pod-plexus distribution will implement a meta-POD markup
 translator based on Pod::Elemental, PPI and perhaps Moose or
