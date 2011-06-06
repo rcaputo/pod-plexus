@@ -1,7 +1,7 @@
-[_] 3% Stability.
-	[_] 7% Release 1.0
-		[_] 16% Architecture.
-			[_] 16% Three distributions.
+[_] 4% Stability.
+	[_] 9% Release 1.0
+		[_] 31% Architecture.
+			[_] 31% Three distributions.
 				[_] 50% Pod-Plexus comprising the modules that do the work.
 					[X] 100% Reorganize files.
 					[_] 0% Dist::Zilla administrivia.
@@ -12,10 +12,16 @@
 					[_] 0% Implement.
 					[_] 0% Dist::Zilla administrivia.
 						(see checklist below)
-				[_] 0% Pod-Weaver-Plugin-Plexus to bind with Pod::Weaver.
+				[_] 0% Pod-Weaver-Plugin-PodPlexus to bind with Pod::Weaver.
 					[_] 0% Learn how Pod::Weaver does this sort of thing.
 					[_] 0% Decide how this will work.
 					[_] 0% Implement.
+					[_] 0% Dist::Zilla administrivia.
+						(see checklist below)
+				[_] 75% Dist-Zilla-Plugin-PodPlexus to bind with Dist::Zilla.
+					[X] 100% Learn how Dist::Zilla works.
+					[X] 100% Design.
+					[X] 100% Implement.
 					[_] 0% Dist::Zilla administrivia.
 						(see checklist below)
 		[_] 28% Additional declarative syntax.
