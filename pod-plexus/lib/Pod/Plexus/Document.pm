@@ -201,7 +201,7 @@ sub collect_ancestry {
 		}
 	);
 
-	foreach (@$includes) {
+	foreach (@{$includes || []}) {
 		my $type = $_->child(0)->content();
 
 		# Remove "type".
