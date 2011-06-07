@@ -77,32 +77,10 @@ has module => (
 );
 
 has abstract => (
-	is      => 'ro',
+	is      => 'rw',
 	isa     => 'Str',
 	lazy    => 1,
-	default => sub {
-		my $self = shift();
-
-		use Pod::Elemental::Selectors qw(s_command);
-
-		my $children = $self->elemental()->children();
-		my $commands = s_command('abstract');
-
-		my @abstract_index;
-
-		for my $i (0 .. $#$children) {
-			next unless $commands->( $children->[$i] );
-			push @abstract_index, $i;
-		}
-
-		die $self->module(), " has no abstract" unless @abstract_index;
-		die $self->module(), " has too many abstracts" if @abstract_index > 1;
-
-		# Remove it.
-		my $abstract = splice( @$children, $abstract_index[0], 1 );
-
-		return $abstract->content();
-	},
+	default => sub { confess "no abstract found" },
 );
 
 sub code {
@@ -237,6 +215,9 @@ sub collect_ancestry {
 			when ('use') {
 				# TODO - What do we care?
 			}
+			when ('no') {
+				# TODO - What do we care?
+			}
 			when ('extends') {
 				$self->add_base($_, 1) foreach @stuff;
 			}
@@ -309,9 +290,42 @@ sub expand_commands {
 			next NODE;
 		}
 
+		### "=for xref (module)" -> "=item *\n\n(module) - (its abstract)"
+
+		if (
+			$node->{command} eq 'for' and
+			$node->{content} =~ /^\s*xref\s+(\S+)/
+		) {
+			my $module = $1;
+
+			splice(
+				@{$doc->children()}, $i, 1,
+				Pod::Elemental::Element::Generic::Command->new(
+					command => "item",
+					content => "*\n",
+				),
+				Pod::Elemental::Element::Generic::Blank->new(
+					content => "\n",
+				),
+				Pod::Elemental::Element::Generic::Text->new(
+					content => (
+						"L<$module|$module> - " .
+						$self->library()->module($module)->abstract()
+					),
+				),
+				Pod::Elemental::Element::Generic::Blank->new(
+					content => "\n",
+				),
+			);
+
+			next NODE;
+		}
+
 		### "=abstract (text)" -> "=head1 NAME\n\n(module) - (text)\n\n".
 
 		if ($node->{command} eq 'abstract') {
+			$self->abstract( $node->content() );
+
 			splice(
 				@{$doc->children()}, $i, 1,
 				Pod::Elemental::Element::Generic::Command->new(
@@ -322,7 +336,7 @@ sub expand_commands {
 					content => "\n",
 				),
 				Pod::Elemental::Element::Generic::Text->new(
-					content => $self->module() . " - " . $node->content()
+					content => $self->module() . " - " . $self->abstract()
 				),
 			);
 			next NODE;

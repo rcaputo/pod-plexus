@@ -1,4 +1,4 @@
-package Dist::Zilla::Plugin::Plexus;
+package Dist::Zilla::Plugin::PodPlexus;
 
 use Moose;
 with qw(
