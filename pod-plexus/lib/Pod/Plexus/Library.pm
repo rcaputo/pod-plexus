@@ -70,8 +70,12 @@ sub add_file {
 		template => $self->template(),
 	);
 
+	$document->collect_data();
+
 	$self->add_document($file_path => $document);
 	$self->add_module($document->module() => $document);
+
+	undef;
 }
 
 no Moose;

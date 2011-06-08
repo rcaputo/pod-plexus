@@ -40,7 +40,6 @@ sub munge_files {
 
 		my $doc = $documents->{$path};
 
-		$doc->collect_ancestry();
 		$doc->expand_commands();
 
 		$file->content( $doc->render() );

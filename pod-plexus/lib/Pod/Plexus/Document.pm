@@ -164,7 +164,7 @@ sub ppidump {
 	exit;
 }
 
-sub collect_ancestry {
+sub collect_data {
 	my $self = shift();
 
 	my $ppi = $self->ppi();
