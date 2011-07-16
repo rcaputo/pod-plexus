@@ -230,6 +230,13 @@ sub collect_data {
 			}
 		}
 	}
+
+	NODE: foreach my $node (@{ $self->elemental()->children() }) {
+		if ($node->{command} eq 'abstract') {
+			$self->abstract( $node->content() );
+			next NODE;
+		}
+	}
 }
 
 sub expand_commands {
@@ -325,8 +332,6 @@ sub expand_commands {
 		### "=abstract (text)" -> "=head1 NAME\n\n(module) - (text)\n\n".
 
 		if ($node->{command} eq 'abstract') {
-			$self->abstract( $node->content() );
-
 			splice(
 				@{$doc->children()}, $i, 1,
 				Pod::Elemental::Element::Generic::Command->new(
