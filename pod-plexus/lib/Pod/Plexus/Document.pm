@@ -379,7 +379,7 @@ sub expand_commands {
 				),
 				Pod::Elemental::Element::Generic::Text->new(
 					content => (
-						$self->module() . " is Copyright $year by $whom\n" .
+						$self->module() . " is Copyright $year by $whom.\n" .
 						"All rights are reserved.\n" .
 						$self->module() .
 						" is released under the same terms as Perl itself.\n"
