@@ -253,11 +253,8 @@ sub expand_commands {
 
 		### "=for example (spec)" -> code example sourced from (spec).
 
-		if (
-			$node->{command} eq 'for' and
-			$node->{content} =~ /^\s*example\s+(\S.*?)\s*$/
-		) {
-			my (@args) = split(/\s+/, $1);
+		if ($node->{command} eq 'example') {
+			my (@args) = split(/\s+/, $node->{content});
 
 			die "too many args for example" if @args > 2;
 			die "not enough args for example" if @args < 1;
@@ -271,19 +268,34 @@ sub expand_commands {
 				$content = $self->library()->get_module($args[0])->sub($args[1]);
 			}
 			elsif ($args[0] =~ /:/) {
-				$link = "This is L<$args[0]|$args[0]>.\n\n";
+				# TODO - We're trying to omit the "This is" link if the
+				# content includes an obvious package name.  There may be a
+				# better way to do this, via PPI for example.
+
 				$content = $self->library()->get_module($args[0])->code();
+				if ($content =~ /^\s*package/) {
+					$link = "";
+				}
+				else {
+					$link = "This is L<$args[0]|$args[0]>.\n\n";
+				}
 			}
 			else {
 				$link = "This is L<$args[0]()|/$args[0]>.\n\n";
 				$content = $self->sub($args[0]);
 			}
 
+			# TODO - PerlTidy the code?
+			# TODO - The following whitespace options are personal
+			# preference.  Someone should patch them to be options.
+
 			# Indent two spaces.  Remove leading and trailing blank lines.
-			# TODO - Better indenting for things that are already indented.
 			$content =~ s/\A(^\s*$)+//m;
 			$content =~ s/(^\s*$)+\Z//m;
 			$content =~ s/^/  /mg;
+
+			# Convert tab indents to fixed spaces for better typography.
+			$content =~ s/\t/  /g;
 
 			splice(
 				@{$doc->children()}, $i, 1,
@@ -298,13 +310,15 @@ sub expand_commands {
 			next NODE;
 		}
 
-		### "=for xref (module)" -> "=item *\n\n(module) - (its abstract)"
+		### "=xref (module)" -> "=item *\n\n(module) - (its abstract)"
+		#
+		# TODO - Collect them without rendering.  Add them to a SEE ALSO
+		# section.
 
-		if (
-			$node->{command} eq 'for' and
-			$node->{content} =~ /^\s*xref\s+(\S+)/
-		) {
-			my $module = $1;
+		if ($node->{command} eq 'xref') {
+			my $module = $node->{content};
+			$module =~ s/^\s+//;
+			$module =~ s/\s+$//;
 
 			splice(
 				@{$doc->children()}, $i, 1,
