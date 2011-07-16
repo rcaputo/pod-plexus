@@ -140,6 +140,7 @@ sub render {
 	my %vars = (
 		doc => $self,
 		lib => $self->library(),
+		module => $self->module(),
 	);
 
 	$self->template()->process(\$input, \%vars, \$output) or die(
