@@ -28,6 +28,7 @@ has modules => (
 		has_module => 'exists',
 		add_module => 'set',
 		get_module => 'get',
+		get_module_names => 'keys',
 	},
 );
 

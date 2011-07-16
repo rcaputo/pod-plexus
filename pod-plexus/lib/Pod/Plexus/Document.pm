@@ -232,6 +232,8 @@ sub collect_data {
 	}
 
 	NODE: foreach my $node (@{ $self->elemental()->children() }) {
+		next NODE unless $node->isa('Pod::Elemental::Element::Generic::Command');
+
 		if ($node->{command} eq 'abstract') {
 			$self->abstract( $node->content() );
 			next NODE;
@@ -389,6 +391,62 @@ sub expand_commands {
 
 			next NODE;
 		}
+
+		# Index modules in the library that match a given regular
+		# expression.  Dangerous, but we're all friends here, right?
+
+		if ($node->{command} =~ /^index(\d*)/) {
+			my $level = $1 || 2;
+
+			(my $regexp = $node->{content} // "") =~ s/\s+//g;
+			$regexp = "^" . $self->module() . "::" unless length $regexp;
+
+			my @insert = (
+				map {
+					Pod::Elemental::Element::Generic::Command->new(
+						command => "item",
+						content => "*\n",
+					),
+					Pod::Elemental::Element::Generic::Blank->new(
+						content => "\n",
+					),
+					Pod::Elemental::Element::Generic::Text->new(
+						content => (
+							"L<$_|$_> - " .
+							$self->library()->module($_)->abstract()
+						),
+					),
+					Pod::Elemental::Element::Generic::Blank->new(
+						content => "\n",
+					),
+				}
+				sort
+				grep /$regexp/, $self->library()->get_module_names()
+			);
+
+			unless (@insert) {
+				@insert = (
+					Pod::Elemental::Element::Generic::Command->new(
+						command => "item",
+						content => "*\n",
+					),
+					Pod::Elemental::Element::Generic::Blank->new(
+						content => "\n",
+					),
+					Pod::Elemental::Element::Generic::Text->new(
+						content => "No modules match /$regexp/"
+					),
+					Pod::Elemental::Element::Generic::Blank->new(
+						content => "\n",
+					),
+				);
+			}
+
+			splice( @{$doc->children()}, $i, 1, @insert );
+
+			next NODE;
+		}
+
 	}
 }
 
