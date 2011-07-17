@@ -28,7 +28,7 @@ $lib->add_files(
 
 my $doc = $lib->get_document($input_path);
 
-$doc->collect_ancestry();
+$doc->collect_data();
 $doc->expand_commands();
 
 #$doc->elementaldump();
