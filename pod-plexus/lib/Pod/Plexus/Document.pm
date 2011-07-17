@@ -253,7 +253,7 @@ sub expand_commands {
 
 		next NODE unless $node->isa('Pod::Elemental::Element::Generic::Command');
 
-		### "=for example (spec)" -> code example sourced from (spec).
+		### "=example (spec)" -> code example sourced from (spec).
 
 		if ($node->{command} eq 'example') {
 			my (@args) = split(/\s+/, $node->{content});
@@ -447,6 +447,64 @@ sub expand_commands {
 			next NODE;
 		}
 
+		### "=include MODULE SECTION" -> documentation copied from source.
+		#
+		# TODO - Need to ensure the full rendering of source material
+		# before inserting it here.
+
+		if ($node->{command} eq 'include') {
+			my @args = split(/\s+/, $node->{content});
+
+			die "too many args for include" if @args > 2;
+			die "not enough args for include" if @args < 2;
+
+			my ($module_name, $section) = @args;
+
+			my $source_module = $self->library()->get_module($module_name);
+
+			die "unknown module $module_name in include" unless $source_module;
+
+			my $source_doc = $source_module->elemental();
+
+			my $closing_command;
+			my @insert;
+
+			SOURCE_NODE: foreach my $source_node (@{ $source_doc->children() }) {
+
+				unless (
+					$source_node->isa('Pod::Elemental::Element::Generic::Command')
+				) {
+					push @insert, $source_node if $closing_command;
+					next SOURCE_NODE;
+				}
+
+				if ($closing_command) {
+					last SOURCE_NODE if $source_node->{command} eq $closing_command;
+
+					push @insert, $source_node;
+					next SOURCE_NODE;
+				}
+
+				next unless $source_node->{content} =~ /^\Q$section\E/;
+
+				$closing_command = $source_node->{command};
+			}
+
+			die "Couldn't find =insert $module_name $section" unless @insert;
+
+			# Trim blanks around a section of Pod::Elemental nodes.
+			# TODO - Make a helper method.
+			shift @insert while (
+				@insert and $insert[0]->isa('Pod::Elemental::Element::Generic::Blank')
+			);
+			pop @insert while (
+				@insert and $insert[-1]->isa('Pod::Elemental::Element::Generic::Blank')
+			);
+
+			splice( @{$doc->children()}, $i, 1, @insert );
+
+			next NODE;
+		}
 	}
 }
 
