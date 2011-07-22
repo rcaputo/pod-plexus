@@ -26,7 +26,7 @@ $lib->add_files(
 	@gather_roots
 );
 
-my $doc = $lib->get_document($input_path);
+my $doc = $lib->get_module($input_path);
 
 $doc->collect_data();
 $doc->expand_commands();

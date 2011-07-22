@@ -3,6 +3,10 @@ package Pod::Plexus::Document;
 use Moose;
 use PPI;
 use Pod::Elemental;
+use Devel::Symdump;
+
+use Pod::Plexus::Entity::Method;
+use Pod::Plexus::Entity::Attribute;
 
 use feature 'switch';
 
@@ -11,6 +15,14 @@ $PPI::Lexer::STATEMENT_CLASSES{with} = 'PPI::Statement::Include';
 
 has pathname => ( is => 'ro', isa => 'Str', required => 1 );
 
+=doc library
+
+[% ss.name %] contains the Pod::Plexus::Library object that represents
+the entire library of documents.  The current Pod::Plexus::Document
+object is included.
+
+=cut
+
 has library => (
 	is       => 'ro',
 	isa      => 'Pod::Plexus::Library',
@@ -18,12 +30,43 @@ has library => (
 	weak_ref => 1,
 );
 
-has ppi => (
+=doc _ppi
+
+[% ss.name %] contains a PPI::Document representing parsed module
+being documented.  [% mod.package %] uses this to find source code to
+include in the documentation, examine the module's implementation for
+documentation clues, and so on.
+
+=cut
+
+has _ppi => (
 	is      => 'ro',
 	isa     => 'PPI::Document',
 	lazy    => 1,
 	default => sub { PPI::Document->new( shift()->pathname() ) },
 );
+
+=doc _elemental
+
+[% ss.name %] contains a Pod::Elemental::Document representing the
+parsed POD from the module being documented.  [% mod.package %]
+documents modules by inspecting and revising [% ss.name %], among
+other things.
+
+=cut
+
+has elemental => (
+	is      => 'ro',
+	isa     => 'Pod::Elemental::Document',
+	lazy    => 1,
+	default => sub { Pod::Elemental->read_file( shift()->pathname() ) },
+);
+
+=doc extends
+
+TODO
+
+=cut
 
 has extends => (
 	is       => 'rw',
@@ -36,6 +79,12 @@ has extends => (
 	},
 );
 
+=doc consumes
+
+TODO
+
+=cut
+
 has consumes => (
 	is       => 'rw',
 	isa      => 'HashRef[Str]',
@@ -47,34 +96,46 @@ has consumes => (
 	},
 );
 
-has elemental => (
-	is      => 'ro',
-	isa     => 'Pod::Elemental::Document',
-	lazy    => 1,
-	default => sub { Pod::Elemental->read_file( shift()->pathname() ) },
-);
+=doc _template
 
-has template => (
+[% lib.main_module %] expands documentation using Template Toolkit.
+[% ss.name %] contains a Template object used to expand variables in
+the documentation.
+
+=cut
+
+has _template => (
 	is       => 'ro',
 	isa      => 'Template',
 	required => 1,
 );
 
-### Public accessors!
+=doc package
 
-has module => (
+[% ss.name %] contains the module's main package name.  Its main use
+is in template expansion, via the "mod.package" expression.
+
+=cut
+
+has package => (
 	is      => 'ro',
 	isa     => 'Str',
 	lazy    => 1,
 	default => sub {
 		my $self = shift();
 
-		my $main_package = $self->ppi()->find_first('PPI::Statement::Package');
+		my $main_package = $self->_ppi()->find_first('PPI::Statement::Package');
 		return "" unless $main_package;
 
 		return $main_package->namespace();
 	},
 );
+
+=doc abstract
+
+TODO
+
+=cut
 
 has abstract => (
 	is      => 'rw',
@@ -83,10 +144,123 @@ has abstract => (
 	default => sub { confess "no abstract found" },
 );
 
+=doc attributes
+
+TODO
+
+=cut
+
+has attributes => (
+	is      => 'rw',
+	is      => 'rw',
+	isa     => 'HashRef[Pod::Plexus::Entity::Attribute]',
+	lazy    => 1,
+	default => sub {
+		my $self = shift();
+
+		my %entities;
+
+		foreach ($self->mop_class()->get_all_attributes()) {
+			my $name = $_->name();
+			die "$name used more than once" if exists $entities{$name};
+			$entities{$name} = Pod::Plexus::Entity::Attribute->new(
+				mop_entity => $_,
+				name       => $name,
+			);
+		}
+
+		return \%entities;
+	},
+);
+
+=doc methods
+
+TODO
+
+=cut
+
+has methods => (
+	is      => 'rw',
+	is      => 'rw',
+	isa     => 'HashRef[Pod::Plexus::Entity::Method]',
+	lazy    => 1,
+	default => sub {
+		my $self = shift();
+
+		my %entities;
+		my $skip_methods = $self->skip_methods();
+
+		foreach ($self->mop_class()->get_all_methods()) {
+			my $name = $_->name();
+			next if exists $skip_methods->{$name};
+			die "$name used more than once" if exists $entities{$name};
+			$entities{$name} = Pod::Plexus::Entity::Method->new(
+				mop_entity => $_,
+				name       => $name,
+			);
+		}
+
+		return \%entities;
+	},
+);
+
+=doc mop_class
+
+TODO
+
+=cut
+
+has mop_class => (
+	is => 'rw',
+	isa => 'Class::MOP::Class',
+	lazy => 1,
+	default => sub {
+		my $self = shift();
+
+		my $class_name = $self->package();
+		return unless $class_name;
+
+		# Must be loaded to be introspected.
+		Class::MOP::load_class($class_name);
+		return Class::MOP::Class->initialize($class_name);
+	},
+);
+
+=doc skip_methods
+
+TODO
+
+=cut
+
+has skip_methods => (
+	is => 'ro',
+	isa => 'HashRef',
+	default => sub {
+		{
+			meta        => 1,
+			BUILDARGS   => 1,
+			BUILDALL    => 1,
+			DEMOLISHALL => 1,
+			does        => 1,
+			DOES        => 1,
+			dump        => 1,
+			can         => 1,
+			VERSION     => 1,
+			DESTROY     => 1,
+		}
+	},
+);
+
+=doc code
+
+TODO
+
+=cut
+
 sub code {
 	my $self = shift();
 
-	my $out = $self->ppi()->clone();
+	my $out = $self->_ppi()->clone();
 	$out->prune('PPI::Statement::End');
 	$out->prune('PPI::Statement::Data');
 	$out->prune('PPI::Token::Pod');
@@ -94,10 +268,16 @@ sub code {
 	return $out->serialize();
 }
 
+=doc sub
+
+TODO
+
+=cut
+
 sub sub {
 	my ($self, $sub_name) = @_;
 
-	my $subs = $self->ppi()->find(
+	my $subs = $self->_ppi()->find(
 		sub {
 			$_[1]->isa('PPI::Statement::Sub') and
 			defined($_[1]->name()) and
@@ -105,8 +285,8 @@ sub sub {
 		}
 	);
 
-	die $self->module(), " doesn't define sub $sub_name" unless @$subs;
-	die $self->module(), " defines too many subs $sub_name" if @$subs > 1;
+	die $self->package(), " doesn't define sub $sub_name" unless @$subs;
+	die $self->package(), " defines too many subs $sub_name" if @$subs > 1;
 
 	return $subs->[0]->content();
 }
@@ -116,6 +296,12 @@ sub sub {
 sub BUILD {
 	warn "Absorbing ", shift()->pathname(), " ...\n";
 }
+
+=doc render
+
+TODO
+
+=cut
 
 sub render {
 	my $self = shift();
@@ -140,15 +326,21 @@ sub render {
 	my %vars = (
 		doc => $self,
 		lib => $self->library(),
-		module => $self->module(),
+		module => $self->package(),
 	);
 
-	$self->template()->process(\$input, \%vars, \$output) or die(
-		$self->template()->error()
+	$self->_template()->process(\$input, \%vars, \$output) or die(
+		$self->_template()->error()
 	);
 
 	return $output;
 }
+
+=doc elementaldump
+
+TODO
+
+=cut
 
 sub elementaldump {
 	my $self = shift();
@@ -157,18 +349,30 @@ sub elementaldump {
 	exit;
 }
 
+=doc ppidump
+
+TODO
+
+=cut
+
 sub ppidump {
 	my $self = shift();
 	use PPI::Dumper;
-	my $d = PPI::Dumper->new( $self->ppi() );
+	my $d = PPI::Dumper->new( $self->_ppi() );
 	$d->print();
 	exit;
 }
 
+=doc collect_data
+
+TODO
+
+=cut
+
 sub collect_data {
 	my $self = shift();
 
-	my $ppi = $self->ppi();
+	my $ppi = $self->_ppi();
 
 	my $includes = $ppi->find(
 		sub {
@@ -214,7 +418,7 @@ sub collect_data {
 
 		given ($type) {
 			when ('use') {
-				# TODO - What do we care?
+				# TODO - What do we care?  Probably so, if it's "use base".
 			}
 			when ('no') {
 				# TODO - What do we care?
@@ -239,7 +443,29 @@ sub collect_data {
 			next NODE;
 		}
 	}
+
+	# Shamelessly "adapted" from Pod::Weaver::Section::ClassMopper 0.02.
+
+	while (my ($name, $ent) = each %{$self->attributes()}) {
+		warn(
+			$self->package(), " - ",
+			($ent->private() ? "private" : "public"), " attribute $name\n",
+		);
+	}
+
+	while (my ($name, $ent) = each %{$self->methods()}) {
+		warn(
+			$self->package(), " - ",
+			($ent->private() ? "private" : "public"), " method $name\n",
+		);
+	}
 }
+
+=doc expand_commands
+
+TODO
+
+=cut
 
 sub expand_commands {
 	my $self = shift();
@@ -267,7 +493,16 @@ sub expand_commands {
 					"This is L<$args[0]|$args[0]> " .
 					"sub L<$args[1]()|$args[0]/$args[1]>.\n\n"
 				);
-				$content = $self->library()->get_module($args[0])->sub($args[1]);
+
+				if ($args[0] =~ /\//) {
+					# Reference by path.
+					# TODO - Reliance on / as path separator sucks.
+					$content = $self->library()->_get_document($args[0])->sub($args[1]);
+				}
+				else {
+					# Assume it's a module name.
+					$content = $self->library()->get_module($args[0])->sub($args[1]);
+				}
 			}
 			elsif ($args[0] =~ /:/) {
 				# TODO - We're trying to omit the "This is" link if the
@@ -281,6 +516,13 @@ sub expand_commands {
 				else {
 					$link = "This is L<$args[0]|$args[0]>.\n\n";
 				}
+			}
+			elsif ($args[0] =~ /[\/.]/) {
+				# Reference by path doesn't omit the "This is" link.
+				# It's intended to be used with executable programs.
+
+				$content = $self->library()->_get_document($args[0])->code();
+				$link = "This is L<$args[0]|$args[0]>.\n\n";
 			}
 			else {
 				$link = "This is L<$args[0]()|/$args[0]>.\n\n";
@@ -334,7 +576,7 @@ sub expand_commands {
 				Pod::Elemental::Element::Generic::Text->new(
 					content => (
 						"L<$module|$module> - " .
-						$self->library()->module($module)->abstract()
+						$self->library()->package($module)->abstract()
 					),
 				),
 				Pod::Elemental::Element::Generic::Blank->new(
@@ -358,7 +600,7 @@ sub expand_commands {
 					content => "\n",
 				),
 				Pod::Elemental::Element::Generic::Text->new(
-					content => $self->module() . " - " . $self->abstract()
+					content => $self->package() . " - " . $self->abstract()
 				),
 			);
 			next NODE;
@@ -381,9 +623,9 @@ sub expand_commands {
 				),
 				Pod::Elemental::Element::Generic::Text->new(
 					content => (
-						$self->module() . " is Copyright $year by $whom.\n" .
+						$self->package() . " is Copyright $year by $whom.\n" .
 						"All rights are reserved.\n" .
-						$self->module() .
+						$self->package() .
 						" is released under the same terms as Perl itself.\n"
 					),
 				),
@@ -399,7 +641,7 @@ sub expand_commands {
 			my $level = $1 || 2;
 
 			(my $regexp = $node->{content} // "") =~ s/\s+//g;
-			$regexp = "^" . $self->module() . "::" unless length $regexp;
+			$regexp = "^" . $self->package() . "::" unless length $regexp;
 
 			my @insert = (
 				map {
@@ -413,7 +655,7 @@ sub expand_commands {
 					Pod::Elemental::Element::Generic::Text->new(
 						content => (
 							"L<$_|$_> - " .
-							$self->library()->module($_)->abstract()
+							$self->library()->package($_)->abstract()
 						),
 					),
 					Pod::Elemental::Element::Generic::Blank->new(
@@ -479,7 +721,12 @@ sub expand_commands {
 				}
 
 				if ($closing_command) {
-					last SOURCE_NODE if $source_node->{command} eq $closing_command;
+					# TODO - What other conditions close an element?
+
+					last SOURCE_NODE if (
+						$source_node->{command} eq $closing_command or
+						$source_node->{command} eq 'cut'
+					);
 
 					push @insert, $source_node;
 					next SOURCE_NODE;
@@ -511,3 +758,10 @@ sub expand_commands {
 no Moose;
 
 1;
+
+__END__
+
+=pod
+
+=abstract Represent and render a single Pod::Plexus document.
+
