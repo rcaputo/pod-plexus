@@ -218,8 +218,27 @@ has mop_class => (
 	},
 );
 
+# TODO - How about a "hoist" directive that pulls in documentation
+# from the sources of inherited symbols?
+#
+has skip_attributes => (
+	is      => 'rw',
+	isa     => 'HashRef',
+	traits  => [ 'Hash' ],
+	default => sub { { } },
+	handles => {
+		is_skippable_attribute => 'exists',
+		_skip_attribute => 'set',
+	}
+);
+
+sub skip_attribute {
+	my $self = shift();
+	$self->_skip_attribute($_, 1) foreach @_;
+}
+
 has skip_methods => (
-	is      => 'ro',
+	is      => 'rw',
 	isa     => 'HashRef',
 	traits  => [ 'Hash' ],
 	default => sub {
@@ -238,8 +257,14 @@ has skip_methods => (
 	},
 	handles => {
 		is_skippable_method => 'exists',
+		_skip_method => 'set',
 	}
 );
+
+sub skip_method {
+	my $self = shift();
+	$self->_skip_method($_, 1) foreach @_;
+}
 
 =attribute see_also
 
@@ -371,14 +396,52 @@ of parent and child classes.
 sub index {
 	my $self = shift();
 
+	$self->index_skips();
+
 	$self->index_code_attributes();
 	$self->index_code_inclusions();
 	$self->index_code_methods();
 
 	$self->index_doc_abstract();
 	$self->index_doc_attributes_and_methods();
-
 	$self->index_cross_references();
+}
+
+=method index_skips
+
+[% ss.name %] indexes "=skip" directives.
+
+=cut
+
+sub index_skips {
+	my $self = shift();
+
+	my $doc = $self->_elemental()->children();
+
+	my $i = @$doc;
+	NODE: while ($i--) {
+
+		my $node = $doc->[$i];
+
+		next NODE unless $node->isa('Pod::Elemental::Element::Generic::Command');
+		next NODE unless $node->{command} eq 'skip';
+
+		my ($entity_type, $entity_name) = (
+			$node->{content} =~ /^\s* (attribute|method) \s+ (\S.*?) \s*$/x
+		);
+
+		my $skip_method = "skip_$entity_type";
+		$self->$skip_method($entity_name);
+
+		splice(
+			@$doc, $i, 1,
+			Pod::Elemental::Element::Generic::Command->new(
+				command => 'pod',
+				content => '',
+			),
+			Pod::Elemental::Element::Generic::Blank->new( content => "\n" ),
+		);
+	}
 }
 
 =method index_code_attributes
@@ -575,16 +638,7 @@ sub index_doc_attributes_and_methods {
 
 	my $failures = 0;
 
-	foreach my $attribute ($self->_get_attributes()) {
-		unless ($attribute->is_documented()) {
-			warn(
-				$self->package(), " attribute ", $attribute->name(),
-				" is not documented\n"
-			);
-
-			$failures++;
-		}
-
+	ATTRIBUTE: foreach my $attribute ($self->_get_attributes()) {
 		my %accessors;
 		$accessors{$_} = 1 foreach (
 			grep { defined }
@@ -613,10 +667,46 @@ sub index_doc_attributes_and_methods {
 				Pod::Elemental::Element::Generic::Blank->new( content => "\n" ),
 			);
 		}
+
+		unless ($attribute->is_documented()) {
+			next ATTRIBUTE if $self->is_skippable_attribute( $attribute->name() );
+			next ATTRIBUTE if $attribute->private();
+
+			warn(
+				$self->package(), " attribute ", $attribute->name(),
+				" is not documented\n"
+			);
+
+			$failures++;
+		}
+
 	}
 
-	foreach my $method ($self->_get_methods()) {
+	METHOD: foreach my $method ($self->_get_methods()) {
 		unless ($method->is_documented()) {
+			next METHOD if $method->private();
+
+			# Default documentation for new().
+
+			if ($method->name() eq 'new') {
+				$method->push_documentation(
+					Pod::Elemental::Element::Generic::Command->new(
+						command => 'method',
+						content => $method->name(),
+					),
+					Pod::Elemental::Element::Generic::Blank->new( content => "\n" ),
+					Pod::Elemental::Element::Generic::Text->new(
+						content => (
+							"[% ss.name %] constructs one [% mod.package %] object.\n" .
+							"See L</PUBLIC ATTRIBUTES> for constructor options.\n"
+						),
+					),
+					Pod::Elemental::Element::Generic::Blank->new( content => "\n" ),
+				);
+
+				next METHOD;
+			}
+
 			warn(
 				$self->package(), " method ", $method->name(),
 				" is not documented\n"
