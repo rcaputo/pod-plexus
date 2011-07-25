@@ -12,3 +12,9 @@ has mop_entity => (
 no Moose;
 
 1;
+
+__END__
+
+=abstract A documentable class attribute.
+
+=cut

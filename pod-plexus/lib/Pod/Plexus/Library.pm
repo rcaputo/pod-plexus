@@ -1,59 +1,55 @@
 package Pod::Plexus::Library;
 
 use Moose;
-use File::Find;
 use Template;
 use Carp qw(confess);
 
 use Pod::Plexus::Document;
 
-=doc documents
+=attribute files
 
-[% ss.name %] references a hash of [% lib.main_module %]::Document
-objects, each of which is keyed on its file's path.  Paths are
-relative to the distribution's root directory.
+[% ss.name %] references a hash of [% lib.main %]::Document objects
+keyed on each document's file path.  Paths are relative to the
+distribution's root directory.
 
 Documents use this attribute to find other documents by their relative
 paths.
 
-=doc _add_document FILE_PATH, DOCUMENT_OBJECT
+=method _add_file FILE_PATH, DOCUMENT_OBJECT
 
 Associate a DOCUMENT_OBJECT with the FILE_PATH from which it was
-parsed.  Don't use this.  Instead, use the public add_file() method,
-which is is the recommended way to add new files to [% module.name %].
+parsed.  Don't use this directly.  Instead, use the public add_file()
+method, which handles cross references between files and modules.
 
-Provided by Moose::Meta::Method::Accessor::Native::Hash.
+=method _get_file FILE_PATH
 
-=doc get_document
+Retrieve a [% lib.main %]::Document from the library by its FILE_PATH
+relative to the distribution's root directory.
 
-Retrieve a Pod::Plexus::Document from the library by its path relative
-to the distribution's root directory.
+=method has_file FILE_PATH
 
-Provided by Moose::Meta::Method::Accessor::Native::Hash.
-
-=doc has_document FILE_PATH
-
-Tests whether the library contains a document for the given FILE_PATH.
-
-Provided by Moose::Meta::Method::Accessor::Native::Hash.
+[% ss.name %] determines whether the library contains a document for
+the given FILE_PATH.
 
 =cut
 
-has documents => (
+has files => (
 	is      => 'rw',
 	isa     => 'HashRef[Pod::Plexus::Document]',
 	default => sub { { } },
 	traits  => [ 'Hash' ],
 	handles => {
-		_add_document => 'set',
-		_get_document => 'get',
-		has_document  => 'exists',
+		_add_file => 'set',
+		_get_file => 'get',
+		has_file => 'exists',
 	},
 );
 
-=doc modules
+=attribute modules
 
-[% this.name %] holds a hash of Pod::Plexus::Document objects, each
+[% ss.name %] holds a hash of [% lib.main %]::Document objects keyed
+on their main package names.  For [% lib.main %]'s purposes, the main
+package is defined by the first C<package> statement in the module.
 
 =cut
 
@@ -63,25 +59,22 @@ has modules => (
 	default => sub { { } },
 	traits  => [ 'Hash' ],
 	handles => {
-		has_module => 'exists',
+		_has_module => 'exists',
 		_add_module => 'set',
-		get_module => 'get',
-		get_module_names => 'keys',
+		_get_module => 'get',
+		_get_module_names => 'keys',
+		get_documents => 'values',
 	},
 );
 
-=doc _template
+=attribute _template
 
-[% doc.module %] collects Pod::Plexus::Document objects in the hash
-referenced by this attribute.  Documents are keyed on their primary
-module name---the first package() statement in the file.
-
-=doc has_module MODULE_PACKAGE
-
-Test whether MODULE_NAME exists in the library.
-Provided by Moose::Meta::Method::Accessor::Native::Hash.
-
-=doc get_document
+[% ss.name %] holds a Template toolkit object that will be shared
+among all documents and PDO sections that are rendered.  It's used to
+expand symbols such as section names, module names, and the library's
+main module name.  This allows documentation to include names by
+reference, so refactoring and renaming require fewer documentation
+changes.
 
 =cut
 
@@ -92,32 +85,15 @@ has _template => (
 	default => sub { Template->new() },
 );
 
-=for method module
+=method add_file FILE_PATH
+
+Add a file to the library.  A [% lib.main %]::Document is built from
+the contents of the file at the relative FILE_PATH, and it's added to
+the library.  The document may be retrieved from the library by its
+relative FILE_PATH or its main module name using the get_document()
+accessor.
 
 =cut
-
-sub module {
-	my ($self, $module) = @_;
-
-	confess "module $module doesn't exist" unless $self->has_module($module);
-	return $self->get_module($module);
-}
-
-sub add_files {
-	my ($self, $filter, @roots) = @_;
-
-	find(
-		{
-			wanted => sub {
-				return if $self->has_document($_) or not $filter->($_);
-
-				$self->add_file($_);
-			},
-			no_chdir => 1,
-		},
-		@roots,
-	);
-}
 
 sub add_file {
 	my ($self, $file_path) = @_;
@@ -128,13 +104,71 @@ sub add_file {
 		_template => $self->_template(),
 	);
 
-	$document->collect_data();
-warn "--- ", $file_path;
-warn $document->package();
-	$self->_add_document($file_path => $document);
+	$self->_add_file($file_path => $document);
 	$self->_add_module($document->package() => $document);
 
 	undef;
+}
+
+=method get_document DOCUMENT_REFERENCE
+
+[% ss.name %] returns a [% lib.main %]::Document that matches a given
+DOCUMENT_REFERENCE, or undef if no document matched.  The document
+reference may be a file's relative path in the library or its main
+module name.  [% ss.name %] will determine which based on
+DOCUMENT_REFERENCE's syntax.
+
+=cut
+
+sub get_document {
+	my ($self, $document_reference) = @_;
+	return $self->_get_module($document_reference) if (
+		$document_reference =~ /^[\w:]+$/
+	);
+	return $self->_get_file($document_reference);
+}
+
+sub index {
+	my $self = shift();
+	$_->index() foreach $self->get_documents();
+}
+
+=method dereference
+
+Resolve references to other code and documentation entities.  Tell
+documents to import the things they reference into the places where
+they're referenced.  This should be done before variable expansion,
+since the values of those variables depend upon the location where
+they're resolved.
+
+=cut
+
+sub dereference {
+	my $self = shift();
+
+	my $busy_looping = 0;
+
+	my @pending = $self->get_documents();
+
+	$_->dereference_immutables() foreach @pending;
+
+	while (@pending) {
+		my $next = shift @pending;
+		if ($next->dereference_mutables()) {
+			$busy_looping = 0;
+		}
+		else {
+			push @pending, $next;
+
+			if (++$busy_looping > @pending * 2) {
+				# TODO - Make this advice actionable.  This is a terrible
+				# message.  It provides nothing the user can do about the
+				# problem.
+
+				die "Unresolvable references detected";
+			}
+		}
+	}
 }
 
 no Moose;
@@ -145,8 +179,6 @@ __END__
 
 =pod
 
-=abstract Represent a library of one or more Pod::Plexus documents.
-
-=head1 SYNOPSIS
+=abstract Represent a library of one or more [% lib.main %] documents.
 
 =cut
