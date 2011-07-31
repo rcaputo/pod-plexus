@@ -51,6 +51,10 @@ has files => (
 on their main package names.  For [% lib.main %]'s purposes, the main
 package is defined by the first C<package> statement in the module.
 
+=method get_documents
+
+[% ss.name %] returns the document objects in the library.
+
 =cut
 
 has modules => (
@@ -127,6 +131,15 @@ sub get_document {
 	);
 	return $self->_get_file($document_reference);
 }
+
+=method index
+
+[% ss.name %] indexes the library.  Methods and attributes are
+identified and inspected.  Documantation is pulled apart and
+associated with implementation.  Some documentation is generated, when
+possible and reasonable.  Errors are thrown for undocumented things.
+
+=cut
 
 sub index {
 	my $self = shift();

@@ -3,10 +3,6 @@ package Pod::Plexus;
 use Pod::Plexus::Library;
 use Pod::Plexus::Document;
 
-sub method {
-	time();
-}
-
 1;
 
 __END__

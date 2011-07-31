@@ -3,10 +3,14 @@ package Pod::Plexus::Entity::Method;
 use Moose;
 extends 'Pod::Plexus::Entity';
 
-has mop_entity => (
-	is       => 'ro',
-	isa      => 'Class::MOP::Method',
-	required => 1,
+=attribute mop_entity
+
+=include Pod::Plexus::Entity mop_entity
+
+=cut
+
+has '+mop_entity' => (
+	isa => 'Class::MOP::Method',
 );
 
 no Moose;

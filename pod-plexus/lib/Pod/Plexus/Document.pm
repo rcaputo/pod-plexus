@@ -4,6 +4,7 @@ use Moose;
 use PPI;
 use Pod::Elemental;
 use Devel::Symdump;
+use Storable qw(dclone);
 
 use Pod::Plexus::Entity::Method;
 use Pod::Plexus::Entity::Attribute;
@@ -21,6 +22,13 @@ use constant {
 	TYPE_PACKAGE   => 0x20,
 	TYPE_SECTION   => 0x40,
 };
+
+=attribute pathname
+
+[% ss.name %] contains the relative path and name of the file being
+documented.
+
+=cut
 
 has pathname => ( is => 'ro', isa => 'Str', required => 1 );
 
@@ -145,6 +153,13 @@ has package => (
 	},
 );
 
+=attribute abstract
+
+The [% ss.name %] attribute contains the abstract of the module being
+documented.  It is populated by the "=abstract" directive.
+
+=cut
+
 has abstract => (
 	is      => 'rw',
 	isa     => 'Str',
@@ -173,6 +188,14 @@ has abstract => (
 	},
 );
 
+=attribute attributes
+
+[% ss.name %] contains an hash of all identified attributes in the
+class being documented.  They are keyed on attribute name, and values
+are Pod::Plexus::Entity::Attribute objects.
+
+=cut
+
 has attributes => (
 	is      => 'rw',
 	is      => 'rw',
@@ -186,6 +209,14 @@ has attributes => (
 	},
 );
 
+=attribute methods
+
+[% ss.name %] contains an hash of all identified methods in the class
+being documented.  They are keyed on method name, and values are
+Pod::Plexus::Entity::Method objects.
+
+=cut
+
 has methods => (
 	is      => 'rw',
 	isa     => 'HashRef[Pod::Plexus::Entity::Method]',
@@ -198,9 +229,14 @@ has methods => (
 	},
 );
 
-has extends => (
-	is => 'ro',
-);
+=attribute mop_class
+
+[% ss.name %] contains a Class::MOP::Class object that describes the
+class being documented from Class::MOP's perspective.  It allows
+Pod::Plexus to introspect the class and do many wonderful things with
+it, such as inherit documentation from parent classes.
+
+=cut
 
 has mop_class => (
 	is => 'rw',
@@ -218,9 +254,23 @@ has mop_class => (
 	},
 );
 
-# TODO - How about a "hoist" directive that pulls in documentation
-# from the sources of inherited symbols?
-#
+=attribute skip_attributes
+
+[% ss.name %] is a hash keyed on the names of attributes supplied by
+the "=skip attribute" directive.  These attributes won't be
+automatically documented, nor will Pod::Plexus complain if they aren't
+documented.
+
+Values don't matter, although the skip_attribute() method will supply
+one.  Literally, the number 1.
+
+=method is_skippable_attribute
+
+[% ss.name %] tests whether a given attribute name exists in
+skip_attributes().
+
+=cut
+
 has skip_attributes => (
 	is      => 'rw',
 	isa     => 'HashRef',
@@ -228,14 +278,34 @@ has skip_attributes => (
 	default => sub { { } },
 	handles => {
 		is_skippable_attribute => 'exists',
-		_skip_attribute => 'set',
+		_skip_attribute        => 'set',
 	}
 );
+
+=method skip_attribute
+
+[% ss.name %] is used by the "=skip attribute" directive to set the
+attribute name to skip.
+
+=cut
+
 
 sub skip_attribute {
 	my $self = shift();
 	$self->_skip_attribute($_, 1) foreach @_;
 }
+
+=attribute skip_methods
+
+[% ss.name %] is a hash keyed on the names of methods supplied by the
+"=skip method" directive.  These methods won't be automatically
+documented, nor will Pod::Plexus complain if they aren't documented.
+
+=method is_skippable_method
+
+[% ss.name %] tests whether the named method exists in skip_methods.
+
+=cut
 
 has skip_methods => (
 	is      => 'rw',
@@ -257,9 +327,16 @@ has skip_methods => (
 	},
 	handles => {
 		is_skippable_method => 'exists',
-		_skip_method => 'set',
+		_skip_method        => 'set',
 	}
 );
+
+=method skip_method
+
+Values don't matter, although the skip_attribute() method will supply
+one.  Literally, the number 1.
+
+=cut
 
 sub skip_method {
 	my $self = shift();
@@ -334,6 +411,13 @@ sub BUILD {
 	warn "Absorbing ", shift()->pathname(), " ...\n";
 }
 
+=method render
+
+[% ss.name %] generates and returns the POD for the class being
+documented, after all is send and done.
+
+=cut
+
 sub render {
 	my $self = shift();
 
@@ -370,12 +454,26 @@ sub render {
 	return $output;
 }
 
+=method elementaldump
+
+[% ss.name %] is a debugging helper method to print the Pod::Elemental
+data for the class being documented, in YAML format.
+
+=cut
+
 sub elementaldump {
 	my $self = shift();
 	use YAML;
 	print YAML::Dump($self->_elemental());
 	exit;
 }
+
+=method ppidump
+
+[% ss.name %] is a debugging helper method to print the PPI document
+for the class being documented, in PPI::Dumper format.
+
+=cut
 
 sub ppidump {
 	my $self = shift();
@@ -404,6 +502,10 @@ sub index {
 
 	$self->index_doc_abstract();
 	$self->index_doc_attributes_and_methods();
+
+	$self->inherit_documentation();
+	$self->validate_doc_references();
+
 	$self->index_cross_references();
 }
 
@@ -563,6 +665,9 @@ sub index_code_methods {
 
 		next if $self->is_skippable_method($name);
 
+		# Assume constants aren't documented.
+		next if $name =~ /^[A-Z0-9_]+$/;
+
 		die "$name used more than once" if $self->_has_method($name);
 
 		my $entity = Pod::Plexus::Entity::Method->new(
@@ -573,6 +678,14 @@ sub index_code_methods {
 		$self->_add_method($name, $entity);
 	}
 }
+
+=method index_doc_attributes_and_methods
+
+[% ss.name %] scans the documentation for the module being documented.
+It extracts "=attribute" and "=method" directives and associates their
+content with corresponding attributes and methods.
+
+=cut
 
 sub index_doc_attributes_and_methods {
 	my $self = shift();
@@ -633,90 +746,6 @@ sub index_doc_attributes_and_methods {
 			$entity->push_documentation( splice(@$doc, $i, 1) );
 		}
 	}
-
-	# While we're here, we can complain about undocumented things.
-
-	my $failures = 0;
-
-	ATTRIBUTE: foreach my $attribute ($self->_get_attributes()) {
-		my %accessors;
-		$accessors{$_} = 1 foreach (
-			grep { defined }
-			map { $attribute->mop_entity()->$_() }
-			qw(
-				builder initializer accessor get_read_method get_write_method clearer
-			)
-		);
-
-		foreach my $method_name (keys %accessors) {
-			my $method = $self->_get_method($method_name);
-			next if $method->is_documented();
-
-			$method->push_documentation(
-				Pod::Elemental::Element::Generic::Command->new(
-					command => 'method',
-					content => $method_name,
-				),
-				Pod::Elemental::Element::Generic::Blank->new( content => "\n" ),
-				Pod::Elemental::Element::Generic::Text->new(
-					content => (
-						'[% ss.name %] is an (accessor? mutator? TODO) ' .
-						'provided by ' . $attribute->name() . ".\n"
-					)
-				),
-				Pod::Elemental::Element::Generic::Blank->new( content => "\n" ),
-			);
-		}
-
-		unless ($attribute->is_documented()) {
-			next ATTRIBUTE if $self->is_skippable_attribute( $attribute->name() );
-			next ATTRIBUTE if $attribute->private();
-
-			warn(
-				$self->package(), " attribute ", $attribute->name(),
-				" is not documented\n"
-			);
-
-			$failures++;
-		}
-
-	}
-
-	METHOD: foreach my $method ($self->_get_methods()) {
-		unless ($method->is_documented()) {
-			next METHOD if $method->private();
-
-			# Default documentation for new().
-
-			if ($method->name() eq 'new') {
-				$method->push_documentation(
-					Pod::Elemental::Element::Generic::Command->new(
-						command => 'method',
-						content => $method->name(),
-					),
-					Pod::Elemental::Element::Generic::Blank->new( content => "\n" ),
-					Pod::Elemental::Element::Generic::Text->new(
-						content => (
-							"[% ss.name %] constructs one [% mod.package %] object.\n" .
-							"See L</PUBLIC ATTRIBUTES> for constructor options.\n"
-						),
-					),
-					Pod::Elemental::Element::Generic::Blank->new( content => "\n" ),
-				);
-
-				next METHOD;
-			}
-
-			warn(
-				$self->package(), " method ", $method->name(),
-				" is not documented\n"
-			);
-
-			$failures++;
-		}
-	}
-
-	exit 1 if $failures;
 }
 
 =method index_cross_references
@@ -904,7 +933,6 @@ sub dereference_immutables {
 	}
 }
 
-
 =method dereference_locals
 
 [% ss.name %] dereferences local references only.  It returns true if
@@ -953,6 +981,14 @@ sub dereference_locals {
 	return 0;
 }
 
+=method dereference_remotes
+
+[% ss.name %] dereferences remote references only.  It returns true if
+there are no remote references, or they all resolved.  It returns
+false if any remote references remain unresolved.
+
+=cut
+
 sub dereference_remotes {
 	my $self = shift();
 
@@ -960,6 +996,14 @@ sub dereference_remotes {
 
 	return 0;
 }
+
+=method parse_example_spec
+
+[% ss.name %] parses the specification for examples.  It's used by the
+"=example" directive to identify which code is being used as an
+example.
+
+=cut
 
 sub parse_example_spec {
 	my ($self, $node) = @_;
@@ -990,6 +1034,14 @@ sub parse_example_spec {
 	my ($package) = ($node->{content} =~ /\s*(\S.*?)\s*/);
 	return( $self->get_scope($package) | TYPE_PACKAGE, $package, undef );
 }
+
+=method parse_include_spec
+
+[% ss.name %] parses the specification for documentation inclusions.
+It's used by the "=include" directive to identify which documentation
+to include.
+
+=cut
 
 sub parse_include_spec {
 	my ($self, $node) = @_;
@@ -1291,6 +1343,14 @@ sub parse_include_spec {
 #	}
 #}
 
+=method get_scope
+
+[% ss.method %] is a helper method to determine whether a package is
+local or remote.  A local package is the same as the module currently
+being documented.  All the other modules are remote.
+
+=cut
+
 sub get_scope {
 	my ($self, $package) = @_;
 	return(
@@ -1298,6 +1358,246 @@ sub get_scope {
 		? SCOPE_LOCAL
 		: SCOPE_FOREIGN
 	);
+}
+
+=method inherit_documentation
+
+[% ss.name %] finds documentation for attributes and methods that
+aren't already documented in their own classes.
+
+Methods may be automatically documented as accessors or mutators of
+same- or ancestor-class attributes.
+
+Methods and attributes implemented in ancestors will inherit
+documentation from those ancestors or roles if they aren't documented
+in the subclass or consumer.
+
+=cut
+
+sub inherit_documentation {
+	my $self = shift();
+
+	# Look to the ancestors for attributes that aren't documented here.
+	# TODO - Is it better to walk up the family tree?
+
+	# TODO - The definition_context of modified attributes (+name) is
+	# the subclass, not the parent class.  We most certainly have to
+	# talk back up the family tree in that case.
+
+	ATTRIBUTE: foreach my $attribute ($self->_get_attributes()) {
+
+		next ATTRIBUTE if $attribute->is_documented();
+		next ATTRIBUTE if $attribute->private();
+		next ATTRIBUTE if $self->is_skippable_attribute( $attribute->name() );
+
+		my $impl_definition = $attribute->mop_entity()->definition_context();
+		if ($attribute->name() eq 'mop_entity') {
+			use YAML; die YAML::Dump($attribute->mop_entity());
+		}
+		next ATTRIBUTE unless $impl_definition;
+
+		my $impl_module_name = $impl_definition->{package};
+		next ATTRIBUTE unless (
+			defined $impl_module_name and length $impl_module_name
+		);
+
+		my $impl_module = $self->library()->get_document($impl_module_name);
+		next ATTRIBUTE unless $impl_module;
+
+		my $impl = $impl_module->_get_attribute($attribute->name());
+		next ATTRIBUTE unless $impl;
+
+		next ATTRIBUTE unless $impl->is_documented();
+
+		$attribute->push_documentation(dclone($_)) foreach (
+			@{ $impl->documentation() }
+		);
+
+		# Inherit any necessary documentation.
+
+		my %accessors;
+		$accessors{$_} = 1 foreach (
+			map { $attribute->mop_entity()->$_() // () }
+			qw(
+				builder initializer accessor get_read_method get_write_method clearer
+			)
+		);
+
+		METHOD: foreach my $method_name (keys %accessors) {
+
+			my $method = $impl_module->_get_method($method_name);
+
+			next METHOD unless defined $method;
+			next METHOD if $method->is_documented();
+			next METHOD if $method->private();
+			next METHOD if $self->is_skippable_method( $method_name );
+
+			$method->push_documentation(
+				Pod::Elemental::Element::Generic::Command->new(
+					command => 'method',
+					content => $method_name,
+				),
+				Pod::Elemental::Element::Generic::Blank->new( content => "\n" ),
+				Pod::Elemental::Element::Generic::Text->new(
+					content => (
+						'[% ss.name %] is an (accessor? mutator? TODO) ' .
+						'provided by ' . $attribute->name() . ".\n"
+					)
+				),
+				Pod::Elemental::Element::Generic::Blank->new( content => "\n" ),
+			);
+		}
+	}
+
+	# Make boilerplate documentation for needy accessors and mutators.
+	# Yes, it's a separate foreach() loop.  Not as efficient, but
+	# potentially more refactorable.
+
+	ATTRIBUTE: foreach my $attribute ($self->_get_attributes()) {
+		my %accessors;
+		$accessors{$_} = 1 foreach (
+			map { $attribute->mop_entity()->$_() // () }
+			qw(
+				builder initializer accessor get_read_method get_write_method clearer
+			)
+		);
+
+		# TODO - It's not good enough for the "having" things.
+
+		METHOD: foreach my $method_name (keys %accessors) {
+			my $method = $self->_get_method($method_name);
+			next unless defined $method;
+			next METHOD if $method->is_documented();
+			next METHOD if $method->private();
+			next METHOD if $self->is_skippable_method( $method_name );
+
+			$method->push_documentation(
+				Pod::Elemental::Element::Generic::Command->new(
+					command => 'method',
+					content => $method_name,
+				),
+				Pod::Elemental::Element::Generic::Blank->new( content => "\n" ),
+				Pod::Elemental::Element::Generic::Text->new(
+					content => (
+						'[% ss.name %] is an (accessor? mutator? TODO) ' .
+						'provided by ' . $attribute->name() . ".\n"
+					)
+				),
+				Pod::Elemental::Element::Generic::Blank->new( content => "\n" ),
+			);
+		}
+	}
+
+	# Look to the ancestors for methods that aren't documented here.
+	# TODO - Is it better to walk up the family tree?
+
+	METHOD: foreach my $method ($self->_get_methods()) {
+		next METHOD if $method->is_documented();
+		next METHOD if $method->private();
+		next METHOD if $self->is_skippable_method( $method->name() );
+
+		# Boilerplate documentation if this method is provided by an
+		# attribute in the same class.
+
+		if ($method->name() eq 'new') {
+			$method->push_documentation(
+				Pod::Elemental::Element::Generic::Command->new(
+					command => 'method',
+					content => $method->name(),
+				),
+				Pod::Elemental::Element::Generic::Blank->new( content => "\n" ),
+				Pod::Elemental::Element::Generic::Text->new(
+					content => (
+						"[% ss.name %] constructs one [% mod.package %] object.\n" .
+						"See L</PUBLIC ATTRIBUTES> for constructor options.\n"
+					),
+				),
+				Pod::Elemental::Element::Generic::Blank->new( content => "\n" ),
+			);
+
+			next METHOD;
+		}
+
+		next METHOD unless exists $method->mop_entity()->{definition_context};
+
+		my $impl_definition = $method->mop_entity()->{definition_context};
+		next METHOD unless $impl_definition;
+
+		my $impl_module_name = $impl_definition->{package};
+		next METHOD unless (
+			defined $impl_module_name and length $impl_module_name
+		);
+
+		my $impl_module = $self->library()->get_document($impl_module_name);
+		next METHOD unless $impl_module;
+
+		my $impl = $impl_module->_get_method($method->name());
+		next METHOD unless $impl;
+
+		next METHOD unless $impl->is_documented();
+
+		$method->push_documentation(dclone($_)) foreach (
+			@{ $impl->documentation() }
+		);
+
+		$method->push_documentation(
+			Pod::Elemental::Element::Generic::Blank->new( content => "\n" ),
+			Pod::Elemental::Element::Generic::Text->new(
+				content => (
+					"This method and its documentation are inherited from " .
+					"L<$impl_module_name/" . $method->name() . ">."
+				),
+			),
+			Pod::Elemental::Element::Generic::Blank->new( content => "\n" ),
+		);
+	}
+}
+
+=method validate_doc_references
+
+[% ss.name %] checks whether every implemented attribute and method is
+either documented, implicitly skipped by virtue of being a basic Moose
+method, or explicitly skipped with a "=skip" directive.
+
+Undocumented methods cause runtime errors.
+
+=cut
+
+sub validate_doc_references {
+	my $self = shift();
+
+	# While we're here, we can complain about undocumented things.
+
+	my $failures = 0;
+
+	ATTRIBUTE: foreach my $attribute ($self->_get_attributes()) {
+
+		next ATTRIBUTE if $attribute->is_documented();
+		next ATTRIBUTE if $attribute->private();
+		next ATTRIBUTE if $self->is_skippable_attribute( $attribute->name() );
+
+		warn(
+			$self->package(), " attribute ", $attribute->name(),
+			" is not documented\n"
+		);
+
+		$failures++;
+	}
+
+	METHOD: foreach my $method ($self->_get_methods()) {
+		next METHOD if $method->is_documented();
+		next METHOD if $method->private();
+		next METHOD if $self->is_skippable_method( $method->name() );
+
+		warn(
+			$self->package(), " method ", $method->name(),
+			" is not documented\n"
+		);
+
+		$failures++;
+	}
+
+	exit 1 if $failures;
 }
 
 no Moose;

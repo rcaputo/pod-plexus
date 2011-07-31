@@ -61,6 +61,20 @@ has documentation => (
 	},
 );
 
+=attribute mop_entity
+
+[% ss.name %] contains the Class::MOP object representing this entity
+in Moose.  It's added by Pod::Plexus::Document during its indexing
+phase.
+
+=cut
+
+has mop_entity => (
+	is       => 'ro',
+	isa      => 'Undef',
+	required => 1,
+);
+
 no Moose;
 
 1;
