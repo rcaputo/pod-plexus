@@ -15,12 +15,16 @@ use PPI::Lexer;
 $PPI::Lexer::STATEMENT_CLASSES{with} = 'PPI::Statement::Include';
 
 use constant {
-	SCOPE_LOCAL    => 0x01,
-	SCOPE_FOREIGN  => 0x02,
+	SCOPE_LOCAL    => 0x0001,
+	SCOPE_FOREIGN  => 0x0002,
 
-	TYPE_SUB       => 0x10,
-	TYPE_PACKAGE   => 0x20,
-	TYPE_SECTION   => 0x40,
+	TYPE_SUB       => 0x0010,
+	TYPE_PACKAGE   => 0x0020,
+	TYPE_SECTION   => 0x0040,
+	TYPE_FILE      => 0x0080,
+
+	MOD_EXPLICIT   => 0x0100,
+	MOD_IMPLICIT   => 0x0200,
 };
 
 =attribute pathname
@@ -357,7 +361,8 @@ has see_also => (
 	default => sub { { } },
 	traits  => [ 'Hash' ],
 	handles => {
-		_add_xref => 'set'
+		_add_xref => 'set',
+		_has_refs => 'count',
 	},
 );
 
@@ -447,8 +452,8 @@ sub render {
 		module  => $self->package(),
 	);
 
-	$self->_template()->process(\$input, \%vars, \$output) or die(
-		$self->_template()->error()
+	$self->library()->_template()->process(\$input, \%vars, \$output) or die(
+		$self->library()->_template()->error()
 	);
 
 	return $output;
@@ -822,11 +827,13 @@ to determine whether another pass at them must be made.
 sub dereference_mutables {
 	my $self = shift();
 
-	return(
-		$self->dereference_remotes() &&
-		$self->dereference_locals() &&
-		1
-	);
+	my @undefined = $self->dereference_remotes();
+	return @undefined if @undefined;
+
+	@undefined = $self->dereference_locals();
+	return @undefined if @undefined;
+
+	return;
 }
 
 =method dereference_immutables
@@ -930,6 +937,36 @@ sub dereference_immutables {
 
 			next NODE;
 		}
+
+		# "=example (spec)" -> code example inclusion.
+		# Code examples include no documentation references, so go ahead.
+
+		if ($node->{command} eq 'example') {
+			my ($type, $module, $method) = $self->parse_example_spec($node);
+			my @content = $self->get_code_content($type, $module, $method);
+			splice( @{$doc->children()}, $i, 1, @content );
+			next NODE;
+		}
+
+		### "=abstract (text)" -> "=head1 NAME\n\n(module) - (text)\n\n".
+
+		if ($node->{command} eq 'abstract') {
+			splice(
+				@{$doc->children()}, $i, 1,
+				Pod::Elemental::Element::Generic::Command->new(
+					command => "head1",
+					content => "NAME\n",
+				),
+				Pod::Elemental::Element::Generic::Blank->new(
+					content => "\n",
+				),
+				Pod::Elemental::Element::Generic::Text->new(
+					content => $self->package() . " - " . $self->abstract()
+				),
+			);
+			next NODE;
+		}
+
 	}
 }
 
@@ -944,7 +981,7 @@ if any local references remain unresolved.
 sub dereference_locals {
 	my $self = shift();
 
-	my $needs_work = 0;
+	my @unresolved_names;
 
 	my $doc = $self->_elemental();
 
@@ -955,17 +992,6 @@ sub dereference_locals {
 
 		next NODE unless $node->isa('Pod::Elemental::Element::Generic::Command');
 
-		# "=example (spec)" -> code example inclusion.
-
-		if ($node->{command} eq 'example') {
-			my ($type, $module, $method) = $self->parse_example_spec($node);
-			next NODE unless $type & SCOPE_LOCAL;
-
-			# If the remote thing is fully resolved, then pull it in.
-			# TODO
-			next NODE;
-		}
-
 		# "=include (spec)" -> documentation inclusion
 
 		if ($node->{command} eq 'include') {
@@ -973,12 +999,14 @@ sub dereference_locals {
 			next NODE unless $type & SCOPE_LOCAL;
 
 			# If the remote thing is fully resolved, then pull it in.
-			# TODO
+			# TODO - Meanwhile, pretend it failed.
+
+			push @unresolved_names, "=$node->{command} $node->{content}";
 			next NODE;
 		}
 	}
 
-	return 0;
+	return @unresolved_names;
 }
 
 =method dereference_remotes
@@ -992,9 +1020,85 @@ false if any remote references remain unresolved.
 sub dereference_remotes {
 	my $self = shift();
 
-	warn "not yet... dereference_remotes()";
+	my @unresolved_names;
 
-	return 0;
+	my $doc = $self->_elemental();
+
+	my $i = @{ $doc->children() };
+	NODE: while ($i--) {
+
+		my $node = $doc->children()->[$i];
+
+		next NODE unless $node->isa('Pod::Elemental::Element::Generic::Command');
+
+		### "=include MODULE SECTION" -> documentation copied from source.
+		#
+		# TODO - Need to ensure the full rendering of source material
+		# before inserting it here.
+
+		if ($node->{command} eq 'include') {
+			my ($module_name, $section) = split(/\s+/, $node->{content}, 2);
+
+			# TODO - How do we check whether the remote section is defined?
+
+			my $source_module = $self->library()->get_module($module_name);
+			unless ($source_module) {
+				push @unresolved_names, "=$module_name $section";
+				next NODE;
+			}
+
+			my $source_doc = $source_module->_elemental();
+
+			my $closing_command;
+			my @insert;
+
+			SOURCE_NODE: foreach my $source_node (@{ $source_doc->children() }) {
+
+				unless (
+					$source_node->isa('Pod::Elemental::Element::Generic::Command')
+				) {
+					push @insert, $source_node if $closing_command;
+					next SOURCE_NODE;
+				}
+
+				if ($closing_command) {
+					# TODO - What other conditions close an element?
+
+					last SOURCE_NODE if (
+						$source_node->{command} eq $closing_command or
+						$source_node->{command} eq 'cut'
+					);
+
+					push @insert, $source_node;
+					next SOURCE_NODE;
+				}
+
+				next unless $source_node->{content} =~ /^\Q$section\E/;
+
+				$closing_command = $source_node->{command};
+			}
+
+			unless (@insert) {
+				push @unresolved_names, "=$module_name $section";
+				next NODE;
+			}
+
+			# Trim blanks around a section of Pod::Elemental nodes.
+			# TODO - Make a helper method.
+			shift @insert while (
+				@insert and $insert[0]->isa('Pod::Elemental::Element::Generic::Blank')
+			);
+			pop @insert while (
+				@insert and $insert[-1]->isa('Pod::Elemental::Element::Generic::Blank')
+			);
+
+			splice( @{$doc->children()}, $i, 1, @insert );
+
+			next NODE;
+		}
+	}
+
+	return @unresolved_names;
 }
 
 =method parse_example_spec
@@ -1015,6 +1119,9 @@ sub parse_example_spec {
 	die "too many args for example" if @args > 2;
 	die "not enough args for example" if @args < 1;
 
+	# TODO - TYPE_FILE if the spec contains a "." or "/" to indicate a
+	# path name.
+
 	# "Module::method()" or "Module method()".
 
 	if ($node->{content} =~ /^\s*(\S+)(?:\s+|::)(\w+)\(\)\s*$/) {
@@ -1026,7 +1133,7 @@ sub parse_example_spec {
 
 	if ($node->{content} =~ /^(\w+)\(\)$/) {
 		my $package = $1;
-		return( SCOPE_LOCAL | TYPE_SUB, $self->package(), $1 );
+		return( MOD_IMPLICIT | SCOPE_LOCAL | TYPE_SUB, $self->package(), $1 );
 	}
 
 	# Assuming just "Module".
@@ -1063,286 +1170,6 @@ sub parse_include_spec {
 	)
 }
 
-#sub expand_commands {
-#	my $self = shift();
-#
-#	my $doc = $self->_elemental();
-#
-#	my $i = @{ $doc->children() };
-#	NODE: while ($i--) {
-#
-#		my $node = $doc->children()->[$i];
-#
-#		next NODE unless $node->isa('Pod::Elemental::Element::Generic::Command');
-#
-#		### "=example (spec)" -> code example sourced from (spec).
-#
-#		if ($node->{command} eq 'example') {
-#			my (@args) = split(/\s+/, $node->{content});
-#
-#			die "too many args for example" if @args > 2;
-#			die "not enough args for example" if @args < 1;
-#
-#			my ($link, $content);
-#			if (@args == 2) {
-#				$link = (
-#					"This is L<$args[0]|$args[0]> " .
-#					"sub L<$args[1]()|$args[0]/$args[1]>.\n\n"
-#				);
-#
-#				$content = $self->library()->get_document($args[0])->sub($args[1]);
-#			}
-#			elsif ($args[0] =~ /:/) {
-#				# TODO - We're trying to omit the "This is" link if the
-#				# content includes an obvious package name.  There may be a
-#				# better way to do this, via PPI for example.
-#
-#				$content = $self->library()->get_module($args[0])->code();
-#				if ($content =~ /^\s*package/) {
-#					$link = "";
-#				}
-#				else {
-#					$link = "This is L<$args[0]|$args[0]>.\n\n";
-#				}
-#			}
-#			elsif ($args[0] =~ /[\/.]/) {
-#				# Reference by path doesn't omit the "This is" link.
-#				# It's intended to be used with executable programs.
-#
-#				$content = $self->library()->_get_document($args[0])->code();
-#				$link = "This is L<$args[0]|$args[0]>.\n\n";
-#			}
-#			else {
-#				$link = "This is L<$args[0]()|/$args[0]>.\n\n";
-#				$content = $self->sub($args[0]);
-#			}
-#
-#			# TODO - PerlTidy the code?
-#			# TODO - The following whitespace options are personal
-#			# preference.  Someone should patch them to be options.
-#
-#			# Indent two spaces.  Remove leading and trailing blank lines.
-#			$content =~ s/\A(^\s*$)+//m;
-#			$content =~ s/(^\s*$)+\Z//m;
-#			$content =~ s/^/  /mg;
-#
-#			# Convert tab indents to fixed spaces for better typography.
-#			$content =~ s/\t/  /g;
-#
-#			splice(
-#				@{$doc->children()}, $i, 1,
-#				Pod::Elemental::Element::Generic::Text->new(
-#					content => $link . $content,
-#				),
-#				Pod::Elemental::Element::Generic::Blank->new(
-#					content => "\n",
-#				),
-#			);
-#
-#			next NODE;
-#		}
-#
-#		### "=xref (module)" -> "=item *\n\n(module) - (its abstract)"
-#		#
-#		# TODO - Collect them without rendering.  Add them to a SEE ALSO
-#		# section.
-#
-#		if ($node->{command} eq 'xref') {
-#			my $module = $node->{content};
-#			$module =~ s/^\s+//;
-#			$module =~ s/\s+$//;
-#
-#			splice(
-#				@{$doc->children()}, $i, 1,
-#				Pod::Elemental::Element::Generic::Command->new(
-#					command => "item",
-#					content => "*\n",
-#				),
-#				Pod::Elemental::Element::Generic::Blank->new(
-#					content => "\n",
-#				),
-#				Pod::Elemental::Element::Generic::Text->new(
-#					content => (
-#						"L<$module|$module> - " .
-#						$self->library()->package($module)->abstract()
-#					),
-#				),
-#				Pod::Elemental::Element::Generic::Blank->new(
-#					content => "\n",
-#				),
-#			);
-#
-#			next NODE;
-#		}
-#
-#		### "=abstract (text)" -> "=head1 NAME\n\n(module) - (text)\n\n".
-#
-#		if ($node->{command} eq 'abstract') {
-#			splice(
-#				@{$doc->children()}, $i, 1,
-#				Pod::Elemental::Element::Generic::Command->new(
-#					command => "head1",
-#					content => "NAME\n",
-#				),
-#				Pod::Elemental::Element::Generic::Blank->new(
-#					content => "\n",
-#				),
-#				Pod::Elemental::Element::Generic::Text->new(
-#					content => $self->package() . " - " . $self->abstract()
-#				),
-#			);
-#			next NODE;
-#		}
-#
-#		### "=copyright (years) (whom)" -> "=head1 COPYRIGHT AND LICENSE"
-#		### boilerplate.
-#
-#		if ($node->{command} eq 'copyright') {
-#			my ($year, $whom) = ($node->{content} =~ /^\s*(\S+)\s+(.*?)\s*$/);
-#
-#			splice(
-#				@{$doc->children()}, $i, 1,
-#				Pod::Elemental::Element::Generic::Command->new(
-#					command => "head1",
-#					content => "COPYRIGHT AND LICENSE\n",
-#				),
-#				Pod::Elemental::Element::Generic::Blank->new(
-#					content => "\n",
-#				),
-#				Pod::Elemental::Element::Generic::Text->new(
-#					content => (
-#						$self->package() . " is Copyright $year by $whom.\n" .
-#						"All rights are reserved.\n" .
-#						$self->package() .
-#						" is released under the same terms as Perl itself.\n"
-#					),
-#				),
-#			);
-#
-#			next NODE;
-#		}
-#
-#		# Index modules in the library that match a given regular
-#		# expression.  Dangerous, but we're all friends here, right?
-#
-#		if ($node->{command} =~ /^index(\d*)/) {
-#			my $level = $1 || 2;
-#
-#			(my $regexp = $node->{content} // "") =~ s/\s+//g;
-#			$regexp = "^" . $self->package() . "::" unless length $regexp;
-#
-#			my @insert = (
-#				map {
-#					Pod::Elemental::Element::Generic::Command->new(
-#						command => "item",
-#						content => "*\n",
-#					),
-#					Pod::Elemental::Element::Generic::Blank->new(
-#						content => "\n",
-#					),
-#					Pod::Elemental::Element::Generic::Text->new(
-#						content => (
-#							"L<$_|$_> - " .
-#							$self->library()->package($_)->abstract()
-#						),
-#					),
-#					Pod::Elemental::Element::Generic::Blank->new(
-#						content => "\n",
-#					),
-#				}
-#				sort
-#				grep /$regexp/, $self->library()->get_module_names()
-#			);
-#
-#			unless (@insert) {
-#				@insert = (
-#					Pod::Elemental::Element::Generic::Command->new(
-#						command => "item",
-#						content => "*\n",
-#					),
-#					Pod::Elemental::Element::Generic::Blank->new(
-#						content => "\n",
-#					),
-#					Pod::Elemental::Element::Generic::Text->new(
-#						content => "No modules match /$regexp/"
-#					),
-#					Pod::Elemental::Element::Generic::Blank->new(
-#						content => "\n",
-#					),
-#				);
-#			}
-#
-#			splice( @{$doc->children()}, $i, 1, @insert );
-#
-#			next NODE;
-#		}
-#
-#		### "=include MODULE SECTION" -> documentation copied from source.
-#		#
-#		# TODO - Need to ensure the full rendering of source material
-#		# before inserting it here.
-#
-#		if ($node->{command} eq 'include') {
-#			my @args = split(/\s+/, $node->{content});
-#
-#			die "too many args for include" if @args > 2;
-#			die "not enough args for include" if @args < 2;
-#
-#			my ($module_name, $section) = @args;
-#
-#			my $source_module = $self->library()->get_module($module_name);
-#
-#			die "unknown module $module_name in include" unless $source_module;
-#
-#			my $source_doc = $source_module->_elemental();
-#
-#			my $closing_command;
-#			my @insert;
-#
-#			SOURCE_NODE: foreach my $source_node (@{ $source_doc->children() }) {
-#
-#				unless (
-#					$source_node->isa('Pod::Elemental::Element::Generic::Command')
-#				) {
-#					push @insert, $source_node if $closing_command;
-#					next SOURCE_NODE;
-#				}
-#
-#				if ($closing_command) {
-#					# TODO - What other conditions close an element?
-#
-#					last SOURCE_NODE if (
-#						$source_node->{command} eq $closing_command or
-#						$source_node->{command} eq 'cut'
-#					);
-#
-#					push @insert, $source_node;
-#					next SOURCE_NODE;
-#				}
-#
-#				next unless $source_node->{content} =~ /^\Q$section\E/;
-#
-#				$closing_command = $source_node->{command};
-#			}
-#
-#			die "Couldn't find =insert $module_name $section" unless @insert;
-#
-#			# Trim blanks around a section of Pod::Elemental nodes.
-#			# TODO - Make a helper method.
-#			shift @insert while (
-#				@insert and $insert[0]->isa('Pod::Elemental::Element::Generic::Blank')
-#			);
-#			pop @insert while (
-#				@insert and $insert[-1]->isa('Pod::Elemental::Element::Generic::Blank')
-#			);
-#
-#			splice( @{$doc->children()}, $i, 1, @insert );
-#
-#			next NODE;
-#		}
-#	}
-#}
-
 =method get_scope
 
 [% ss.method %] is a helper method to determine whether a package is
@@ -1354,9 +1181,11 @@ being documented.  All the other modules are remote.
 sub get_scope {
 	my ($self, $package) = @_;
 	return(
-		($package eq $self->package())
-		? SCOPE_LOCAL
-		: SCOPE_FOREIGN
+		MOD_EXPLICIT | (
+			($package eq $self->package())
+			? SCOPE_LOCAL
+			: SCOPE_FOREIGN
+		)
 	);
 }
 
@@ -1600,7 +1429,107 @@ sub validate_doc_references {
 	exit 1 if $failures;
 }
 
+=method get_code_content
+
+[% ss.name %] returns the code content for a documentation reference,
+such as "=example".  It takes three parameters, the type of reference,
+the name of the module containing the code, and the name of the
+method.  These come directly from parse_example_spec().
+
+It returns a list of Pod::Elemental elements suitable for splicing
+directly into the documentation.
+
+=cut
+
+sub get_code_content {
+	my ($self, $type, $module, $method) = @_;
+
+	my $content = $self->library()->get_document($module)->sub($method);
+
+	# TODO - PerlTidy the code?
+	# TODO - The following whitespace options are personal
+	# preference.  Someone should patch them to be options.
+
+	# Convert tab indents to fixed spaces for better typography.
+	$content =~ s/\t/  /g;
+
+	# Indent two spaces.  Remove leading and trailing blank lines.
+	$content =~ s/\A(^\s*$)+//m;
+	$content =~ s/(^\s*$)+\Z//m;
+	$content =~ s/^/  /mg;
+
+	my $link;
+	if ($type & TYPE_PACKAGE) {
+		# I hope it's not necessary to explain where it came from if it
+		# contains a package statement.
+
+		if ($content =~ /^\s*package/) {
+			$link = "";
+		}
+		else {
+			$link = "This is L<$module|$module>.\n\n";
+		}
+	}
+	else {
+		if ($type & SCOPE_LOCAL) {
+			$link = "This is L<$method()|/$method>.\n\n";
+		}
+		else {
+			$link = (
+				"This is L<$module|$module> " .
+				"sub L<$method()|$module/$method>.\n\n"
+			);
+		}
+	}
+
+	return(
+		Pod::Elemental::Element::Generic::Text->new(
+			content => $link . $content,
+		),
+		Pod::Elemental::Element::Generic::Blank->new(
+			content => "\n",
+		),
+	);
+}
+
 no Moose;
+
+# TODO - If $self->_has_xrefs() then render them into an existing SEE
+# ALSO section.  If there isn't a SEE ALSO section, create one.
+#
+#		### "=xref (module)" -> "=item *\n\n(module) - (its abstract)"
+#		#
+#		# TODO - Collect them without rendering.  Add them to a SEE ALSO
+#		# section.
+#
+#		if ($node->{command} eq 'xref') {
+#			my $module = $node->{content};
+#			$module =~ s/^\s+//;
+#			$module =~ s/\s+$//;
+#
+#			splice(
+#				@{$doc->children()}, $i, 1,
+#				Pod::Elemental::Element::Generic::Command->new(
+#					command => "item",
+#					content => "*\n",
+#				),
+#				Pod::Elemental::Element::Generic::Blank->new(
+#					content => "\n",
+#				),
+#				Pod::Elemental::Element::Generic::Text->new(
+#					content => (
+#						"L<$module|$module> - " .
+#						$self->library()->package($module)->abstract()
+#					),
+#				),
+#				Pod::Elemental::Element::Generic::Blank->new(
+#					content => "\n",
+#				),
+#			);
+#
+#			next NODE;
+#		}
+
 
 1;
 
@@ -1618,3 +1547,4 @@ __END__
 #
 # =include SECTION
 # =include ModuleName/Section
+

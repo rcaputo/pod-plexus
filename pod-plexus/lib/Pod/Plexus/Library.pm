@@ -159,28 +159,41 @@ they're resolved.
 sub dereference {
 	my $self = shift();
 
-	my $busy_looping = 0;
-
 	my @pending = $self->get_documents();
 
 	$_->dereference_immutables() foreach @pending;
 
-	while (@pending) {
-		my $next = shift @pending;
-		if ($next->dereference_mutables()) {
-			$busy_looping = 0;
-		}
-		else {
-			push @pending, $next;
+	my $remaining_attempts = 5;
 
-			if (++$busy_looping > @pending * 2) {
-				# TODO - Make this advice actionable.  This is a terrible
-				# message.  It provides nothing the user can do about the
-				# problem.
+	ATTEMPT: while (@pending and $remaining_attempts--) {
+		my @next_pending;
+		my @errors;
 
-				die "Unresolvable references detected";
+		PENDING: foreach my $next (@pending) {
+			my @unreferenced = $next->dereference_mutables();
+			if (@unreferenced) {
+				push @next_pending, $next;
+				push @errors, [ $next, \@unreferenced ];
+				next PENDING;
 			}
 		}
+
+		last ATTEMPT unless @errors;
+
+		if ($remaining_attempts) {
+			@pending = @next_pending;
+			next ATTEMPT;
+		}
+
+		# Tried too many times.  What failed?
+
+		warn "Couldn't resolve these symbols:\n";
+		foreach my $error (@errors) {
+			my ($module, $symbols) = @$error;
+			warn "  ", $module->package(), " - ", join(", ", @$symbols), "\n";
+		}
+
+		exit 1;
 	}
 }
 

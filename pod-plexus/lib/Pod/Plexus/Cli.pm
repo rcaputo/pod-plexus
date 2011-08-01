@@ -178,7 +178,21 @@ sub dereference_library {
 
 sub render_library {
 	my $self = shift();
-	warn "render_library()... not yet";  # TODO
+
+	MODULE: foreach my $module_name (@{$self->module()}) {
+
+		my $module = $self->_library()->get_document($module_name);
+		unless ($module) {
+			warn "Couldn't find and render $module.  Skipping...\n";
+			next MODULE;
+		}
+
+		# TODO - Write out a file, if needed.
+
+		my $output = $module->render();
+		print $output, "\n";
+	}
+
 	return 0;
 }
 
