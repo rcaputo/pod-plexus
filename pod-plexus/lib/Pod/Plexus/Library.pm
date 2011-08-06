@@ -125,11 +125,15 @@ DOCUMENT_REFERENCE's syntax.
 =cut
 
 sub get_document {
-	my ($self, $document_reference) = @_;
-	return $self->_get_module($document_reference) if (
-		$document_reference =~ /^[\w:]+$/
-	);
-	return $self->_get_file($document_reference);
+	my ($self, $document_key) = @_;
+
+	if ($document_key =~ /^[\w:']+$/) {
+		return unless $self->_has_module($document_key);
+		return $self->_get_module($document_key);
+	}
+
+	return unless $self->has_file($document_key);
+	return $self->_get_file($document_key);
 }
 
 =method index

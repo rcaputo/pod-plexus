@@ -135,8 +135,6 @@ sub collect_files {
 		},
 		@{$self->lib()},
 	);
-
-	return 0;
 }
 
 =method index_library
@@ -210,20 +208,51 @@ from corresponding command line arguments.
 sub run {
 	my $self = shift();
 
-	return(
-		$self->collect_files()       ||
-		$self->index_library()       ||
-		$self->dereference_library() ||
-		$self->render_library()      ||
-		0
-	);
+	# Collect files from the libraries.
+	# This minimally processes the files.
+
+	$self->collect_files();
+
+	my @errors;
+
+	# This is a parsing, collection and error checking pass.
+	# Nothing is actually rendered yet.
+
+	MODULE: foreach my $module_name (@{$self->module()}) {
+
+		my $doc_object = $self->_library()->get_document($module_name);
+
+		unless ($doc_object) {
+			push @errors, "Can't find $module_name.  Not rendered.";
+			next MODULE;
+		}
+
+		push @errors, $doc_object->can_render();
+	}
+
+	if (@errors) {
+		warn "$_\n" foreach @errors;
+		exit 1;
+	}
+
+	# Render the requested documents.
+
+	MODULE: foreach my $module_name (@{$self->module()}) {
+		my $doc_object = $self->_library()->get_document($module_name);
+
+		# TODO - Render to files, if appropriate.
+		print $doc_object->render(), "\n\n--------------------------------\n\n";
+	}
+
+	# TODO - Render to files, if appropriate.
+
+	#my $index = $library->generate_index();
+	#my $toc = $library->generate_toc();
 }
 
 no Moose;
 
 1;
-
-__END__
 
 =abstract The Pod::Plexus command line utility implementation.
 

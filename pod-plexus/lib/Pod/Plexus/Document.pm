@@ -27,29 +27,9 @@ use constant {
 	MOD_IMPLICIT   => 0x0200,
 };
 
-=attribute pathname
-
-[% ss.name %] contains the relative path and name of the file being
-documented.
-
-=cut
-
-has pathname => ( is => 'ro', isa => 'Str', required => 1 );
-
-=attribute library
-
-[% ss.name %] contains the Pod::Plexus::Library object that represents
-the entire library of documents.  It allows the current document to
-find and reference the library and other documents within it.
-
-=cut
-
-has library => (
-	is       => 'ro',
-	isa      => 'Pod::Plexus::Library',
-	required => 1,
-	weak_ref => 1,
-);
+###
+### Private data.
+###
 
 =attribute _ppi
 
@@ -83,58 +63,37 @@ has _elemental => (
 	default => sub { Pod::Elemental->read_file( shift()->pathname() ) },
 );
 
-=attribute base_classes
+###
+### Public data.
+###
 
-[% ss.name %] contains a set of parent classes of the class being
-documented.  index_inclusions() populates it by analyzing the module's
-source code for telltale statements.
+=attribute pathname
 
-=method add_base_class CLASS_NAME
-
-[% ss.name %] adds a CLASS_NAME to this document's set of base
-classes.
+[% ss.name %] contains the relative path and name of the file being
+documented.
 
 =cut
 
-has base_classes => (
-	is       => 'rw',
-	isa      => 'HashRef[Str]',
-	traits   => [ 'Hash' ],
-	handles  => {
-		_add_base_class => 'set',
-	},
+has pathname => (
+	is       => 'ro',
+	isa      => 'Str',
+	required => 1,
 );
 
-sub add_base_class {
-	my ($self, $class_name) = @_;
-	$self->_add_base_class($class_name, 1);
-}
+=attribute library
 
-=attribute roles
-
-[% ss.name %] contains a set of roles consumed by the class being
-documented.  index_inclusions() populates it by analyzing the module's
-source code for telltale statements.
-
-=method add_role ROLE_NAME
-
-[% ss.name %] adds ROLE_NAME to this documents set of consumed roles.
+[% ss.name %] contains the Pod::Plexus::Library object that represents
+the entire library of documents.  It allows the current document to
+find and reference the library and other documents within it.
 
 =cut
 
-has roles => (
-	is       => 'rw',
-	isa      => 'HashRef[Str]',
-	traits   => [ 'Hash' ],
-	handles  => {
-		_add_role => 'set',
-	},
+has library => (
+	is       => 'ro',
+	isa      => 'Pod::Plexus::Library',
+	required => 1,
+	weak_ref => 1,
 );
-
-sub add_role {
-	my ($self, $role_name) = @_;
-	$self->_add_role($role_name, 1);
-}
 
 =attribute package
 
@@ -167,29 +126,6 @@ documented.  It is populated by the "=abstract" directive.
 has abstract => (
 	is      => 'rw',
 	isa     => 'Str',
-	lazy    => 1,
-	default => sub {
-		my $self = shift();
-
-		my @abstracts;
-
-		foreach my $node (@{ $self->_elemental()->children() }) {
-			next unless $node->isa('Pod::Elemental::Element::Generic::Command');
-			next unless $node->{command} eq 'abstract';
-			push @abstracts, $node->content();
-		}
-
-		die "No =abstract found in ", $self->package(), "\n" unless @abstracts;
-
-		if (@abstracts > 1) {
-			warn(
-				"More than one =abstract found in ", $self->package(),
-				".  Using the first one."
-			);
-		}
-
-		return $abstracts[0];
-	},
 );
 
 =attribute attributes
@@ -258,6 +194,12 @@ has mop_class => (
 	},
 );
 
+# TODO - Gathering or grouping documentation into topics.
+# TODO - Gathering topics under higher level topics.
+# TODO - Essentially outlining without building an explicit outline.
+
+### Skipping attributes.
+
 =attribute skip_attributes
 
 [% ss.name %] is a hash keyed on the names of attributes supplied by
@@ -293,11 +235,12 @@ attribute name to skip.
 
 =cut
 
-
 sub skip_attribute {
 	my $self = shift();
 	$self->_skip_attribute($_, 1) foreach @_;
 }
+
+### Skipping methods.
 
 =attribute skip_methods
 
@@ -347,6 +290,8 @@ sub skip_method {
 	$self->_skip_method($_, 1) foreach @_;
 }
 
+### Cross references.
+
 =attribute see_also
 
 [% ss.name %] contains a hash of cross references defined by the
@@ -365,6 +310,8 @@ has see_also => (
 		_has_refs => 'count',
 	},
 );
+
+### Cached rendered content?
 
 =method code
 
@@ -410,11 +357,9 @@ sub sub {
 	return $subs->[0]->content();
 }
 
-### End public accessors!
-
-sub BUILD {
-	warn "Absorbing ", shift()->pathname(), " ...\n";
-}
+###
+### Final render.
+###
 
 =method render
 
@@ -459,97 +404,221 @@ sub render {
 	return $output;
 }
 
-=method elementaldump
+=method can_render
 
-[% ss.name %] is a debugging helper method to print the Pod::Elemental
-data for the class being documented, in YAML format.
+[% ss.name %] prepares the document for rendering by performing all
+prerequisite actions.  Data is collected and validated.  Intermediate
+indexes are built.  And so on.
+
+Returns nothing on success.  Returns a list of human-friend.y error
+messages on failure.
 
 =cut
 
-sub elementaldump {
-	my $self = shift();
-	use YAML;
-	print YAML::Dump($self->_elemental());
-	exit;
+sub can_render {
+	my $self = shift;
+
+	my @errors;
+
+	# Simple things go first.
+
+	$self->extract_doc_commands(\@errors, 'extract_doc_skip');
+	$self->extract_doc_commands(\@errors, 'extract_doc_abstract');
+
+	# TODO - extract_doc_macro
+
+	$self->index_code_attributes(\@errors);
+	$self->index_code_methods(\@errors);
+
+	#$self->index_code_inclusions(\@errors);
+
+	$self->extract_doc_commands(\@errors, 'extract_doc_attribute_or_method');
+
+#$self->inherit_documentation();
+#$self->validate_doc_references();
+
+#$self->index_cross_references();
+
+	return @errors;
 }
 
-=method ppidump
+###
+### Extract and remove data from documentation.
+###
 
-[% ss.name %] is a debugging helper method to print the PPI document
-for the class being documented, in PPI::Dumper format.
+=method extract_doc_command
 
-=cut
-
-sub ppidump {
-	my $self = shift();
-	use PPI::Dumper;
-	my $d = PPI::Dumper->new( $self->_ppi() );
-	$d->print();
-	exit;
-}
-
-=method index
-
-Index the nameable aspects of the file being documented, including POD
-section types and names, method names, attribute names, and the names
-of parent and child classes.
+[% ss.name %] iterates the Pod::Elemental::Element::Generic::Command
+elements of a module's documentation.  Its single parameter is the
+name of a $self method to call for each command node.  Those methods
+should parse the command, enter appropriate data into the object, and
+return true if the command paragraph should be removed from the
+documentation.  A false return value will leave the command paragraph
+in place.
 
 =cut
 
-sub index {
-	my $self = shift();
-
-	$self->index_skips();
-
-	$self->index_code_attributes();
-	$self->index_code_inclusions();
-	$self->index_code_methods();
-
-	$self->index_doc_abstract();
-	$self->index_doc_attributes_and_methods();
-
-	$self->inherit_documentation();
-	$self->validate_doc_references();
-
-	$self->index_cross_references();
-}
-
-=method index_skips
-
-[% ss.name %] indexes "=skip" directives.
-
-=cut
-
-sub index_skips {
-	my $self = shift();
+sub extract_doc_commands {
+	my ($self, $errors, $method) = @_;
 
 	my $doc = $self->_elemental()->children();
 
 	my $i = @$doc;
 	NODE: while ($i--) {
-
 		my $node = $doc->[$i];
 
 		next NODE unless $node->isa('Pod::Elemental::Element::Generic::Command');
-		next NODE unless $node->{command} eq 'skip';
 
-		my ($entity_type, $entity_name) = (
-			$node->{content} =~ /^\s* (attribute|method) \s+ (\S.*?) \s*$/x
-		);
+		my $result = $self->$method($errors, $doc->[$i]);
+		next NODE unless $result;
 
-		my $skip_method = "skip_$entity_type";
-		$self->$skip_method($entity_name);
+		# TODO - Generic means to remove an extracted directive from the
+		# POD, closing up the hole that's left.  Trailing "=cut" must
+		# remain if there's POD before the directive.  Otherwise it must
+		# also be removed.
+		#
+		# TODO - For now, let's try replacing the directive with an empty
+		# "=pod" command.  Maybe that will be a sufficient no-op.
 
 		splice(
 			@$doc, $i, 1,
 			Pod::Elemental::Element::Generic::Command->new(
 				command => 'pod',
-				content => '',
+				content => "\n",
 			),
 			Pod::Elemental::Element::Generic::Blank->new( content => "\n" ),
 		);
+
+		# TODO - Better check for $result being an entity?
+		next NODE unless ref $result;
+
+		# The return value is an entity.  This means append the following
+		# text to its documentation.
+
+		my $j = $i + 2;
+		TEXT: while ($j < @$doc) {
+			unless ($doc->[$j]->isa('Pod::Elemental::Element::Generic::Command')) {
+				$result->push_documentation( splice(@$doc, $j, 1) );
+				next TEXT;
+			}
+
+			if (
+				$doc->[$j]->{command} eq 'cut' or
+				$doc->[$j]->{command} eq 'attribute' or
+				$doc->[$j]->{command} eq 'method' or
+				$doc->[$j]->{command} eq 'xref' or
+				$doc->[$j]->{command} =~ /^head/
+			) {
+				last TEXT;
+			}
+
+			$result->push_documentation( splice(@$doc, $j, 1) );
+		}
 	}
 }
+
+=macro extract_doc_command_callback
+
+This method is a callback to extract_doc_command().  That other method
+is a generic iterator to walk through the Pod::Elemental document in
+memory and remove nodes that have been successfully parsed.  Node
+removal is triggered by callbacks, such as [% ss.name %] returning a
+true value.
+
+As with all [% mode.name %] parsers, only the Pod::Elemental data in
+memory is affected.  The source on disk is untouched.
+
+=cut
+
+=method extract_doc_skip
+
+[% ss.name %] examines a single Pod::Elemental command node.  If it's
+a "=skip" directive, its data is entered into the [% mod.name %]
+object, and [% ss.name %] returns true.  False is returned for all
+other nodes.
+
+=include extract_doc_command_callback
+
+=cut
+
+sub extract_doc_skip {
+	my ($self, $errors, $node) = @_;
+
+	return unless $node->{command} eq 'skip';
+
+	my ($entity_type, $entity_name) = (
+		$node->{content} =~ /^\s* (attribute|method) \s+ (\S.*?) \s*$/x
+	);
+
+	my $skip_method = "skip_$entity_type";
+	$self->$skip_method($entity_name);
+
+	return 1;
+}
+
+=method extract_doc_abstract
+
+[% ss.name %] examines a single Pod::Elemental command node.  If it's
+an "=abstract" directive, the abstract string is entered into the
+[% mod.name %] object, and [% ss.name %] returns true.  False is
+returned for all other nodes.
+
+=include extract_doc_command_callback
+
+=cut
+
+sub extract_doc_abstract {
+	my ($self, $errors, $node) = @_;
+
+	return unless $node->{command} eq 'abstract';
+
+	if (defined $self->abstract()) {
+		push @$errors, (
+			"More than one =abstract found in " . $self->package() .
+			".  Using the first one."
+		);
+		return 1;
+	}
+
+	$self->abstract( $node->{content} =~ /^\s* (\S.*?) \s*$/x );
+	return 1;
+}
+
+=method index_doc_attributes_and_methods
+
+[% ss.name %] scans the documentation for the module being documented.
+It extracts "=attribute" and "=method" directives and associates their
+content with corresponding attributes and methods.
+
+=cut
+
+sub extract_doc_attribute_or_method {
+	my ($self, $errors, $node) = @_;
+
+	my $entity_type = $node->{command};
+	return unless $entity_type eq 'attribute' or $entity_type eq 'method';
+
+	my ($entity_name) = ($node->{content} =~ /^\s* (\S.*?) (?:\s|$)/x);
+
+	my $has_method = "_has_$entity_type";
+	unless ($self->$has_method($entity_name)) {
+		push @$errors, (
+			"'=$entity_type $entity_name' for non-existent $entity_type " .
+			" at " . $self->pathname() . " line $node->{start_line}"
+		);
+		return;
+	}
+
+	my $get_method = "_get_$entity_type";
+	my $entity = $self->$get_method($entity_name);
+
+	return $entity;
+}
+
+###
+### Index data we can glean from the code.
+### These things are NOT extracted.
+###
 
 =method index_code_attributes
 
@@ -560,11 +629,18 @@ This is a helper method called by index().
 =cut
 
 sub index_code_attributes {
-	my $self = shift();
+	my ($self, $errors) = @_;
 
-	foreach ($self->mop_class()->get_all_attributes()) {
+	ATTRIBUTE: foreach ($self->mop_class()->get_all_attributes()) {
 		my $name = $_->name();
-		die "$name used more than once" if $self->_has_attribute($name);
+
+		next ATTRIBUTE if $self->is_skippable_attribute($name);
+
+		# TODO - How to report the places where it's defined?
+		if ($self->_has_attribute($name)) {
+			push @$errors, "Attribute $name defined more than once...";
+			next ATTRIBUTE;
+		}
 
 		my $entity = Pod::Plexus::Entity::Attribute->new(
 			mop_entity => $_,
@@ -572,6 +648,42 @@ sub index_code_attributes {
 		);
 
 		$self->_add_attribute($name, $entity);
+	}
+}
+
+=method index_code_methods
+
+Find and register all methods known by Class::MOP to exist in the
+class being documented.
+
+This is a helper method called by index().
+
+=cut
+
+sub index_code_methods {
+	my ($self, $errors) = @_;
+
+	METHOD: foreach ($self->mop_class()->get_all_methods()) {
+		my $name = $_->name();
+
+		next METHOD if $self->is_skippable_method($name);
+
+		# Assume constants aren't documented.
+		# TODO - Need a better way to identify them, eh?
+		next METHOD if $name =~ /^[A-Z0-9_]+$/;
+
+		# TODO - How to report the places where it's defined?
+		if ($self->_has_method($name)) {
+			push @$errors, "Method $name defined more than once...";
+			next METHOD;
+		}
+
+		my $entity = Pod::Plexus::Entity::Method->new(
+			mop_entity => $_,
+			name       => $name,
+		);
+
+		$self->_add_method($name, $entity);
 	}
 }
 
@@ -584,6 +696,11 @@ collected by [% ss.name %].
 This is a helper method called by index().
 
 =cut
+
+
+###
+### TODO - These are older things that need cleaning up.
+###
 
 sub index_code_inclusions {
 	my $self = shift();
@@ -653,106 +770,6 @@ sub index_code_inclusions {
 	}
 }
 
-=method index_code_methods
-
-Find and register all methods known by Class::MOP to exist in the
-class being documented.
-
-This is a helper method called by index().
-
-=cut
-
-sub index_code_methods {
-	my $self = shift();
-
-	foreach ($self->mop_class()->get_all_methods()) {
-		my $name = $_->name();
-
-		next if $self->is_skippable_method($name);
-
-		# Assume constants aren't documented.
-		next if $name =~ /^[A-Z0-9_]+$/;
-
-		die "$name used more than once" if $self->_has_method($name);
-
-		my $entity = Pod::Plexus::Entity::Method->new(
-			mop_entity => $_,
-			name       => $name,
-		);
-
-		$self->_add_method($name, $entity);
-	}
-}
-
-=method index_doc_attributes_and_methods
-
-[% ss.name %] scans the documentation for the module being documented.
-It extracts "=attribute" and "=method" directives and associates their
-content with corresponding attributes and methods.
-
-=cut
-
-sub index_doc_attributes_and_methods {
-	my $self = shift();
-
-	my $doc = $self->_elemental()->children();
-
-	my $i = @$doc;
-	NODE: while ($i--) {
-
-		my $node = $doc->[$i];
-
-		next NODE unless $node->isa('Pod::Elemental::Element::Generic::Command');
-
-		my $entity_type = $node->{command};
-		next NODE unless $entity_type eq 'attribute' or $entity_type eq 'method';
-
-		my ($entity_name) = ($node->{content} =~ /^\s* (\S.*?) (?:\s|$)/x);
-
-		my $has_method = "_has_$entity_type";
-		my $get_method = "_get_$entity_type";
-
-		unless ($self->$has_method($entity_name)) {
-			die(
-				"'=$entity_type $entity_name' for non-existent $entity_type ",
-				" at ", $self->pathname(), " line $node->{start_line}\n"
-			);
-		}
-
-		my $entity = $self->$get_method($entity_name);
-
-		$entity->push_documentation(
-			splice(
-				@$doc, $i, 1,
-				Pod::Elemental::Element::Generic::Command->new(
-					command => 'pod',
-					content => '',
-				),
-				Pod::Elemental::Element::Generic::Blank->new( content => "\n" ),
-			)
-		);
-
-		while ($i < @$doc) {
-			unless ($doc->[$i]->isa('Pod::Elemental::Element::Generic::Command')) {
-				$entity->push_documentation( splice(@$doc, $i, 1) );
-				next;
-			}
-
-			if (
-				$doc->[$i]->{command} eq 'cut' or
-				$doc->[$i]->{command} eq 'attribute' or
-				$doc->[$i]->{command} eq 'method' or
-				$doc->[$i]->{command} eq 'xref' or
-				$doc->[$i]->{command} =~ /^head/
-			) {
-				last;
-			}
-
-			$entity->push_documentation( splice(@$doc, $i, 1) );
-		}
-	}
-}
-
 =method index_cross_references
 
 [% ss.name %] collects cross references from the code and
@@ -782,33 +799,6 @@ sub index_cross_references {
 	}
 }
 
-=method index_doc_abstract
-
-[% ss.name %] collects the document's "=abstract" string for
-cross-reference purposes and eventual rendering.
-
-=cut
-
-sub index_doc_abstract {
-	my $self = shift();
-
-	my $doc = $self->_elemental();
-
-	my $i = @{ $doc->children() };
-	NODE: while ($i--) {
-
-		my $node = $doc->children()->[$i];
-
-		next NODE unless $node->isa('Pod::Elemental::Element::Generic::Command');
-
-		if ($node->{command} eq 'abstract') {
-			$self->abstract( $node->{content} =~ /^\s* (\S.*?) \s*$/x );
-			splice(@{$doc->children()}, $i, 1);
-			next NODE;
-		}
-	}
-}
-
 =method dereference_mutables
 
 [% ss.name %] attempts to replace C<=example> and C<=include>
@@ -823,6 +813,10 @@ to determine whether another pass at them must be made.
 =example Pod::Plexus::Library dereference
 
 =cut
+
+###
+### Expansions?
+###
 
 sub dereference_mutables {
 	my $self = shift();
@@ -1101,94 +1095,6 @@ sub dereference_remotes {
 	return @unresolved_names;
 }
 
-=method parse_example_spec
-
-[% ss.name %] parses the specification for examples.  It's used by the
-"=example" directive to identify which code is being used as an
-example.
-
-=cut
-
-sub parse_example_spec {
-	my ($self, $node) = @_;
-
-	return unless $node->{command} eq 'example';
-
-	my (@args) = split(/[\s\/]+/, $node->{content});
-
-	die "too many args for example" if @args > 2;
-	die "not enough args for example" if @args < 1;
-
-	# TODO - TYPE_FILE if the spec contains a "." or "/" to indicate a
-	# path name.
-
-	# "Module::method()" or "Module method()".
-
-	if ($node->{content} =~ /^\s*(\S+)(?:\s+|::)(\w+)\(\)\s*$/) {
-		my ($package, $method) = ($1, $2);
-		return( $self->get_scope($package) | TYPE_SUB, $package, $method );
-	}
-
-	# Just "method()".
-
-	if ($node->{content} =~ /^(\w+)\(\)$/) {
-		my $package = $1;
-		return( MOD_IMPLICIT | SCOPE_LOCAL | TYPE_SUB, $self->package(), $1 );
-	}
-
-	# Assuming just "Module".
-
-	my ($package) = ($node->{content} =~ /\s*(\S.*?)\s*/);
-	return( $self->get_scope($package) | TYPE_PACKAGE, $package, undef );
-}
-
-=method parse_include_spec
-
-[% ss.name %] parses the specification for documentation inclusions.
-It's used by the "=include" directive to identify which documentation
-to include.
-
-=cut
-
-sub parse_include_spec {
-	my ($self, $node) = @_;
-
-	return unless $node->{command} eq 'include';
-
-	if ($node->{content} =~ m!^\s* (\S.*?) \s* / \s* (\S.*?) \s*$!x) {
-		my ($package, $section) = ($1, $2);
-		return( $self->get_scope($package) | TYPE_SECTION, $package, $section );
-	}
-
-	if ($node->{content} =~ m!^\s* / \s* (\S.*?) \s*$!x) {
-		return( SCOPE_LOCAL | TYPE_SECTION, $self->package(), $1 );
-	}
-
-	die(
-		"Wrong inclusion syntax:\n",
-		"=include $node->{content}\n",
-	)
-}
-
-=method get_scope
-
-[% ss.method %] is a helper method to determine whether a package is
-local or remote.  A local package is the same as the module currently
-being documented.  All the other modules are remote.
-
-=cut
-
-sub get_scope {
-	my ($self, $package) = @_;
-	return(
-		MOD_EXPLICIT | (
-			($package eq $self->package())
-			? SCOPE_LOCAL
-			: SCOPE_FOREIGN
-		)
-	);
-}
-
 =method inherit_documentation
 
 [% ss.name %] finds documentation for attributes and methods that
@@ -1382,6 +1288,98 @@ sub inherit_documentation {
 	}
 }
 
+###
+### Helpers.  Almost worth making them private.
+###
+
+=method parse_example_spec
+
+[% ss.name %] parses the specification for examples.  It's used by the
+"=example" directive to identify which code is being used as an
+example.
+
+=cut
+
+sub parse_example_spec {
+	my ($self, $node) = @_;
+
+	return unless $node->{command} eq 'example';
+
+	my (@args) = split(/[\s\/]+/, $node->{content});
+
+	die "too many args for example" if @args > 2;
+	die "not enough args for example" if @args < 1;
+
+	# TODO - TYPE_FILE if the spec contains a "." or "/" to indicate a
+	# path name.
+
+	# "Module::method()" or "Module method()".
+
+	if ($node->{content} =~ /^\s*(\S+)(?:\s+|::)(\w+)\(\)\s*$/) {
+		my ($package, $method) = ($1, $2);
+		return( $self->get_scope($package) | TYPE_SUB, $package, $method );
+	}
+
+	# Just "method()".
+
+	if ($node->{content} =~ /^(\w+)\(\)$/) {
+		my $package = $1;
+		return( MOD_IMPLICIT | SCOPE_LOCAL | TYPE_SUB, $self->package(), $1 );
+	}
+
+	# Assuming just "Module".
+
+	my ($package) = ($node->{content} =~ /\s*(\S.*?)\s*/);
+	return( $self->get_scope($package) | TYPE_PACKAGE, $package, undef );
+}
+
+=method parse_include_spec
+
+[% ss.name %] parses the specification for documentation inclusions.
+It's used by the "=include" directive to identify which documentation
+to include.
+
+=cut
+
+sub parse_include_spec {
+	my ($self, $node) = @_;
+
+	return unless $node->{command} eq 'include';
+
+	if ($node->{content} =~ m!^\s* (\S.*?) \s* / \s* (\S.*?) \s*$!x) {
+		my ($package, $section) = ($1, $2);
+		return( $self->get_scope($package) | TYPE_SECTION, $package, $section );
+	}
+
+	if ($node->{content} =~ m!^\s* / \s* (\S.*?) \s*$!x) {
+		return( SCOPE_LOCAL | TYPE_SECTION, $self->package(), $1 );
+	}
+
+	die(
+		"Wrong inclusion syntax:\n",
+		"=include $node->{content}\n",
+	)
+}
+
+=method get_scope
+
+[% ss.method %] is a helper method to determine whether a package is
+local or remote.  A local package is the same as the module currently
+being documented.  All the other modules are remote.
+
+=cut
+
+sub get_scope {
+	my ($self, $package) = @_;
+	return(
+		MOD_EXPLICIT | (
+			($package eq $self->package())
+			? SCOPE_LOCAL
+			: SCOPE_FOREIGN
+		)
+	);
+}
+
 =method validate_doc_references
 
 [% ss.name %] checks whether every implemented attribute and method is
@@ -1492,7 +1490,50 @@ sub get_code_content {
 	);
 }
 
+###
+### Debugging.
+###
+
+sub BUILD {
+	warn "Absorbing ", shift()->pathname(), " ...\n";
+}
+
+=method elementaldump
+
+[% ss.name %] is a debugging helper method to print the Pod::Elemental
+data for the class being documented, in YAML format.
+
+=cut
+
+sub elementaldump {
+	my $self = shift();
+	use YAML;
+	print YAML::Dump($self->_elemental());
+	exit;
+}
+
+=method ppidump
+
+[% ss.name %] is a debugging helper method to print the PPI document
+for the class being documented, in PPI::Dumper format.
+
+=cut
+
+sub ppidump {
+	my $self = shift();
+	use PPI::Dumper;
+	my $d = PPI::Dumper->new( $self->_ppi() );
+	$d->print();
+	exit;
+}
+
 no Moose;
+
+1;
+
+=abstract Represent and render a single Pod::Plexus document.
+
+=cut
 
 # TODO - If $self->_has_xrefs() then render them into an existing SEE
 # ALSO section.  If there isn't a SEE ALSO section, create one.
@@ -1530,17 +1571,6 @@ no Moose;
 #			next NODE;
 #		}
 
-
-1;
-
-__END__
-
-=pod
-
-=abstract Represent and render a single Pod::Plexus document.
-
-=cut
-
 # =example ModuleName
 # =example method_name()
 # =example ModuleName method_name()
@@ -1548,3 +1578,58 @@ __END__
 # =include SECTION
 # =include ModuleName/Section
 
+
+#=attribute base_classes
+#
+#[% ss.name %] contains a set of parent classes of the class being
+#documented.  index_inclusions() populates it by analyzing the module's
+#source code for telltale statements.
+#
+#=method add_base_class CLASS_NAME
+#
+#[% ss.name %] adds a CLASS_NAME to this document's set of base
+#classes.
+#
+#=cut
+#
+#has base_classes => (
+#	is       => 'rw',
+#	isa      => 'HashRef[Str]',
+#	traits   => [ 'Hash' ],
+#	handles  => {
+#		_add_base_class => 'set',
+#	},
+#);
+#
+#sub add_base_class {
+#	my ($self, $class_name) = @_;
+#	$self->_add_base_class($class_name, 1);
+#}
+#
+#=attribute roles
+#
+#[% ss.name %] contains a set of roles consumed by the class being
+#documented.  index_inclusions() populates it by analyzing the module's
+#source code for telltale statements.
+#
+#=method add_role ROLE_NAME
+#
+#[% ss.name %] adds ROLE_NAME to this documents set of consumed roles.
+#
+#=cut
+#
+#has roles => (
+#	is       => 'rw',
+#	isa      => 'HashRef[Str]',
+#	traits   => [ 'Hash' ],
+#	handles  => {
+#		_add_role => 'set',
+#	},
+#);
+#
+#sub add_role {
+#	my ($self, $role_name) = @_;
+#	$self->_add_role($role_name, 1);
+#}
+
+### SKIPPABLE ATTRIBUTES
