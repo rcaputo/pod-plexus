@@ -57,7 +57,7 @@ code.  Corollary: It's best to have only one package per file.
 	=abstract An intricate network of weblike formation of POD.
 
 The abstract and name of each module may be used by other directives.
-Roe xample, see L<=xref MODULE_NAME>.
+For example, see L<=xref MODULE_NAME>.
 
 =head3 =copyright YEARS HOLDER_NAME
 
@@ -179,5 +179,9 @@ As of this writing, the rendered form would be:
 
 The actual form may change over time.  This annoys me, so I'm looking
 for a way to keep the documentation up to date automatically.
+
+=cut
+
+=xref Pod::Plexus::Document
 
 =cut

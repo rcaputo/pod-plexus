@@ -131,7 +131,7 @@ has abstract => (
 );
 
 ###
-### Code structure.
+### Module code structure.
 ###
 
 use Pod::Plexus::Entity::Method;
@@ -193,21 +193,116 @@ Pod::Plexus::Entity::Method objects.
 =cut
 
 has methods => (
-	is      => 'rw',
-	isa     => 'HashRef[Pod::Plexus::Entity::Method]',
-	traits   => [ 'Hash' ],
+	is     => 'rw',
+	isa    => 'HashRef[Pod::Plexus::Entity::Method]',
+	traits => [ 'Hash' ],
 	handles => {
-		_add_method => 'set',
-		_has_method => 'exists',
-		_get_method => 'get',
+		_add_method  => 'set',
+		_has_method  => 'exists',
+		_get_method  => 'get',
 		_get_methods => 'values',
 	},
 );
 
 ###
+### Class taxonomy structure.
+###
+
+### Sources of imported symbols.
+
+=attribute imports
+
+[% ss.name %] contains a hash of all modules identified as being
+required or used by the module being documented.  This hash is used to
+find imported symbols, if needed to completely document the module.
+
+index_code_inclusions() populates it by analyzing the module's source
+code for telltale statements.
+
+=cut
+
+=method add_import
+
+[% ss.name %] is a hash setter that adds the name of a used module.  It
+takes two parameters: the module's name, and an unused value for the
+hash.
+
+=cut
+
+has imports => (
+	is      => 'rw',
+	isa     => 'HashRef[Str]',
+	traits  => [ 'Hash' ],
+	default => sub { { } },
+	handles => {
+		add_import => 'set',
+	},
+);
+
+### Base classes.
+
+=attribute base_classes
+
+[% ss.name %] contains a hash of all immediate base classes of the
+class being documented.  This hash is used to find inherited symbols,
+if needed to completely document the module.
+
+index_code_inclusions() populates it by analyzing the module's source
+code for telltale statements.
+
+=method add_base_class
+
+[% ss.name %] is a hash setter that adds the name of a base class.  It
+takes two parameters: the base class name, and an unused value for the
+hash.
+
+=cut
+
+has base_classes => (
+	is       => 'rw',
+	isa      => 'HashRef[Str]',
+	traits   => [ 'Hash' ],
+	handles  => {
+		add_base_class => 'set',
+	},
+);
+
+### Roles.
+
+=attribute roles
+
+[% ss.name %] contains a hash of all roles directly consumed by the
+class being documented.  This hash is used to find consumed symbols,
+if needed to completely document the module.
+
+index_code_inclusions() populates it by analyzing the module's source
+code for telltale statements.
+
+=cut
+
+=method add_role
+
+[% ss.name %] is a hash setter that adds the name of a consumed role.
+It takes two parameters: the role name, and an unused value for the
+hash.
+
+=cut
+
+has roles => (
+	is       => 'rw',
+	isa      => 'HashRef[Str]',
+	traits   => [ 'Hash' ],
+	handles  => {
+		add_role => 'set',
+	},
+);
+
+### SKIPPABLE ATTRIBUTES
+###
 ### Documentation structure.
 ###
 
+use Pod::Plexus::Reference::Cross;
 use Pod::Plexus::Reference::Example::Module;
 use Pod::Plexus::Reference::Example::Method;
 use Pod::Plexus::Reference::Include;
@@ -437,15 +532,24 @@ sub can_render {
 
 	$self->index_doc_commands(\@errors, 'index_doc_abstract');
 
+	# Code inclusions are "use" and "require", as well as Moose things
+	# that may pull code in from elsewhere.
+
+	$self->index_code_inclusions(\@errors);
+
+	# Documentation for attributes and methods is attached to those
+	# entities in memory, so the code entities must be indexed first.
+
 	$self->index_code_attributes(\@errors);
 	$self->index_code_methods(\@errors);
-
-	#$self->index_code_inclusions(\@errors);
-
 	$self->index_doc_commands(\@errors, 'index_doc_attribute_or_method');
 
-#$self->inherit_documentation();
-#$self->validate_doc_references();
+	# Once explicit code and documentation are associated, we can see
+	# which remain undocumented and need to inherit documentation or
+	# have boilerplate docs written.
+
+	#$self->inherit_documentation();
+	#$self->validate_doc_references();
 
 	# TODO - Load and parse all cross referenced modules.  We need
 	# enough data to set xrefs, import inclusions, and import examples
@@ -672,7 +776,13 @@ sub extract_doc_xref {
 	return unless $node->{command} eq 'xref';
 
 	my ($module) = ($node->{content} =~ /^\s* (\S.*?) \s*$/x);
-	$self->_add_xref($module, 1);
+
+	$self->_add_reference(
+		Pod::Plexus::Reference::Cross->new(
+			invoked_in => $self->package(),
+			module     => $module,
+		)
+	);
 
 	return 1;
 }
@@ -898,6 +1008,89 @@ sub index_code_methods {
 	}
 }
 
+
+=method index_code_inclusions
+
+Find and register all modules known by Class::MOP to contribute to
+this class.  Base classes and roles are prime examples of the modules
+collected by [% ss.name %].
+
+=cut
+
+sub index_code_inclusions {
+	my $self = shift();
+
+	# TODO - This uses PPI, but it might be cleaner to use Moose.
+
+	my $ppi = $self->_ppi();
+
+	my $inclusions = $ppi->find(
+		sub {
+			$_[1]->isa('PPI::Statement::Include') or (
+				$_[1]->isa('PPI::Statement') and
+				$_[1]->child(0)->isa('PPI::Token::Word') and
+				$_[1]->child(0)->content() eq 'extends'
+			)
+		}
+	);
+
+	return unless $inclusions and @$inclusions;
+
+	foreach (@$inclusions) {
+		my $type = $_->child(0)->content();
+
+		# Remove "type".
+		my @children = $_->children();
+		splice(@children, 0, 1);
+
+		my @stuff;
+		foreach (@children) {
+			if ($_->isa('PPI::Token::Word')) {
+				push @stuff, $_->content();
+				next;
+			}
+
+			if ($_->isa('PPI::Structure::List')) {
+				push @stuff, map { $_->string() } @{ $_->find('PPI::Token::Quote') };
+				next;
+			}
+
+			if ($_->isa('PPI::Token::QuoteLike::Words')) {
+				push @stuff, $_->literal();
+				next;
+			}
+
+			if ($_->isa('PPI::Token::Quote')) {
+				push @stuff, $_->string();
+				next;
+			}
+
+			# Ignore the others.
+			next;
+		}
+
+		given ($type) {
+			when ('use') {
+				$self->add_import($_, 1) foreach @stuff;
+			}
+			when ('no') {
+				# TODO - Do we care about this?  Probably not if we're
+				# introspecting with Moose, since by the time we get here the
+				# "no" things should have been removed.
+			}
+			when ('extends') {
+				$self->add_base_class($_, 1) foreach @stuff;
+			}
+			when ('with') {
+				$self->add_role($_, 1) foreach @stuff;
+			}
+			default {
+				die "odd type '$type'";
+			}
+		}
+	}
+}
+
 ###
 ### Helper methods.
 ###
@@ -987,13 +1180,13 @@ no Moose;
 
 1;
 
-__END__
+### TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
+### TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
+### TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
+### TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
+### TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
 
-### TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
-### TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
-### TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
-### TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
-### TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
+__END__
 
 ### Cross references.
 
@@ -1003,7 +1196,7 @@ __END__
 "=xref" directive.  The project wishes to also index implicit
 references, but these haven't been defined yet.  Discussons welcome.
 
-=cut
+#=cut
 
 has see_also => (
 	is      => 'rw',
@@ -1024,7 +1217,7 @@ has see_also => (
 document.  This is used to render code examples by quoting entire
 modules.
 
-=cut
+#=cut
 
 sub code {
 	my $self = shift();
@@ -1040,84 +1233,6 @@ sub code {
 ###
 ### Helper methods.
 ###
-
-#=method index_code_inclusions
-
-Find and register all modules known by Class::MOP to contribute to
-this class.  Base classes and roles are prime examples of the modules
-collected by [% ss.name %].
-
-This is a helper method called by index().
-
-=cut
-
-sub index_code_inclusions {
-	my $self = shift();
-
-	my $ppi = $self->_ppi();
-
-	my $inclusions = $ppi->find(
-		sub {
-			$_[1]->isa('PPI::Statement::Include') or (
-				$_[1]->isa('PPI::Statement') and
-				$_[1]->child(0)->isa('PPI::Token::Word') and
-				$_[1]->child(0)->content() eq 'extends'
-			)
-		}
-	);
-
-	foreach (@{$inclusions || []}) {
-		my $type = $_->child(0)->content();
-
-		# Remove "type".
-		my @children = $_->children();
-		splice(@children, 0, 1);
-
-		my @stuff;
-		foreach (@children) {
-			if ($_->isa('PPI::Token::Word')) {
-				push @stuff, $_->content();
-				next;
-			}
-
-			if ($_->isa('PPI::Structure::List')) {
-				push @stuff, map { $_->string() } @{ $_->find('PPI::Token::Quote') };
-				next;
-			}
-
-			if ($_->isa('PPI::Token::QuoteLike::Words')) {
-				push @stuff, $_->literal();
-				next;
-			}
-
-			if ($_->isa('PPI::Token::Quote')) {
-				push @stuff, $_->string();
-				next;
-			}
-
-			# Ignore the others.
-			next;
-		}
-
-		given ($type) {
-			when ('use') {
-				# TODO - We care if it's "use base".
-			}
-			when ('no') {
-				# TODO - Do we care about this?
-			}
-			when ('extends') {
-				$self->add_base_class($_, 1) foreach @stuff;
-			}
-			when ('with') {
-				$self->add_role($_, 1) foreach @stuff;
-			}
-			default {
-				die "odd type '$type'";
-			}
-		}
-	}
-}
 
 ###
 ### Expansions?
@@ -1136,7 +1251,7 @@ to determine whether another pass at them must be made.
 
 #=example Pod::Plexus::Library dereference
 
-=cut
+#=cut
 
 sub dereference_mutables {
 	my $self = shift();
@@ -1156,7 +1271,7 @@ sub dereference_mutables {
 [% ss.name %] expands things that don't rely upon the files that
 contain them or the positions in which they occur.
 
-=cut
+#=cut
 
 sub dereference_immutables {
 	my $self = shift();
@@ -1292,7 +1407,7 @@ sub dereference_immutables {
 there are no local references, or they all resolved.  It returns false
 if any local references remain unresolved.
 
-=cut
+#=cut
 
 sub dereference_locals {
 	my $self = shift();
@@ -1332,7 +1447,7 @@ sub dereference_locals {
 there are no remote references, or they all resolved.  It returns
 false if any remote references remain unresolved.
 
-=cut
+#=cut
 
 sub dereference_remotes {
 	my $self = shift();
@@ -1431,7 +1546,7 @@ Methods and attributes implemented in ancestors will inherit
 documentation from those ancestors or roles if they aren't documented
 in the subclass or consumer.
 
-=cut
+#=cut
 
 sub inherit_documentation {
 	my $self = shift();
@@ -1619,7 +1734,7 @@ sub inherit_documentation {
 local or remote.  A local package is the same as the module currently
 being documented.  All the other modules are remote.
 
-=cut
+#=cut
 
 sub get_scope {
 	my ($self, $package) = @_;
@@ -1641,7 +1756,7 @@ method, or explicitly skipped with a "=skip" directive.
 
 Undocumented methods cause runtime errors.
 
-=cut
+#=cut
 
 sub validate_doc_references {
 	my $self = shift();
@@ -1691,7 +1806,7 @@ method.  These come directly from parse_example_spec().
 It returns a list of Pod::Elemental elements suitable for splicing
 directly into the documentation.
 
-=cut
+#=cut
 
 sub get_code_content {
 	my ($self, $type, $module, $method) = @_;
@@ -1753,7 +1868,7 @@ sub get_code_content {
 [% ss.name %] is a debugging helper method to print the Pod::Elemental
 data for the class being documented, in YAML format.
 
-=cut
+#=cut
 
 sub elementaldump {
 	my $self = shift();
@@ -1768,7 +1883,7 @@ sub elementaldump {
 [% ss.name %] is a debugging helper method to print the PPI document
 for the class being documented, in PPI::Dumper format.
 
-=cut
+#=cut
 
 sub ppidump {
 	my $self = shift();
@@ -1780,7 +1895,7 @@ sub ppidump {
 
 #=abstract Represent and render a single Pod::Plexus document.
 
-=cut
+#=cut
 
 # TODO - If $self->_has_xrefs() then render them into an existing SEE
 # ALSO section.  If there isn't a SEE ALSO section, create one.
@@ -1824,59 +1939,3 @@ sub ppidump {
 #
 # =include SECTION
 # =include ModuleName/Section
-
-
-#=attribute base_classes
-#
-#[% ss.name %] contains a set of parent classes of the class being
-#documented.  index_inclusions() populates it by analyzing the module's
-#source code for telltale statements.
-#
-#=method add_base_class CLASS_NAME
-#
-#[% ss.name %] adds a CLASS_NAME to this document's set of base
-#classes.
-#
-#=cut
-#
-#has base_classes => (
-#	is       => 'rw',
-#	isa      => 'HashRef[Str]',
-#	traits   => [ 'Hash' ],
-#	handles  => {
-#		_add_base_class => 'set',
-#	},
-#);
-#
-#sub add_base_class {
-#	my ($self, $class_name) = @_;
-#	$self->_add_base_class($class_name, 1);
-#}
-#
-#=attribute roles
-#
-#[% ss.name %] contains a set of roles consumed by the class being
-#documented.  index_inclusions() populates it by analyzing the module's
-#source code for telltale statements.
-#
-#=method add_role ROLE_NAME
-#
-#[% ss.name %] adds ROLE_NAME to this documents set of consumed roles.
-#
-#=cut
-#
-#has roles => (
-#	is       => 'rw',
-#	isa      => 'HashRef[Str]',
-#	traits   => [ 'Hash' ],
-#	handles  => {
-#		_add_role => 'set',
-#	},
-#);
-#
-#sub add_role {
-#	my ($self, $role_name) = @_;
-#	$self->_add_role($role_name, 1);
-#}
-
-### SKIPPABLE ATTRIBUTES
