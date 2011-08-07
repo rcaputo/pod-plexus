@@ -5,9 +5,7 @@ use PPI;
 use Pod::Elemental;
 use Devel::Symdump;
 use Storable qw(dclone);
-
-use Pod::Plexus::Entity::Method;
-use Pod::Plexus::Entity::Attribute;
+use Carp qw(croak);
 
 use feature 'switch';
 
@@ -47,6 +45,7 @@ has _ppi => (
 	default => sub { PPI::Document->new( shift()->pathname() ) },
 );
 
+
 =attribute _elemental
 
 [% ss.name %] contains a Pod::Elemental::Document representing the
@@ -64,7 +63,7 @@ has _elemental => (
 );
 
 ###
-### Public data.
+### Basic public data.
 ###
 
 =attribute pathname
@@ -80,6 +79,7 @@ has pathname => (
 	required => 1,
 );
 
+
 =attribute library
 
 [% ss.name %] contains the Pod::Plexus::Library object that represents
@@ -94,6 +94,7 @@ has library => (
 	required => 1,
 	weak_ref => 1,
 );
+
 
 =attribute package
 
@@ -116,6 +117,7 @@ has package => (
 	},
 );
 
+
 =attribute abstract
 
 The [% ss.name %] attribute contains the abstract of the module being
@@ -128,46 +130,12 @@ has abstract => (
 	isa     => 'Str',
 );
 
-=attribute attributes
+###
+### Code structure.
+###
 
-[% ss.name %] contains an hash of all identified attributes in the
-class being documented.  They are keyed on attribute name, and values
-are Pod::Plexus::Entity::Attribute objects.
-
-=cut
-
-has attributes => (
-	is      => 'rw',
-	is      => 'rw',
-	isa     => 'HashRef[Pod::Plexus::Entity::Attribute]',
-	traits   => [ 'Hash' ],
-	handles => {
-		_add_attribute => 'set',
-		_has_attribute => 'exists',
-		_get_attribute => 'get',
-		_get_attributes => 'values',
-	},
-);
-
-=attribute methods
-
-[% ss.name %] contains an hash of all identified methods in the class
-being documented.  They are keyed on method name, and values are
-Pod::Plexus::Entity::Method objects.
-
-=cut
-
-has methods => (
-	is      => 'rw',
-	isa     => 'HashRef[Pod::Plexus::Entity::Method]',
-	traits   => [ 'Hash' ],
-	handles => {
-		_add_method => 'set',
-		_has_method => 'exists',
-		_get_method => 'get',
-		_get_methods => 'values',
-	},
-);
+use Pod::Plexus::Entity::Method;
+use Pod::Plexus::Entity::Attribute;
 
 =attribute mop_class
 
@@ -194,9 +162,75 @@ has mop_class => (
 	},
 );
 
-# TODO - Gathering or grouping documentation into topics.
-# TODO - Gathering topics under higher level topics.
-# TODO - Essentially outlining without building an explicit outline.
+
+=attribute attributes
+
+[% ss.name %] contains an hash of all identified attributes in the
+class being documented.  They are keyed on attribute name, and values
+are Pod::Plexus::Entity::Attribute objects.
+
+=cut
+
+has attributes => (
+	is      => 'rw',
+	is      => 'rw',
+	isa     => 'HashRef[Pod::Plexus::Entity::Attribute]',
+	traits   => [ 'Hash' ],
+	handles => {
+		_add_attribute  => 'set',
+		_has_attribute  => 'exists',
+		_get_attribute  => 'get',
+		_get_attributes => 'values',
+	},
+);
+
+=attribute methods
+
+[% ss.name %] contains an hash of all identified methods in the class
+being documented.  They are keyed on method name, and values are
+Pod::Plexus::Entity::Method objects.
+
+=cut
+
+has methods => (
+	is      => 'rw',
+	isa     => 'HashRef[Pod::Plexus::Entity::Method]',
+	traits   => [ 'Hash' ],
+	handles => {
+		_add_method => 'set',
+		_has_method => 'exists',
+		_get_method => 'get',
+		_get_methods => 'values',
+	},
+);
+
+###
+### Documentation structure.
+###
+
+use Pod::Plexus::Reference::Example::Module;
+use Pod::Plexus::Reference::Example::Method;
+use Pod::Plexus::Reference::Include;
+
+has references => (
+	is      => 'rw',
+	isa     => 'HashRef[Pod::Plexus::Reference]',
+	default => sub { { } },
+	traits  => [ 'Hash' ],
+	handles => {
+		_really_add_reference  => 'set',
+		_has_reference  => 'exists',
+		_get_reference  => 'get',
+		_get_references => 'values',
+	},
+);
+
+sub _add_reference {
+	my ($self, $include) = @_;
+	my $key = $include->key();
+	return if $self->_has_reference($key);
+	$self->_really_add_reference($key, $include);
+}
 
 ### Skipping attributes.
 
@@ -227,6 +261,7 @@ has skip_attributes => (
 		_skip_attribute        => 'set',
 	}
 );
+
 
 =method skip_attribute
 
@@ -278,6 +313,7 @@ has skip_methods => (
 	}
 );
 
+
 =method skip_method
 
 Values don't matter, although the skip_attribute() method will supply
@@ -290,53 +326,12 @@ sub skip_method {
 	$self->_skip_method($_, 1) foreach @_;
 }
 
-### Cross references.
-
-=attribute see_also
-
-[% ss.name %] contains a hash of cross references defined by the
-"=xref" directive.  The project wishes to also index implicit
-references, but these haven't been defined yet.  Discussons welcome.
-
-=cut
-
-has see_also => (
-	is      => 'rw',
-	isa     => 'HashRef[Str]',
-	default => sub { { } },
-	traits  => [ 'Hash' ],
-	handles => {
-		_add_xref => 'set',
-		_has_refs => 'count',
-	},
-);
-
-### Cached rendered content?
-
-=method code
-
-Return the code portion of the file represented by this document.
-Documentation is stripped away.  This is used to render code examples
-by quoting entire modules.
-
-=cut
-
-sub code {
-	my $self = shift();
-
-	my $out = $self->_ppi()->clone();
-	$out->prune('PPI::Statement::End');
-	$out->prune('PPI::Statement::Data');
-	$out->prune('PPI::Token::Pod');
-
-	return $out->serialize();
-}
 
 =method sub
 
-Return the code for a particular named subroutine or method in this
-document.  Written so that code examples can be made by quoting
-individual subroutines rather than entire modules.
+[% ss.name %] returns the code for a particular named subroutine or
+method in the class being documented.  This is used to render code
+examples from single subroutines.
 
 =cut
 
@@ -397,12 +392,16 @@ sub render {
 		module  => $self->package(),
 	);
 
-	$self->library()->_template()->process(\$input, \%vars, \$output) or die(
-		$self->library()->_template()->error()
-	);
+	# TODO - Temporary, for debugging.
+	$output = $input;
+
+#	$self->library()->_template()->process(\$input, \%vars, \$output) or die(
+#		$self->library()->_template()->error()
+#	);
 
 	return $output;
 }
+
 
 =method can_render
 
@@ -418,35 +417,268 @@ messages on failure.
 sub can_render {
 	my $self = shift;
 
+	# TODO - Gathering or grouping documentation into topics.  The idea
+	# is to render them as "=topic" so that Pod::Weaver can gather them.
+
+	# TODO - Gathering topics under higher level topics.  Hierarchical
+	# documentation, if it's possible.  This would be nice to do without
+	# building an explicit outline.
+
 	my @errors;
 
 	# Simple things go first.
 
-	$self->extract_doc_commands(\@errors, 'extract_doc_skip');
-	$self->extract_doc_commands(\@errors, 'extract_doc_abstract');
+	$self->index_doc_commands(\@errors, 'index_doc_include');
+	$self->index_doc_commands(\@errors, 'index_doc_example');
 
-	# TODO - extract_doc_macro
+	$self->extract_doc_commands(\@errors, 'extract_doc_skip');
+	$self->extract_doc_commands(\@errors, 'extract_doc_xref');
+	$self->extract_doc_commands(\@errors, 'extract_doc_macro');
+
+	$self->index_doc_commands(\@errors, 'index_doc_abstract');
 
 	$self->index_code_attributes(\@errors);
 	$self->index_code_methods(\@errors);
 
 	#$self->index_code_inclusions(\@errors);
 
-	$self->extract_doc_commands(\@errors, 'extract_doc_attribute_or_method');
+	$self->index_doc_commands(\@errors, 'index_doc_attribute_or_method');
 
 #$self->inherit_documentation();
 #$self->validate_doc_references();
 
-#$self->index_cross_references();
+	# TODO - Load and parse all cross referenced modules.  We need
+	# enough data to set xrefs, import inclusions, and import examples
+	# from other, possibly non-Moose distributions.
+
+	# TODO - Validate whether all cross referenced modules exist, within
+	# and outside the current distribution.
 
 	return @errors;
+}
+
+###
+### Collect data from the documentation, but leave markers behind.
+###
+
+=method index_doc_commands
+
+[% ss.name %] iterates the Pod::Elemental::Element::Generic::Command
+elements of a module's documentation.  Its single parameter is the
+name of a $self method to call for each command node.  Those methods
+should parse the command, enter appropriate data into the object.
+
+=cut
+
+sub index_doc_commands {
+	my ($self, $errors, $method) = @_;
+
+	my $doc = $self->_elemental()->children();
+
+	my $i = @$doc;
+	NODE: while ($i--) {
+		my $node = $doc->[$i];
+
+		next NODE unless $node->isa('Pod::Elemental::Element::Generic::Command');
+
+		my $result = $self->$method($errors, $doc->[$i]);
+
+		# TODO - Better check for $result being an entity?
+		next NODE unless $result and ref $result;
+
+		# The return value is an entity.
+		# Append the following text to its documentation.
+		# Remove the text; we only need the command to mark the location.
+
+		my $j = $i + 2;
+		TEXT: while ($j < @$doc) {
+			unless ($doc->[$j]->isa('Pod::Elemental::Element::Generic::Command')) {
+				$result->push_documentation( splice(@$doc, $j, 1) );
+				next TEXT;
+			}
+
+			if (
+				$doc->[$j]->{command} eq 'cut' or
+				$doc->[$j]->{command} eq 'attribute' or
+				$doc->[$j]->{command} eq 'method' or
+				$doc->[$j]->{command} eq 'xref' or
+				$doc->[$j]->{command} =~ /^head/
+			) {
+				last TEXT;
+			}
+
+			$result->push_documentation( splice(@$doc, $j, 1) );
+		}
+	}
+}
+
+
+=method index_doc_abstract
+
+[% ss.name %] examines a single Pod::Elemental command node.  If it's
+an "=abstract" directive, the abstract string is entered into the
+[% mod.name %] object, and [% ss.name %].  All other Pod::Elemental
+commands are ignored.
+
+=cut
+
+sub index_doc_abstract {
+	my ($self, $errors, $node) = @_;
+
+	return unless $node->{command} eq 'abstract';
+
+	if (defined $self->abstract()) {
+		push @$errors, (
+			"More than one =abstract found in " . $self->package() .
+			".  Using the first one."
+		);
+		return 1;
+	}
+
+	$self->abstract( $node->{content} =~ /^\s* (\S.*?) \s*$/x );
+	return 1;
+}
+
+
+=method index_doc_attribute_or_method
+
+[% ss.name %] examines a Pod::Elemental documentation node.  If it's
+an "=attribute" or "=method" command, it and its following text are
+collected and remembered for rendering later.
+
+The command is  The command is preserved int the documentation as a
+marker for where to render the POD later.  The text paragraph is
+removed, and it will be replaced with an expanded version later.
+
+=cut
+
+sub index_doc_attribute_or_method {
+	my ($self, $errors, $node) = @_;
+
+	my $entity_type = $node->{command};
+	return unless $entity_type eq 'attribute' or $entity_type eq 'method';
+
+	my ($entity_name) = ($node->{content} =~ /^\s* (\S.*?) (?:\s|$)/x);
+
+	my $has_method = "_has_$entity_type";
+	unless ($self->$has_method($entity_name)) {
+		push @$errors, (
+			"'=$entity_type $entity_name' for non-existent $entity_type " .
+			" at " . $self->pathname() . " line $node->{start_line}"
+		);
+		return;
+	}
+
+	my $get_method = "_get_$entity_type";
+	my $entity = $self->$get_method($entity_name);
+
+	return $entity;
+}
+
+
+=method index_doc_example
+
+[% ss.name %] examines a single Pod::Elemental command node.  If it's
+an "=example" directive, the rest of the command is parsed to find out
+which code will be included as an example at that point.  This method
+always returns false: the "=example" directive must remain in place
+until the example is ready to be rendered.
+
+=cut
+
+sub index_doc_example {
+	my ($self, $errors, $node) = @_;
+
+	return unless $node->{command} eq 'example';
+
+	my ($module, $symbol) = $self->_parse_example_spec($errors, $node);
+	unless ($module) {
+		push @$errors, "Wrong example syntax: =example $node->{content}";
+		return;
+	}
+
+	if (defined $symbol) {
+		$self->_add_reference(
+			Pod::Plexus::Reference::Example::Method->new(
+				invoked_in => $self->package(),
+				module     => $module,
+				symbol     => $symbol,
+			)
+		);
+		return;
+	}
+
+	$self->_add_reference(
+		Pod::Plexus::Reference::Example::Module->new(
+			invoked_in => $self->package(),
+			module     => $module,
+		)
+	);
+
+	return;
+}
+
+
+=method index_doc_include
+
+[% ss.name %] examines a single Pod::Elemental command node.  If it's
+an "=include" directive, the rest of the command is parsed to find out
+which documentation should be included at that point.  This method
+always returns false: the "=include" directive must remain in place
+until the example is ready to be rendered.
+
+=cut
+
+sub index_doc_include {
+	my ($self, $errors, $node) = @_;
+
+	return unless $node->{command} eq 'include';
+
+	my ($module, $symbol) = $self->_parse_include_spec($errors, $node);
+	unless ($module) {
+		push @$errors, "Wrong inclusion syntax: =include $node->{content}";
+		return;
+	}
+
+	$self->_add_reference(
+		Pod::Plexus::Reference::Include->new(
+			invoked_in => $self->package(),
+			module     => $module,
+			symbol     => $symbol,
+		)
+	);
+
+	return;
 }
 
 ###
 ### Extract and remove data from documentation.
 ###
 
-=method extract_doc_command
+=method extract_doc_xref
+
+[% ss.name %] examines a single Pod::Elemental command node.  If it's
+an "=xref" directive, its data is entered into the cross-references
+for the [% ss.module %] objct, and [% ss.name %] returns true.  False
+is returned for all other nodes.
+
+=include extract_doc_command_callback
+
+=cut
+
+sub extract_doc_xref {
+	my ($self, $errors, $node) = @_;
+
+	return unless $node->{command} eq 'xref';
+
+	my ($module) = ($node->{content} =~ /^\s* (\S.*?) \s*$/x);
+	$self->_add_xref($module, 1);
+
+	return 1;
+}
+
+
+=method extract_doc_commands
 
 [% ss.name %] iterates the Pod::Elemental::Element::Generic::Command
 elements of a module's documentation.  Its single parameter is the
@@ -472,13 +704,15 @@ sub extract_doc_commands {
 		my $result = $self->$method($errors, $doc->[$i]);
 		next NODE unless $result;
 
-		# TODO - Generic means to remove an extracted directive from the
-		# POD, closing up the hole that's left.  Trailing "=cut" must
-		# remain if there's POD before the directive.  Otherwise it must
-		# also be removed.
-		#
-		# TODO - For now, let's try replacing the directive with an empty
-		# "=pod" command.  Maybe that will be a sufficient no-op.
+		# TODO - Do we need a better means to remove an extracted command
+		# from the POD, closing up the hole that's left?  We need to be
+		# smart about the trailing cut, since it may terminate a section
+		# of multiple commands.  If we simply take it out, then we break
+		# the POD preceding the command.
+
+		# TODO - For now, extracted commands and their content are
+		# replaced by "=pod" and a blank paragraph.  This may be enough of
+		# a no-op for long-term use.
 
 		splice(
 			@$doc, $i, 1,
@@ -517,6 +751,7 @@ sub extract_doc_commands {
 	}
 }
 
+
 =macro extract_doc_command_callback
 
 This method is a callback to extract_doc_command().  That other method
@@ -529,6 +764,7 @@ As with all [% mode.name %] parsers, only the Pod::Elemental data in
 memory is affected.  The source on disk is untouched.
 
 =cut
+
 
 =method extract_doc_skip
 
@@ -556,63 +792,37 @@ sub extract_doc_skip {
 	return 1;
 }
 
-=method extract_doc_abstract
+
+=method extract_doc_macro
 
 [% ss.name %] examines a single Pod::Elemental command node.  If it's
-an "=abstract" directive, the abstract string is entered into the
-[% mod.name %] object, and [% ss.name %] returns true.  False is
-returned for all other nodes.
+a "=macro" directive, its data is entered into the [% mod.name %]
+object, and [% ss.name %] returns the new entity so the caller can use
+it to absorb any text that follows.  False is returned for all other
+nodes.
 
 =include extract_doc_command_callback
 
 =cut
 
-sub extract_doc_abstract {
+sub extract_doc_macro {
 	my ($self, $errors, $node) = @_;
 
-	return unless $node->{command} eq 'abstract';
+	return unless $node->{command} eq 'macro';
 
-	if (defined $self->abstract()) {
-		push @$errors, (
-			"More than one =abstract found in " . $self->package() .
-			".  Using the first one."
-		);
-		return 1;
-	}
-
-	$self->abstract( $node->{content} =~ /^\s* (\S.*?) \s*$/x );
-	return 1;
-}
-
-=method index_doc_attributes_and_methods
-
-[% ss.name %] scans the documentation for the module being documented.
-It extracts "=attribute" and "=method" directives and associates their
-content with corresponding attributes and methods.
-
-=cut
-
-sub extract_doc_attribute_or_method {
-	my ($self, $errors, $node) = @_;
-
-	my $entity_type = $node->{command};
-	return unless $entity_type eq 'attribute' or $entity_type eq 'method';
-
-	my ($entity_name) = ($node->{content} =~ /^\s* (\S.*?) (?:\s|$)/x);
-
-	my $has_method = "_has_$entity_type";
-	unless ($self->$has_method($entity_name)) {
-		push @$errors, (
-			"'=$entity_type $entity_name' for non-existent $entity_type " .
-			" at " . $self->pathname() . " line $node->{start_line}"
-		);
+	my ($symbol) = ($node->{content} =~ /^\s* (\S+) \s*$/x);
+	unless (defined $symbol) {
+		push @$errors, "Wrong macro syntax: =macro $node->{content}";
 		return;
 	}
 
-	my $get_method = "_get_$entity_type";
-	my $entity = $self->$get_method($entity_name);
+	my $macro = Pod::Plexus::Reference::Include->new(
+		invoked_in => $self->package(),
+		module     => $self->package(),
+		symbol     => $symbol,
+	);
 
-	return $entity;
+	$self->_add_reference($macro);
 }
 
 ###
@@ -636,7 +846,7 @@ sub index_code_attributes {
 
 		next ATTRIBUTE if $self->is_skippable_attribute($name);
 
-		# TODO - How to report the places where it's defined?
+		# TODO - How to report the places where it's defined?  Can it be?
 		if ($self->_has_attribute($name)) {
 			push @$errors, "Attribute $name defined more than once...";
 			next ATTRIBUTE;
@@ -650,6 +860,7 @@ sub index_code_attributes {
 		$self->_add_attribute($name, $entity);
 	}
 }
+
 
 =method index_code_methods
 
@@ -672,7 +883,7 @@ sub index_code_methods {
 		# TODO - Need a better way to identify them, eh?
 		next METHOD if $name =~ /^[A-Z0-9_]+$/;
 
-		# TODO - How to report the places where it's defined?
+		# TODO - How to report the places where it's defined?  Can it be?
 		if ($self->_has_method($name)) {
 			push @$errors, "Method $name defined more than once...";
 			next METHOD;
@@ -687,7 +898,150 @@ sub index_code_methods {
 	}
 }
 
-=method index_code_inclusions
+###
+### Helper methods.
+###
+
+=method _parse_include_spec
+
+[% ss.name %] parses the specification for documentation inclusions.
+It's used by the "=include" directive to identify which documentation
+to include.
+
+=cut
+
+sub _parse_include_spec {
+	my ($self, $errors, $node) = @_;
+
+	croak 'Node is not an include command' unless $node->{command} eq 'include';
+
+	if ($node->{content} =~ m!^\s* (\S*) \s* (\S.*?) \s*$!x) {
+		return($1, $2);
+	}
+
+	if ($node->{content} =~ m!^\s* (\S*) \s*$!x) {
+		return($self->package(), $1);
+	}
+
+	return;
+	push @$errors, "Wrong inclusion syntax: =include $node->{content}";
+	return;
+}
+
+
+=method _parse_example_spec
+
+[% ss.name %] parses the specification for examples.  It's used by the
+"=example" directive to identify which code is being used as an
+example.
+
+=cut
+
+sub _parse_example_spec {
+	my ($self, $errors, $node) = @_;
+
+	croak 'Node is not an example command' unless $node->{command} eq 'example';
+
+	my (@args) = split(/[\s\/]+/, $node->{content});
+
+	if (@args > 2) {
+		push @$errors, "Too many parameters for =example $node->{content}";
+		return;
+	}
+
+	if (@args < 1) {
+		push @$errors, "Not enough parameters for =example $node->{content}";
+		return;
+	}
+
+	# TODO - TYPE_FILE if the spec contains a "." or "/" to indicate a
+	# path name.
+
+	# "Module::method()" or "Module method()".
+
+	if ($node->{content} =~ /^\s*(\S+)(?:\s+|::)(\w+)\(\)\s*$/) {
+		return($1, $2);
+	}
+
+	# Just "method()".
+
+	if ($node->{content} =~ /^(\w+)\(\)$/) {
+		return($self->package(), $1);
+	}
+
+	# Assuming just "Module".
+
+	my ($package) = ($node->{content} =~ /\s*(\S.*?)\s*/);
+	return($package, undef);
+}
+
+###
+### Debugging.
+###
+
+sub BUILD {
+	warn "Absorbing ", shift()->pathname(), " ...\n";
+}
+
+no Moose;
+
+1;
+
+__END__
+
+### TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
+### TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
+### TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
+### TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
+### TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
+
+### Cross references.
+
+#=attribute see_also
+
+[% ss.name %] contains a hash of cross references defined by the
+"=xref" directive.  The project wishes to also index implicit
+references, but these haven't been defined yet.  Discussons welcome.
+
+=cut
+
+has see_also => (
+	is      => 'rw',
+	isa     => 'HashRef[Str]',
+	default => sub { { } },
+	traits  => [ 'Hash' ],
+	handles => {
+		_add_xref => 'set',
+		_has_refs => 'count',
+	},
+);
+
+### Cached rendered content?
+
+#=method code
+
+[% ss.name %] returns the code portion of the file represented by this
+document.  This is used to render code examples by quoting entire
+modules.
+
+=cut
+
+sub code {
+	my $self = shift();
+
+	my $out = $self->_ppi()->clone();
+	$out->prune('PPI::Statement::End');
+	$out->prune('PPI::Statement::Data');
+	$out->prune('PPI::Token::Pod');
+
+	return $out->serialize();
+}
+
+###
+### Helper methods.
+###
+
+#=method index_code_inclusions
 
 Find and register all modules known by Class::MOP to contribute to
 this class.  Base classes and roles are prime examples of the modules
@@ -696,11 +1050,6 @@ collected by [% ss.name %].
 This is a helper method called by index().
 
 =cut
-
-
-###
-### TODO - These are older things that need cleaning up.
-###
 
 sub index_code_inclusions {
 	my $self = shift();
@@ -770,36 +1119,11 @@ sub index_code_inclusions {
 	}
 }
 
-=method index_cross_references
+###
+### Expansions?
+###
 
-[% ss.name %] collects cross references from the code and
-documentation into the C<see_also> attribute.  These references will
-populate a "SEE ALSO" section later.
-
-=cut
-
-sub index_cross_references {
-	my $self = shift();
-
-	my $doc = $self->_elemental();
-
-	my $i = @{ $doc->children() };
-	NODE: while ($i--) {
-
-		my $node = $doc->children()->[$i];
-
-		next NODE unless $node->isa('Pod::Elemental::Element::Generic::Command');
-
-		if ($node->{command} eq 'xref') {
-			my ($module) = ($node->{content} =~ /^\s* (\S.*?) \s*$/x);
-			$self->_add_xref($module, 1);
-			splice(@{$doc->children()}, $i, 1);
-			next NODE;
-		}
-	}
-}
-
-=method dereference_mutables
+#=method dereference_mutables
 
 [% ss.name %] attempts to replace C<=example> and C<=include>
 references with the code and documentation to which they refer.  It
@@ -810,13 +1134,9 @@ references resolve, it goes on to the foreign ones.
 resolved.  Otherwise, it returns false.  The caller uses these values
 to determine whether another pass at them must be made.
 
-=example Pod::Plexus::Library dereference
+#=example Pod::Plexus::Library dereference
 
 =cut
-
-###
-### Expansions?
-###
 
 sub dereference_mutables {
 	my $self = shift();
@@ -830,7 +1150,8 @@ sub dereference_mutables {
 	return;
 }
 
-=method dereference_immutables
+
+#=method dereference_immutables
 
 [% ss.name %] expands things that don't rely upon the files that
 contain them or the positions in which they occur.
@@ -964,7 +1285,8 @@ sub dereference_immutables {
 	}
 }
 
-=method dereference_locals
+
+#=method dereference_locals
 
 [% ss.name %] dereferences local references only.  It returns true if
 there are no local references, or they all resolved.  It returns false
@@ -1003,7 +1325,8 @@ sub dereference_locals {
 	return @unresolved_names;
 }
 
-=method dereference_remotes
+
+#=method dereference_remotes
 
 [% ss.name %] dereferences remote references only.  It returns true if
 there are no remote references, or they all resolved.  It returns
@@ -1095,7 +1418,8 @@ sub dereference_remotes {
 	return @unresolved_names;
 }
 
-=method inherit_documentation
+
+#=method inherit_documentation
 
 [% ss.name %] finds documentation for attributes and methods that
 aren't already documented in their own classes.
@@ -1288,80 +1612,8 @@ sub inherit_documentation {
 	}
 }
 
-###
-### Helpers.  Almost worth making them private.
-###
 
-=method parse_example_spec
-
-[% ss.name %] parses the specification for examples.  It's used by the
-"=example" directive to identify which code is being used as an
-example.
-
-=cut
-
-sub parse_example_spec {
-	my ($self, $node) = @_;
-
-	return unless $node->{command} eq 'example';
-
-	my (@args) = split(/[\s\/]+/, $node->{content});
-
-	die "too many args for example" if @args > 2;
-	die "not enough args for example" if @args < 1;
-
-	# TODO - TYPE_FILE if the spec contains a "." or "/" to indicate a
-	# path name.
-
-	# "Module::method()" or "Module method()".
-
-	if ($node->{content} =~ /^\s*(\S+)(?:\s+|::)(\w+)\(\)\s*$/) {
-		my ($package, $method) = ($1, $2);
-		return( $self->get_scope($package) | TYPE_SUB, $package, $method );
-	}
-
-	# Just "method()".
-
-	if ($node->{content} =~ /^(\w+)\(\)$/) {
-		my $package = $1;
-		return( MOD_IMPLICIT | SCOPE_LOCAL | TYPE_SUB, $self->package(), $1 );
-	}
-
-	# Assuming just "Module".
-
-	my ($package) = ($node->{content} =~ /\s*(\S.*?)\s*/);
-	return( $self->get_scope($package) | TYPE_PACKAGE, $package, undef );
-}
-
-=method parse_include_spec
-
-[% ss.name %] parses the specification for documentation inclusions.
-It's used by the "=include" directive to identify which documentation
-to include.
-
-=cut
-
-sub parse_include_spec {
-	my ($self, $node) = @_;
-
-	return unless $node->{command} eq 'include';
-
-	if ($node->{content} =~ m!^\s* (\S.*?) \s* / \s* (\S.*?) \s*$!x) {
-		my ($package, $section) = ($1, $2);
-		return( $self->get_scope($package) | TYPE_SECTION, $package, $section );
-	}
-
-	if ($node->{content} =~ m!^\s* / \s* (\S.*?) \s*$!x) {
-		return( SCOPE_LOCAL | TYPE_SECTION, $self->package(), $1 );
-	}
-
-	die(
-		"Wrong inclusion syntax:\n",
-		"=include $node->{content}\n",
-	)
-}
-
-=method get_scope
+#=method get_scope
 
 [% ss.method %] is a helper method to determine whether a package is
 local or remote.  A local package is the same as the module currently
@@ -1380,7 +1632,8 @@ sub get_scope {
 	);
 }
 
-=method validate_doc_references
+
+#=method validate_doc_references
 
 [% ss.name %] checks whether every implemented attribute and method is
 either documented, implicitly skipped by virtue of being a basic Moose
@@ -1427,7 +1680,8 @@ sub validate_doc_references {
 	exit 1 if $failures;
 }
 
-=method get_code_content
+
+#=method get_code_content
 
 [% ss.name %] returns the code content for a documentation reference,
 such as "=example".  It takes three parameters, the type of reference,
@@ -1494,11 +1748,7 @@ sub get_code_content {
 ### Debugging.
 ###
 
-sub BUILD {
-	warn "Absorbing ", shift()->pathname(), " ...\n";
-}
-
-=method elementaldump
+#=method elementaldump
 
 [% ss.name %] is a debugging helper method to print the Pod::Elemental
 data for the class being documented, in YAML format.
@@ -1512,7 +1762,8 @@ sub elementaldump {
 	exit;
 }
 
-=method ppidump
+
+#=method ppidump
 
 [% ss.name %] is a debugging helper method to print the PPI document
 for the class being documented, in PPI::Dumper format.
@@ -1527,11 +1778,7 @@ sub ppidump {
 	exit;
 }
 
-no Moose;
-
-1;
-
-=abstract Represent and render a single Pod::Plexus document.
+#=abstract Represent and render a single Pod::Plexus document.
 
 =cut
 
