@@ -184,6 +184,7 @@ has attributes => (
 	},
 );
 
+
 =attribute methods
 
 [% ss.name %] contains an hash of all identified methods in the class
@@ -229,13 +230,21 @@ hash.
 
 =cut
 
+=method get_imports
+
+[% ss.name %] is a hash accessor that returns all unique imported
+module names.  It just returns the "imports" attribute's keys().
+
+=cut
+
 has imports => (
 	is      => 'rw',
 	isa     => 'HashRef[Str]',
 	traits  => [ 'Hash' ],
 	default => sub { { } },
 	handles => {
-		add_import => 'set',
+		add_import  => 'set',
+		get_imports => 'keys',
 	},
 );
 
@@ -258,12 +267,21 @@ hash.
 
 =cut
 
+=method get_base_classes
+
+[% ss.name %] is a hash accessor that returns all unique base class
+names for this module.  It just returns the "base_classes" attribute's
+keys().
+
+=cut
+
 has base_classes => (
 	is       => 'rw',
 	isa      => 'HashRef[Str]',
 	traits   => [ 'Hash' ],
 	handles  => {
-		add_base_class => 'set',
+		add_base_class   => 'set',
+		get_base_classes => 'keys',
 	},
 );
 
@@ -288,16 +306,24 @@ hash.
 
 =cut
 
+=method get_roles
+
+[% ss.name %] is a hash accessor that returns all unique role names
+consumed by this module.  It just returns the "roles" attribute's
+keys().
+
+=cut
+
 has roles => (
 	is       => 'rw',
 	isa      => 'HashRef[Str]',
 	traits   => [ 'Hash' ],
 	handles  => {
-		add_role => 'set',
+		add_role  => 'set',
+		get_roles => 'keys',
 	},
 );
 
-### SKIPPABLE ATTRIBUTES
 ###
 ### Documentation structure.
 ###
@@ -448,6 +474,32 @@ sub sub {
 }
 
 ###
+### Validation pass.
+###
+
+=method get_referents
+
+[% ss.name %] returns a list of every module referred to by this
+document.  The Pod::Plexus::Library uses it to find new referents.
+
+=cut
+
+sub get_referents {
+	my $self = shift();
+
+	my %referents;
+
+	$referents{$_} = 1 foreach (
+		#$self->get_imports(),
+		$self->get_base_classes(),
+		$self->get_roles(),
+		( map { $_->module() } $self->_get_references() ),
+	);
+
+	return keys %referents;
+}
+
+###
 ### Final render.
 ###
 
@@ -498,7 +550,7 @@ sub render {
 }
 
 
-=method can_render
+=method collect_data
 
 [% ss.name %] prepares the document for rendering by performing all
 prerequisite actions.  Data is collected and validated.  Intermediate
@@ -509,8 +561,8 @@ messages on failure.
 
 =cut
 
-sub can_render {
-	my $self = shift;
+sub collect_data {
+	my ($self, $errors) = @_;
 
 	# TODO - Gathering or grouping documentation into topics.  The idea
 	# is to render them as "=topic" so that Pod::Weaver can gather them.
@@ -519,36 +571,39 @@ sub can_render {
 	# documentation, if it's possible.  This would be nice to do without
 	# building an explicit outline.
 
-	my @errors;
-
 	# Simple things go first.
 
-	$self->index_doc_commands(\@errors, 'index_doc_include');
-	$self->index_doc_commands(\@errors, 'index_doc_example');
+	$self->index_doc_commands($errors, 'index_doc_include');
+	$self->index_doc_commands($errors, 'index_doc_example');
 
-	$self->extract_doc_commands(\@errors, 'extract_doc_skip');
-	$self->extract_doc_commands(\@errors, 'extract_doc_xref');
-	$self->extract_doc_commands(\@errors, 'extract_doc_macro');
+	$self->extract_doc_commands($errors, 'extract_doc_skip');
+	$self->extract_doc_commands($errors, 'extract_doc_xref');
+	$self->extract_doc_commands($errors, 'extract_doc_macro');
 
-	$self->index_doc_commands(\@errors, 'index_doc_abstract');
+	$self->index_doc_commands($errors, 'index_doc_abstract');
 
 	# Code inclusions are "use" and "require", as well as Moose things
 	# that may pull code in from elsewhere.
 
-	$self->index_code_inclusions(\@errors);
+	$self->index_code_inclusions($errors);
 
 	# Documentation for attributes and methods is attached to those
 	# entities in memory, so the code entities must be indexed first.
 
-	$self->index_code_attributes(\@errors);
-	$self->index_code_methods(\@errors);
-	$self->index_doc_commands(\@errors, 'index_doc_attribute_or_method');
+	$self->index_code_attributes($errors);
+	$self->index_code_methods($errors);
+	$self->index_doc_commands($errors, 'index_doc_attribute_or_method');
 
 	# Once explicit code and documentation are associated, we can see
 	# which remain undocumented and need to inherit documentation or
 	# have boilerplate docs written.
 
+	# TODO - For each undocumented attribute or method, try to find
+	# documentation up the inheritance or role chain until we reach the
+	# entity's implementation.
+
 	#$self->inherit_documentation();
+
 	#$self->validate_doc_references();
 
 	# TODO - Load and parse all cross referenced modules.  We need
@@ -557,8 +612,6 @@ sub can_render {
 
 	# TODO - Validate whether all cross referenced modules exist, within
 	# and outside the current distribution.
-
-	return @errors;
 }
 
 ###
@@ -1108,7 +1161,7 @@ sub _parse_include_spec {
 
 	croak 'Node is not an include command' unless $node->{command} eq 'include';
 
-	if ($node->{content} =~ m!^\s* (\S*) \s* (\S.*?) \s*$!x) {
+	if ($node->{content} =~ m!^\s* (\S*) \s+ (\S.*?) \s*$!x) {
 		return($1, $2);
 	}
 
@@ -1187,27 +1240,6 @@ no Moose;
 ### TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
 
 __END__
-
-### Cross references.
-
-#=attribute see_also
-
-[% ss.name %] contains a hash of cross references defined by the
-"=xref" directive.  The project wishes to also index implicit
-references, but these haven't been defined yet.  Discussons welcome.
-
-#=cut
-
-has see_also => (
-	is      => 'rw',
-	isa     => 'HashRef[Str]',
-	default => sub { { } },
-	traits  => [ 'Hash' ],
-	handles => {
-		_add_xref => 'set',
-		_has_refs => 'count',
-	},
-);
 
 ### Cached rendered content?
 

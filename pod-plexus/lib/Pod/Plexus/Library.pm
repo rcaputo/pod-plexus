@@ -2,7 +2,8 @@ package Pod::Plexus::Library;
 
 use Moose;
 use Template;
-use Carp qw(confess);
+use Carp qw(confess croak);
+use Module::Util qw(find_installed);
 
 use Pod::Plexus::Document;
 
@@ -15,16 +16,22 @@ distribution's root directory.
 Documents use this attribute to find other documents by their relative
 paths.
 
+=cut
+
 =method _add_file FILE_PATH, DOCUMENT_OBJECT
 
 Associate a DOCUMENT_OBJECT with the FILE_PATH from which it was
 parsed.  Don't use this directly.  Instead, use the public add_file()
 method, which handles cross references between files and modules.
 
+=cut
+
 =method _get_file FILE_PATH
 
 Retrieve a [% lib.main %]::Document from the library by its FILE_PATH
 relative to the distribution's root directory.
+
+=cut
 
 =method has_file FILE_PATH
 
@@ -45,11 +52,14 @@ has files => (
 	},
 );
 
+
 =attribute modules
 
 [% ss.name %] holds a hash of [% lib.main %]::Document objects keyed
 on their main package names.  For [% lib.main %]'s purposes, the main
 package is defined by the first C<package> statement in the module.
+
+=cut
 
 =method get_documents
 
@@ -71,6 +81,7 @@ has modules => (
 	},
 );
 
+
 =attribute _template
 
 [% ss.name %] holds a Template toolkit object that will be shared
@@ -88,6 +99,7 @@ has _template => (
 	lazy    => 1,
 	default => sub { Template->new() },
 );
+
 
 =method add_file FILE_PATH
 
@@ -114,6 +126,24 @@ sub add_file {
 	undef;
 }
 
+
+=method add_module MODULE_NAME
+
+[% ss.name %] adds a module by its MODULE_NAME.  It looks up the full
+path to the module and adds that.
+
+=cut
+
+sub add_module {
+	my ($self, $module_name) = @_;
+
+	my $path = find_installed($module_name);
+	croak "Can't find $module_name name" unless defined $path and length $path;
+
+	$self->add_file($path);
+}
+
+
 =method get_document DOCUMENT_REFERENCE
 
 [% ss.name %] returns a [% lib.main %]::Document that matches a given
@@ -136,6 +166,7 @@ sub get_document {
 	return $self->_get_file($document_key);
 }
 
+
 =method index
 
 [% ss.name %] indexes the library.  Methods and attributes are
@@ -149,6 +180,7 @@ sub index {
 	my $self = shift();
 	$_->index() foreach $self->get_documents();
 }
+
 
 =method dereference
 
@@ -201,13 +233,33 @@ sub dereference {
 	}
 }
 
+
+=method get_unresolved_referents
+
+[% ss.name %] collects and returns the unique referents across all
+known documents.
+
+=cut
+
+sub get_unresolved_referents {
+	my $self = shift();
+
+	my %referents;
+
+	DOCUMENT: foreach my $document ($self->get_documents()) {
+		REFERENT: foreach ($document->get_referents()) {
+			next REFERENT if $self->_has_module($_);
+			$referents{$_} = 1;
+		}
+	}
+
+	return keys %referents;
+}
+
+
 no Moose;
 
 1;
-
-__END__
-
-=pod
 
 =abstract Represent a library of one or more [% lib.main %] documents.
 

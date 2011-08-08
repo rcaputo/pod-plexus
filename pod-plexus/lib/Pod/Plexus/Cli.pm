@@ -216,24 +216,47 @@ sub run {
 	my @errors;
 
 	# This is a parsing, collection and error checking pass.
-	# Nothing is actually rendered yet.
+	# Cross-references aren't resolved.  Nothing is rendered yet.
 
 	MODULE: foreach my $module_name (@{$self->module()}) {
-
 		my $doc_object = $self->_library()->get_document($module_name);
 
 		unless ($doc_object) {
-			push @errors, "Can't find $module_name.  Not rendered.";
+			push @errors, "Can't find $module_name in library.";
 			next MODULE;
 		}
 
-		push @errors, $doc_object->can_render();
+		$doc_object->collect_data(\@errors);
 	}
 
 	if (@errors) {
 		warn "$_\n" foreach @errors;
 		exit 1;
 	}
+
+	# This pass tries to find and inspect external referents.
+
+	PASS: for (1..5) {
+		my @referents = $self->_library()->get_unresolved_referents();
+		last PASS unless @referents;
+
+		foreach my $referent (@referents) {
+			$self->_library()->add_module($referent);
+		}
+	}
+
+	my @referents = sort $self->_library()->get_unresolved_referents();
+	if (@referents) {
+		push @errors, "Can't find some modules: @referents";
+	}
+
+	if (@errors) {
+		warn "$_\n" foreach @errors;
+		exit 1;
+	}
+
+	# TODO NEXT - After all external references are loaded, begin
+	# derefereincing somehow.
 
 	# Render the requested documents.
 
