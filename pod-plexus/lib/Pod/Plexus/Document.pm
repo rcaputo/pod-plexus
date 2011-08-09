@@ -1,5 +1,9 @@
 package Pod::Plexus::Document;
 
+=abstract Represent and render a single Pod::Plexus document.
+
+=cut
+
 use Moose;
 use PPI;
 use Pod::Elemental;
@@ -339,10 +343,10 @@ has references => (
 	default => sub { { } },
 	traits  => [ 'Hash' ],
 	handles => {
-		_really_add_reference  => 'set',
-		_has_reference  => 'exists',
-		_get_reference  => 'get',
-		_get_references => 'values',
+		_really_add_reference => 'set',
+		_has_reference        => 'exists',
+		_get_reference        => 'get',
+		_get_references       => 'values',
 	},
 );
 
@@ -445,32 +449,6 @@ one.  Literally, the number 1.
 sub skip_method {
 	my $self = shift();
 	$self->_skip_method($_, 1) foreach @_;
-}
-
-
-=method sub
-
-[% ss.name %] returns the code for a particular named subroutine or
-method in the class being documented.  This is used to render code
-examples from single subroutines.
-
-=cut
-
-sub sub {
-	my ($self, $sub_name) = @_;
-
-	my $subs = $self->_ppi()->find(
-		sub {
-			$_[1]->isa('PPI::Statement::Sub') and
-			defined($_[1]->name()) and
-			$_[1]->name() eq $sub_name
-		}
-	);
-
-	die $self->package(), " doesn't define sub $sub_name" unless @$subs;
-	die $self->package(), " defines too many subs $sub_name" if @$subs > 1;
-
-	return $subs->[0]->content();
 }
 
 ###
@@ -589,6 +567,8 @@ sub collect_data {
 
 	# Documentation for attributes and methods is attached to those
 	# entities in memory, so the code entities must be indexed first.
+	# This group must go last, however, so that references within their
+	# documentation are indexed in advance.
 
 	$self->index_code_attributes($errors);
 	$self->index_code_methods($errors);
@@ -1145,6 +1125,122 @@ sub index_code_inclusions {
 }
 
 ###
+### Dereference documentation references.
+###
+
+=method dereference
+
+[% ss.name %] acquires or generates documentation from references.
+Each satisfied reference is considered to be resolved, or
+"dereferenced".
+
+[% ss.name %] will dereference documentation recursively, if needed.
+Previous indexing passes should have guaranteed that all referenced
+modules exist, but the presence of necessary symbols will be
+determined during this call.
+
+=cut
+
+sub dereference {
+	my ($self, $errors) = @_;
+	my $library = $self->library();
+
+	foreach my $reference ($self->_get_references()) {
+		next PASS if $reference->is_dereferenced();
+		$reference->dereference($library, $self, $errors);
+	}
+}
+
+
+=method sub
+
+[% ss.name %] returns the code for a particular named subroutine or
+method in the class being documented.  This is used to render code
+examples from single subroutines.
+
+=cut
+
+sub sub {
+	my ($self, $sub_name) = @_;
+
+	my $subs = $self->_ppi()->find(
+		sub {
+			$_[1]->isa('PPI::Statement::Sub') and
+			defined($_[1]->name()) and
+			$_[1]->name() eq $sub_name
+		}
+	);
+
+	die $self->package(), " doesn't define sub $sub_name" unless @$subs;
+	die $self->package(), " defines too many subs $sub_name" if @$subs > 1;
+
+	return $subs->[0]->content();
+}
+
+
+=method code
+
+[% ss.name %] returns the code portion of the file represented by this
+document.  This is used to render code examples by quoting entire
+modules.
+
+=cut
+
+sub code {
+	my $self = shift();
+
+	my $out = $self->_ppi()->clone();
+	$out->prune('PPI::Statement::End');
+	$out->prune('PPI::Statement::Data');
+	$out->prune('PPI::Token::Pod');
+
+	return $out->serialize();
+}
+
+
+=method pod_section
+
+[% ss.name %] returns a copy of the documentation for a specified POD
+section, or undef if the section doesn't exist.
+
+=cut
+
+sub pod_section {
+	my ($self, $section_name) = @_;
+
+	my $closing_command;
+	my @insert;
+
+	SOURCE_NODE: foreach my $source_node (@{ $self->_elemental()->children() }) {
+
+		unless (
+			$source_node->isa('Pod::Elemental::Element::Generic::Command')
+		) {
+			push @insert, $source_node if $closing_command;
+			next SOURCE_NODE;
+		}
+
+		if ($closing_command) {
+			# TODO - What other conditions close an element?
+
+			last SOURCE_NODE if (
+				$source_node->{command} eq $closing_command or
+				$source_node->{command} eq 'cut'
+			);
+
+			push @insert, $source_node;
+			next SOURCE_NODE;
+		}
+
+		next unless $source_node->{content} =~ /^\Q$section_name\E/;
+
+		$closing_command = $source_node->{command};
+	}
+
+	return dclone(\@insert);
+}
+
+###
 ### Helper methods.
 ###
 
@@ -1241,62 +1337,9 @@ no Moose;
 
 __END__
 
-### Cached rendered content?
-
-#=method code
-
-[% ss.name %] returns the code portion of the file represented by this
-document.  This is used to render code examples by quoting entire
-modules.
-
-#=cut
-
-sub code {
-	my $self = shift();
-
-	my $out = $self->_ppi()->clone();
-	$out->prune('PPI::Statement::End');
-	$out->prune('PPI::Statement::Data');
-	$out->prune('PPI::Token::Pod');
-
-	return $out->serialize();
-}
-
-###
-### Helper methods.
-###
-
 ###
 ### Expansions?
 ###
-
-#=method dereference_mutables
-
-[% ss.name %] attempts to replace C<=example> and C<=include>
-references with the code and documentation to which they refer.  It
-performs these replacements for local references first.  If all local
-references resolve, it goes on to the foreign ones.
-
-[% ss.name %] returns true if all references were successfully
-resolved.  Otherwise, it returns false.  The caller uses these values
-to determine whether another pass at them must be made.
-
-#=example Pod::Plexus::Library dereference
-
-#=cut
-
-sub dereference_mutables {
-	my $self = shift();
-
-	my @undefined = $self->dereference_remotes();
-	return @undefined if @undefined;
-
-	@undefined = $self->dereference_locals();
-	return @undefined if @undefined;
-
-	return;
-}
-
 
 #=method dereference_immutables
 
@@ -1430,139 +1473,6 @@ sub dereference_immutables {
 		}
 
 	}
-}
-
-
-#=method dereference_locals
-
-[% ss.name %] dereferences local references only.  It returns true if
-there are no local references, or they all resolved.  It returns false
-if any local references remain unresolved.
-
-#=cut
-
-sub dereference_locals {
-	my $self = shift();
-
-	my @unresolved_names;
-
-	my $doc = $self->_elemental();
-
-	my $i = @{ $doc->children() };
-	NODE: while ($i--) {
-
-		my $node = $doc->children()->[$i];
-
-		next NODE unless $node->isa('Pod::Elemental::Element::Generic::Command');
-
-		# "=include (spec)" -> documentation inclusion
-
-		if ($node->{command} eq 'include') {
-			my ($type, $module, $section) = $self->parse_include_spec($node);
-			next NODE unless $type & SCOPE_LOCAL;
-
-			# If the remote thing is fully resolved, then pull it in.
-			# TODO - Meanwhile, pretend it failed.
-
-			push @unresolved_names, "=$node->{command} $node->{content}";
-			next NODE;
-		}
-	}
-
-	return @unresolved_names;
-}
-
-
-#=method dereference_remotes
-
-[% ss.name %] dereferences remote references only.  It returns true if
-there are no remote references, or they all resolved.  It returns
-false if any remote references remain unresolved.
-
-#=cut
-
-sub dereference_remotes {
-	my $self = shift();
-
-	my @unresolved_names;
-
-	my $doc = $self->_elemental();
-
-	my $i = @{ $doc->children() };
-	NODE: while ($i--) {
-
-		my $node = $doc->children()->[$i];
-
-		next NODE unless $node->isa('Pod::Elemental::Element::Generic::Command');
-
-		### "=include MODULE SECTION" -> documentation copied from source.
-		#
-		# TODO - Need to ensure the full rendering of source material
-		# before inserting it here.
-
-		if ($node->{command} eq 'include') {
-			my ($module_name, $section) = split(/\s+/, $node->{content}, 2);
-
-			# TODO - How do we check whether the remote section is defined?
-
-			my $source_module = $self->library()->get_module($module_name);
-			unless ($source_module) {
-				push @unresolved_names, "=$module_name $section";
-				next NODE;
-			}
-
-			my $source_doc = $source_module->_elemental();
-
-			my $closing_command;
-			my @insert;
-
-			SOURCE_NODE: foreach my $source_node (@{ $source_doc->children() }) {
-
-				unless (
-					$source_node->isa('Pod::Elemental::Element::Generic::Command')
-				) {
-					push @insert, $source_node if $closing_command;
-					next SOURCE_NODE;
-				}
-
-				if ($closing_command) {
-					# TODO - What other conditions close an element?
-
-					last SOURCE_NODE if (
-						$source_node->{command} eq $closing_command or
-						$source_node->{command} eq 'cut'
-					);
-
-					push @insert, $source_node;
-					next SOURCE_NODE;
-				}
-
-				next unless $source_node->{content} =~ /^\Q$section\E/;
-
-				$closing_command = $source_node->{command};
-			}
-
-			unless (@insert) {
-				push @unresolved_names, "=$module_name $section";
-				next NODE;
-			}
-
-			# Trim blanks around a section of Pod::Elemental nodes.
-			# TODO - Make a helper method.
-			shift @insert while (
-				@insert and $insert[0]->isa('Pod::Elemental::Element::Generic::Blank')
-			);
-			pop @insert while (
-				@insert and $insert[-1]->isa('Pod::Elemental::Element::Generic::Blank')
-			);
-
-			splice( @{$doc->children()}, $i, 1, @insert );
-
-			next NODE;
-		}
-	}
-
-	return @unresolved_names;
 }
 
 
@@ -1760,26 +1670,6 @@ sub inherit_documentation {
 }
 
 
-#=method get_scope
-
-[% ss.method %] is a helper method to determine whether a package is
-local or remote.  A local package is the same as the module currently
-being documented.  All the other modules are remote.
-
-#=cut
-
-sub get_scope {
-	my ($self, $package) = @_;
-	return(
-		MOD_EXPLICIT | (
-			($package eq $self->package())
-			? SCOPE_LOCAL
-			: SCOPE_FOREIGN
-		)
-	);
-}
-
-
 #=method validate_doc_references
 
 [% ss.name %] checks whether every implemented attribute and method is
@@ -1827,70 +1717,6 @@ sub validate_doc_references {
 	exit 1 if $failures;
 }
 
-
-#=method get_code_content
-
-[% ss.name %] returns the code content for a documentation reference,
-such as "=example".  It takes three parameters, the type of reference,
-the name of the module containing the code, and the name of the
-method.  These come directly from parse_example_spec().
-
-It returns a list of Pod::Elemental elements suitable for splicing
-directly into the documentation.
-
-#=cut
-
-sub get_code_content {
-	my ($self, $type, $module, $method) = @_;
-
-	my $content = $self->library()->get_document($module)->sub($method);
-
-	# TODO - PerlTidy the code?
-	# TODO - The following whitespace options are personal
-	# preference.  Someone should patch them to be options.
-
-	# Convert tab indents to fixed spaces for better typography.
-	$content =~ s/\t/  /g;
-
-	# Indent two spaces.  Remove leading and trailing blank lines.
-	$content =~ s/\A(^\s*$)+//m;
-	$content =~ s/(^\s*$)+\Z//m;
-	$content =~ s/^/  /mg;
-
-	my $link;
-	if ($type & TYPE_PACKAGE) {
-		# I hope it's not necessary to explain where it came from if it
-		# contains a package statement.
-
-		if ($content =~ /^\s*package/) {
-			$link = "";
-		}
-		else {
-			$link = "This is L<$module|$module>.\n\n";
-		}
-	}
-	else {
-		if ($type & SCOPE_LOCAL) {
-			$link = "This is L<$method()|/$method>.\n\n";
-		}
-		else {
-			$link = (
-				"This is L<$module|$module> " .
-				"sub L<$method()|$module/$method>.\n\n"
-			);
-		}
-	}
-
-	return(
-		Pod::Elemental::Element::Generic::Text->new(
-			content => $link . $content,
-		),
-		Pod::Elemental::Element::Generic::Blank->new(
-			content => "\n",
-		),
-	);
-}
-
 ###
 ### Debugging.
 ###
@@ -1924,50 +1750,3 @@ sub ppidump {
 	$d->print();
 	exit;
 }
-
-#=abstract Represent and render a single Pod::Plexus document.
-
-#=cut
-
-# TODO - If $self->_has_xrefs() then render them into an existing SEE
-# ALSO section.  If there isn't a SEE ALSO section, create one.
-#
-#		### "=xref (module)" -> "=item *\n\n(module) - (its abstract)"
-#		#
-#		# TODO - Collect them without rendering.  Add them to a SEE ALSO
-#		# section.
-#
-#		if ($node->{command} eq 'xref') {
-#			my $module = $node->{content};
-#			$module =~ s/^\s+//;
-#			$module =~ s/\s+$//;
-#
-#			splice(
-#				@{$doc->children()}, $i, 1,
-#				Pod::Elemental::Element::Generic::Command->new(
-#					command => "item",
-#					content => "*\n",
-#				),
-#				Pod::Elemental::Element::Generic::Blank->new(
-#					content => "\n",
-#				),
-#				Pod::Elemental::Element::Generic::Text->new(
-#					content => (
-#						"L<$module|$module> - " .
-#						$self->library()->package($module)->abstract()
-#					),
-#				),
-#				Pod::Elemental::Element::Generic::Blank->new(
-#					content => "\n",
-#				),
-#			);
-#
-#			next NODE;
-#		}
-
-# =example ModuleName
-# =example method_name()
-# =example ModuleName method_name()
-#
-# =include SECTION
-# =include ModuleName/Section

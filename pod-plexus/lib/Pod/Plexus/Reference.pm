@@ -31,6 +31,11 @@ has symbol => (
 	required => 1,
 );
 
+sub is_local {
+	my $self = shift();
+	return $self->invoked_in() eq $self->module();
+}
+
 no Moose;
 
 1;

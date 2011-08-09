@@ -1,5 +1,9 @@
 package Pod::Plexus::Cli;
 
+=abstract The Pod::Plexus command line utility implementation.
+
+=cut
+
 use Moose;
 with 'MooseX::Getopt';
 
@@ -42,6 +46,7 @@ has lib => (
 	documentation => 'one or more library root directories (default: lib)',
 );
 
+
 =attribute module
 
 [% ss.name %] is an array of specific modules to render.  All eligible
@@ -59,6 +64,7 @@ has module => (
 	default       => sub { [ ] },
 	documentation => 'modules to render docs for (default: all found)',
 );
+
 
 =attribute podroot
 
@@ -78,6 +84,7 @@ has podroot => (
 	documentation => 'root directory where POD files are rendered',
 );
 
+
 =attribute _library
 
 [% ss.name %] contains a Pod::Plexus::Library object.  This object is
@@ -93,6 +100,7 @@ has _library => (
 	default => sub { Pod::Plexus::Library->new() },
 );
 
+
 =method is_indexable_file RELATIVE_PATH
 
 [% ss.name %] tests whether a file at a RELATIVE_PATH is eligible to
@@ -107,6 +115,7 @@ sub is_indexable_file {
 	return unless $qualified_path =~ /\.pm$/;
 	return 1;
 }
+
 
 =method collect_files
 
@@ -137,6 +146,7 @@ sub collect_files {
 	);
 }
 
+
 =method index_library
 
 [% ss.name %] invokes the Pod::Plexus library to index entities and
@@ -153,20 +163,6 @@ sub index_library {
 	return 0;
 }
 
-=method dereference_library
-
-[% ss.name %] is a simple helper method to resolve resolves code and
-documentation references within the library:
-
-=example dereference_library()
-
-=cut
-
-sub dereference_library {
-	my $self = shift();
-	$self->_library()->dereference();
-	return 0;
-}
 
 =method render_library
 
@@ -193,6 +189,7 @@ sub render_library {
 
 	return 0;
 }
+
 
 =method run
 
@@ -258,6 +255,8 @@ sub run {
 	# TODO NEXT - After all external references are loaded, begin
 	# derefereincing somehow.
 
+	$self->_library->dereference(\@errors);
+
 	# Render the requested documents.
 
 	MODULE: foreach my $module_name (@{$self->module()}) {
@@ -276,7 +275,3 @@ sub run {
 no Moose;
 
 1;
-
-=abstract The Pod::Plexus command line utility implementation.
-
-=cut

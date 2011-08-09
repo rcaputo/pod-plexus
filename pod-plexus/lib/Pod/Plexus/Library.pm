@@ -193,44 +193,44 @@ they're resolved.
 =cut
 
 sub dereference {
-	my $self = shift();
+	my ($self, $errors) = @_;
 
 	my @pending = $self->get_documents();
 
-	$_->dereference_immutables() foreach @pending;
+	$_->dereference($errors) foreach @pending;
 
-	my $remaining_attempts = 5;
-
-	ATTEMPT: while (@pending and $remaining_attempts--) {
-		my @next_pending;
-		my @errors;
-
-		PENDING: foreach my $next (@pending) {
-			my @unreferenced = $next->dereference_mutables();
-			if (@unreferenced) {
-				push @next_pending, $next;
-				push @errors, [ $next, \@unreferenced ];
-				next PENDING;
-			}
-		}
-
-		last ATTEMPT unless @errors;
-
-		if ($remaining_attempts) {
-			@pending = @next_pending;
-			next ATTEMPT;
-		}
-
-		# Tried too many times.  What failed?
-
-		warn "Couldn't resolve these symbols:\n";
-		foreach my $error (@errors) {
-			my ($module, $symbols) = @$error;
-			warn "  ", $module->package(), " - ", join(", ", @$symbols), "\n";
-		}
-
-		exit 1;
-	}
+#	my $remaining_attempts = 5;
+#
+#	ATTEMPT: while (@pending and $remaining_attempts--) {
+#		my @next_pending;
+#		my @errors;
+#
+#		PENDING: foreach my $next (@pending) {
+#			my @unreferenced = $next->dereference_mutables();
+#			if (@unreferenced) {
+#				push @next_pending, $next;
+#				push @errors, [ $next, \@unreferenced ];
+#				next PENDING;
+#			}
+#		}
+#
+#		last ATTEMPT unless @errors;
+#
+#		if ($remaining_attempts) {
+#			@pending = @next_pending;
+#			next ATTEMPT;
+#		}
+#
+#		# Tried too many times.  What failed?
+#
+#		warn "Couldn't resolve these symbols:\n";
+#		foreach my $error (@errors) {
+#			my ($module, $symbols) = @$error;
+#			warn "  ", $module->package(), " - ", join(", ", @$symbols), "\n";
+#		}
+#
+#		exit 1;
+#	}
 }
 
 

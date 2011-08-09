@@ -7,10 +7,14 @@ use Moose::Role;
 [% ss.name %] contains the Pod::Plexus documentation associated with
 this code entity.
 
-=method is_documented
+=cut
+
+=method is_dereferenced
 
 [% ss.name %] returns a Boolean value indicating whether this code
 entity has associated documentation.
+
+=cut
 
 =method push_documentation POD_ELEMENTAL_PARAGRAPHS
 
@@ -26,10 +30,36 @@ has documentation => (
 	traits  => [ 'Array' ],
 	default => sub { [ ] },
 	handles => {
-		is_documented => 'count',
+		is_dereferenced    => 'count',
 		push_documentation => 'push',
 	},
 );
+
+=attribute _is_resolved
+
+[% ss.name %] describes whether the documentation for the object that
+consumes this role has had its templates resolved.  It may not be true
+until the consumer is also documented.
+
+=cut
+
+has _is_resolved => (
+	is      => 'rw',
+	isa     => 'Bool',
+	default => 0,
+);
+
+=method is_resolved
+
+[% ss.name %] returns true if the object consuming this role has
+documentation that has had its templates resolved.
+
+=cut
+
+sub is_resolved {
+	my $self = shift();
+	return $self->is_dereferenced() && $self->_is_resolved();
+}
 
 no Moose::Role;
 
