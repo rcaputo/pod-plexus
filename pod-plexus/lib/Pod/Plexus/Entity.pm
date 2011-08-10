@@ -17,6 +17,7 @@ has name => (
 	required => 1,
 );
 
+
 =attribute private
 
 [% ss.name %] is a read-only accessor that tells whether the entity is
@@ -32,6 +33,7 @@ has private => (
 	lazy    => 1,
 	default => sub { (shift()->name() =~ /^_/) || 0 },
 );
+
 
 =attribute mop_entity
 
@@ -51,9 +53,9 @@ no Moose;
 
 1;
 
-__END__
-
 =abstract A basic documentable entity.
+
+=cut
 
 =method new
 

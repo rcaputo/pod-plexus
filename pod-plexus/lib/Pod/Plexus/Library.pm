@@ -198,6 +198,7 @@ sub dereference {
 	my @pending = $self->get_documents();
 
 	$_->dereference($errors) foreach @pending;
+	return if @$errors;
 
 #	my $remaining_attempts = 5;
 #

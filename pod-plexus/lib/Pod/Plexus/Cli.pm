@@ -17,6 +17,8 @@ values from the command line to populate constructor parameters.
 See L</PUBLIC ATTRIBUTES> for constructor options and the command line
 switches that populate them.
 
+=cut
+
 =skip attribute usage
 
 =skip attribute ARGV
@@ -26,6 +28,8 @@ switches that populate them.
 =skip attribute help_flag
 
 =skip method process_argv
+
+=cut
 
 =attribute lib
 
@@ -255,7 +259,21 @@ sub run {
 	# TODO NEXT - After all external references are loaded, begin
 	# derefereincing somehow.
 
-	$self->_library->dereference(\@errors);
+	MODULE: foreach my $module_name (@{$self->module()}) {
+		my $doc_object = $self->_library()->get_document($module_name);
+
+		unless ($doc_object) {
+			push @errors, "Can't find $module_name in library.";
+			next MODULE;
+		}
+
+		$doc_object->dereference(\@errors);
+	}
+
+	if (@errors) {
+		warn "$_\n" foreach @errors;
+		exit 1;
+	}
 
 	# Render the requested documents.
 

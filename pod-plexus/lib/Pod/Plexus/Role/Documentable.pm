@@ -30,10 +30,40 @@ has documentation => (
 	traits  => [ 'Array' ],
 	default => sub { [ ] },
 	handles => {
-		is_dereferenced    => 'count',
-		push_documentation => 'push',
+		is_dereferenced     => 'count',
+		push_documentation  => 'push',
 	},
 );
+
+=method cleanup_documentation
+
+[% ss.name %] performs basic cleanup operations on documentation.  For
+example, it removes leading and trailing blank lines.
+
+It's intended to be called after the documentation for a Documentable
+entity is complete.
+
+=cut
+
+sub cleanup_documentation {
+	my $self = shift();
+
+	my $documentation = $self->documentation();
+
+	shift @$documentation while (
+		@$documentation and $documentation->[0]->isa(
+			'Pod::Elemental::Element::Generic::Blank'
+		)
+	);
+
+	pop @$documentation while (
+		@$documentation and $documentation->[-1]->isa(
+			'Pod::Elemental::Element::Generic::Blank'
+		)
+	);
+
+	# TODO - Remove contiguous blank lines?
+}
 
 =attribute _is_resolved
 
@@ -48,6 +78,7 @@ has _is_resolved => (
 	isa     => 'Bool',
 	default => 0,
 );
+
 
 =method is_resolved
 

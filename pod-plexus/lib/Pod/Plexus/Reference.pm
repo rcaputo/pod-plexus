@@ -9,9 +9,15 @@ has key => (
 	lazy    => 1,
 	default => sub {
 		my $self = shift();
-		return join("\t", ref($self), $self->module(), ($self->symbol() // ""));
+		return $self->calc_key(ref($self), $self->module(), $self->symbol());
 	},
 );
+
+sub calc_key {
+	(undef, my ($type, $module, $symbol)) = @_;
+	$symbol //= "";
+	return join("\t", $type, $module, ($symbol // ""));
+}
 
 has invoked_in => (
 	is       => 'ro',

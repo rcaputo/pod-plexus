@@ -420,16 +420,17 @@ has skip_methods => (
 	traits  => [ 'Hash' ],
 	default => sub {
 		{
-			meta        => 1,
-			BUILDARGS   => 1,
 			BUILDALL    => 1,
+			BUILDARGS   => 1,
 			DEMOLISHALL => 1,
-			does        => 1,
-			DOES        => 1,
-			dump        => 1,
-			can         => 1,
-			VERSION     => 1,
 			DESTROY     => 1,
+			DOES        => 1,
+			VERSION     => 1,
+			can         => 1,
+			does        => 1,
+			dump        => 1,
+			meta        => 1,
+			new         => 1,
 		}
 	},
 	handles => {
@@ -475,6 +476,26 @@ sub get_referents {
 	);
 
 	return keys %referents;
+}
+
+=method get_reference
+
+[% ss.name %] returns a single reference, keyed on the referent type,
+module, and optional symbol name.
+
+=cut
+
+sub get_reference {
+	my ($self, $type, $module, $symbol) = @_;
+
+	$symbol //= "";
+
+	my $reference_key = Pod::Plexus::Reference->calc_key(
+		$type, $module, $symbol
+	);
+
+	return unless $self->_has_reference($reference_key);
+	return $self->_get_reference($reference_key);
 }
 
 ###
@@ -646,6 +667,8 @@ sub index_doc_commands {
 
 			$result->push_documentation( splice(@$doc, $j, 1) );
 		}
+
+		$result->cleanup_documentation();
 	}
 }
 
@@ -697,11 +720,14 @@ sub index_doc_attribute_or_method {
 
 	my ($entity_name) = ($node->{content} =~ /^\s* (\S.*?) (?:\s|$)/x);
 
+	my $is_skippable_method = "is_skippable_$entity_type";
+	return if $self->$is_skippable_method($entity_name);
+
 	my $has_method = "_has_$entity_type";
 	unless ($self->$has_method($entity_name)) {
 		push @$errors, (
 			"'=$entity_type $entity_name' for non-existent $entity_type " .
-			" at " . $self->pathname() . " line $node->{start_line}"
+			"at " . $self->pathname() . " line $node->{start_line}"
 		);
 		return;
 	}
@@ -891,6 +917,8 @@ sub extract_doc_commands {
 
 			$result->push_documentation( splice(@$doc, $j, 1) );
 		}
+
+		$result->cleanup_documentation();
 	}
 }
 
@@ -1145,10 +1173,23 @@ sub dereference {
 	my ($self, $errors) = @_;
 	my $library = $self->library();
 
+	# Dereference explicit references.
+
 	foreach my $reference ($self->_get_references()) {
 		next PASS if $reference->is_dereferenced();
 		$reference->dereference($library, $self, $errors);
 	}
+
+	return if @$errors;
+
+	# Dereference methods and attributes.
+
+	$self->expand_doc_commands($errors, 'expand_doc_attribute_or_method');
+	return if @$errors;
+
+	# Expand documentation.
+
+	$self->expand_doc_commands($errors, 'expand_doc_example');
 }
 
 
@@ -1238,6 +1279,86 @@ sub pod_section {
 	}
 
 	return dclone(\@insert);
+}
+
+
+###
+### Expand documentation.
+###
+
+sub expand_doc_commands {
+	my ($self, $errors, $method) = @_;
+
+	my $doc = $self->_elemental()->children();
+
+	my $i = @$doc;
+	NODE: while ($i--) {
+		my $node = $doc->[$i];
+
+		next NODE unless $node->isa('Pod::Elemental::Element::Generic::Command');
+
+		my @result = $self->$method($errors, $node);
+		next NODE unless @result;
+
+		splice(@$doc, $i, 1, @result);
+	}
+}
+
+sub expand_doc_example {
+	my ($self, $errors, $node) = @_;
+
+	return unless $node->{command} eq 'example';
+
+	my ($module, $symbol) = $self->_parse_example_spec($errors, $node);
+
+	my $reference_type = 'Pod::Plexus::Reference::Example::';
+	if (defined $symbol) {
+		$reference_type .= 'Method';
+	}
+	else {
+		$symbol = "";
+		$reference_type .= 'Module';
+	}
+
+	my $reference = $self->get_reference($reference_type, $module, $symbol);
+	unless ($reference) {
+		push @$errors, "Can't find =example $module $symbol";
+		return;
+	}
+
+	return @{$reference->documentation()};
+}
+
+sub expand_doc_attribute_or_method {
+	my ($self, $errors, $node) = @_;
+
+	my $entity_type = $node->{command};
+	return unless $entity_type eq 'attribute' or $entity_type eq 'method';
+
+	my ($entity_name) = ($node->{content} =~ /^\s* (\S.*?) (?:\s|$)/x);
+
+	my $is_skippable_method = "is_skippable_$entity_type";
+	return if $self->$is_skippable_method($entity_name);
+
+	my $has_method = "_has_$entity_type";
+	unless ($self->$has_method($entity_name)) {
+		push @$errors, (
+			"'=$entity_type $entity_name' for non-existent $entity_type " .
+			"at " . $self->pathname() . " line $node->{start_line}"
+		);
+		return;
+	}
+
+	my $get_method = "_get_$entity_type";
+	my $entity = $self->$get_method($entity_name);
+
+	return(
+		$node,
+		Pod::Elemental::Element::Generic::Blank->new(
+			content => "\n",
+		),
+		@{$entity->documentation()},
+	);
 }
 
 ###
@@ -1443,16 +1564,6 @@ sub dereference_immutables {
 			next NODE;
 		}
 
-		# "=example (spec)" -> code example inclusion.
-		# Code examples include no documentation references, so go ahead.
-
-		if ($node->{command} eq 'example') {
-			my ($type, $module, $method) = $self->parse_example_spec($node);
-			my @content = $self->get_code_content($type, $module, $method);
-			splice( @{$doc->children()}, $i, 1, @content );
-			next NODE;
-		}
-
 		### "=abstract (text)" -> "=head1 NAME\n\n(module) - (text)\n\n".
 
 		if ($node->{command} eq 'abstract') {
@@ -1474,7 +1585,6 @@ sub dereference_immutables {
 
 	}
 }
-
 
 #=method inherit_documentation
 
