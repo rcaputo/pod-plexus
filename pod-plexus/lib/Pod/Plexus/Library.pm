@@ -73,11 +73,11 @@ has modules => (
 	default => sub { { } },
 	traits  => [ 'Hash' ],
 	handles => {
-		_has_module => 'exists',
-		_add_module => 'set',
-		_get_module => 'get',
-		_get_module_names => 'keys',
-		get_documents => 'values',
+		_has_module      => 'exists',
+		_add_module      => 'set',
+		_get_module      => 'get',
+		get_module_names => 'keys',
+		get_documents    => 'values',
 	},
 );
 
@@ -248,9 +248,17 @@ sub get_unresolved_referents {
 	my %referents;
 
 	DOCUMENT: foreach my $document ($self->get_documents()) {
-		REFERENT: foreach ($document->get_referents()) {
-			next REFERENT if $self->_has_module($_);
-			$referents{$_} = 1;
+		my @referents = $document->get_referents();
+		REFERENT: while (@referents) {
+			my $referent = shift @referents;
+
+			if (ref($referent) eq 'Regexp') {
+				push @referents, (grep /$referent/, $self->get_module_names());
+				next REFERENT;
+			}
+
+			next REFERENT if $self->_has_module($referent);
+			$referents{$referent} = 1;
 		}
 	}
 

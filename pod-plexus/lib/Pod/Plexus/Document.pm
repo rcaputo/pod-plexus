@@ -336,6 +336,7 @@ use Pod::Plexus::Reference::Cross;
 use Pod::Plexus::Reference::Example::Module;
 use Pod::Plexus::Reference::Example::Method;
 use Pod::Plexus::Reference::Include;
+use Pod::Plexus::Reference::Index;
 
 has references => (
 	is      => 'rw',
@@ -468,14 +469,14 @@ sub get_referents {
 
 	my %referents;
 
-	$referents{$_} = 1 foreach (
+	$referents{$_} = $_ foreach (
 		#$self->get_imports(),
 		$self->get_base_classes(),
 		$self->get_roles(),
 		( map { $_->module() } $self->_get_references() ),
 	);
 
-	return keys %referents;
+	return values %referents;
 }
 
 =method get_reference
@@ -549,6 +550,20 @@ sub render {
 }
 
 
+=attribute collected_data
+
+[% ss.name %] is true if data has been collected for this document, or
+false if it still needs to collect data.  It's mainly used internally
+by collect_data() to guard against redundant collection.
+
+=cut
+
+has collected_data => (
+	is      => 'rw',
+	isa     => 'Bool',
+	default => 0,
+);
+
 =method collect_data
 
 [% ss.name %] prepares the document for rendering by performing all
@@ -563,12 +578,27 @@ messages on failure.
 sub collect_data {
 	my ($self, $errors) = @_;
 
+	return if $self->collected_data();
+	$self->collected_data(1);
+
 	# TODO - Gathering or grouping documentation into topics.  The idea
 	# is to render them as "=topic" so that Pod::Weaver can gather them.
-
+	# Possible syntax:
+	#
 	# TODO - Gathering topics under higher level topics.  Hierarchical
 	# documentation, if it's possible.  This would be nice to do without
 	# building an explicit outline.
+	#
+	# =method delay EVENT [, SECONDS [, CONTINUATION DATA] ]
+	# SS<timers> XD<delay> X<relative timer>
+	#
+	# Where XD<> is a "definition" cross-reference.  The index will
+	# highlight this entry as the definition for "delay".
+	#
+	# SS<timers> puts this method in the "timers" topic.
+	#
+	# X<relative timers> indexes this section under the "relative
+	# timers" topic, but it doesn't _define_ that topic.
 
 	# Simple things go first.
 
@@ -580,6 +610,7 @@ sub collect_data {
 	$self->extract_doc_commands($errors, 'extract_doc_macro');
 
 	$self->index_doc_commands($errors, 'index_doc_abstract');
+	$self->index_doc_commands($errors, 'index_doc_index');
 
 	# Code inclusions are "use" and "require", as well as Moose things
 	# that may pull code in from elsewhere.
@@ -689,14 +720,61 @@ sub index_doc_abstract {
 
 	if (defined $self->abstract()) {
 		push @$errors, (
-			"More than one =abstract found in " . $self->package() .
-			".  Using the first one."
+			"Ignoring redundant =abstract" .
+			" at " . $self->pathname() . " line $node->{start_line}"
 		);
 		return 1;
 	}
 
 	$self->abstract( $node->{content} =~ /^\s* (\S.*?) \s*$/x );
+
+	warn $self->package() . " = " . $self->abstract();
 	return 1;
+}
+
+
+=method index_doc_index
+
+[% ss.name %] examines a single Pod::Elemental command node.  If it's
+an "=index" directive, its content is interpreted as a regular
+expression that matches module names in the library to index.  The
+directive may be followed by a numeric digit to set the "=head#"
+level---it will default to 2.
+
+  =index3 ^Reflex::Role
+
+The directive will be replaced by an orderly cross-reference list of
+matching modules.
+
+=cut
+
+sub index_doc_index {
+	my ($self, $errors, $node) = @_;
+
+	return unless $node->{command} =~ /^index(\d*)/;
+	my $header_level = $1 || 2;
+
+	# Index modules in the library that match a given regular
+	# expression.  Dangerous, but we're all friends here, right?
+
+	(my $regexp = $node->{content} // "") =~ s/\s+//g;
+	unless (length $regexp) {
+		push @$errors, (
+			"=$node->{command} command needs a regexp" .
+			" at " . $self->pathname() . " line $node->{start_line}"
+		);
+		return;
+	}
+
+	$self->_add_reference(
+		Pod::Plexus::Reference::Index->new(
+			invoked_in   => $self->package(),
+			module       => qr/$regexp/,
+			header_level => $header_level,
+			invoke_path  => $self->pathname(),
+			invoke_line  => $node->{start_line},
+		)
+	);
 }
 
 
@@ -726,8 +804,8 @@ sub index_doc_attribute_or_method {
 	my $has_method = "_has_$entity_type";
 	unless ($self->$has_method($entity_name)) {
 		push @$errors, (
-			"'=$entity_type $entity_name' for non-existent $entity_type " .
-			"at " . $self->pathname() . " line $node->{start_line}"
+			"'=$entity_type $entity_name' for non-existent $entity_type" .
+			" at " . $self->pathname() . " line $node->{start_line}"
 		);
 		return;
 	}
@@ -756,7 +834,10 @@ sub index_doc_example {
 
 	my ($module, $symbol) = $self->_parse_example_spec($errors, $node);
 	unless ($module) {
-		push @$errors, "Wrong example syntax: =example $node->{content}";
+		push @$errors, (
+			"Wrong example syntax: =example $node->{content}" .
+			" at " . $self->pathname() . " line $node->{start_line}"
+		);
 		return;
 	}
 
@@ -799,7 +880,10 @@ sub index_doc_include {
 
 	my ($module, $symbol) = $self->_parse_include_spec($errors, $node);
 	unless ($module) {
-		push @$errors, "Wrong inclusion syntax: =include $node->{content}";
+		push @$errors, (
+			"Wrong inclusion syntax: =include $node->{content}" .
+			" at " . $self->pathname() . " line $node->{start_line}"
+		);
 		return;
 	}
 
@@ -983,7 +1067,10 @@ sub extract_doc_macro {
 
 	my ($symbol) = ($node->{content} =~ /^\s* (\S+) \s*$/x);
 	unless (defined $symbol) {
-		push @$errors, "Wrong macro syntax: =macro $node->{content}";
+		push @$errors, (
+			"Wrong macro syntax: =macro $node->{content}" .
+			" at " . $self->pathname() . " line $node->{start_line}"
+		);
 		return;
 	}
 
@@ -1019,7 +1106,10 @@ sub index_code_attributes {
 
 		# TODO - How to report the places where it's defined?  Can it be?
 		if ($self->_has_attribute($name)) {
-			push @$errors, "Attribute $name defined more than once...";
+			push @$errors, (
+				"Attribute $name defined more than once.  Second one is" .
+				" at " . $self->pathname() . " line $_->{start_line}"
+			);
 			next ATTRIBUTE;
 		}
 
@@ -1056,7 +1146,10 @@ sub index_code_methods {
 
 		# TODO - How to report the places where it's defined?  Can it be?
 		if ($self->_has_method($name)) {
-			push @$errors, "Method $name defined more than once...";
+			push @$errors, (
+				"Method $name defined more than once.  Second one is" .
+				" at " . $self->pathname() . " line $_->{start_line}"
+			);
 			next METHOD;
 		}
 
@@ -1190,6 +1283,8 @@ sub dereference {
 	# Expand documentation.
 
 	$self->expand_doc_commands($errors, 'expand_doc_example');
+	$self->expand_doc_commands($errors, 'expand_doc_abstract');
+	$self->expand_doc_commands($errors, 'expand_doc_index');
 }
 
 
@@ -1322,7 +1417,10 @@ sub expand_doc_example {
 
 	my $reference = $self->get_reference($reference_type, $module, $symbol);
 	unless ($reference) {
-		push @$errors, "Can't find =example $module $symbol";
+		push @$errors, (
+			"Can't find =example $module $symbol" .
+			" at " . $self->pathname() . " line $node->{start_line}"
+		);
 		return;
 	}
 
@@ -1343,8 +1441,8 @@ sub expand_doc_attribute_or_method {
 	my $has_method = "_has_$entity_type";
 	unless ($self->$has_method($entity_name)) {
 		push @$errors, (
-			"'=$entity_type $entity_name' for non-existent $entity_type " .
-			"at " . $self->pathname() . " line $node->{start_line}"
+			"'=$entity_type $entity_name' for non-existent $entity_type" .
+			" at " . $self->pathname() . " line $node->{start_line}"
 		);
 		return;
 	}
@@ -1359,6 +1457,50 @@ sub expand_doc_attribute_or_method {
 		),
 		@{$entity->documentation()},
 	);
+}
+
+sub expand_doc_abstract {
+	my ($self, $errors, $node) = @_;
+
+	return unless $node->{command} eq 'abstract';
+
+	return(
+		Pod::Elemental::Element::Generic::Command->new(
+			command => "head1",
+			content => "NAME\n",
+		),
+		Pod::Elemental::Element::Generic::Blank->new(
+			content => "\n",
+		),
+		Pod::Elemental::Element::Generic::Text->new(
+			content => $self->package() . " - " . $self->abstract()
+		),
+		Pod::Elemental::Element::Generic::Blank->new(
+			content => "\n",
+		),
+	);
+}
+
+sub expand_doc_index {
+	my ($self, $errors, $node) = @_;
+
+	return unless $node->{command} =~ /^index(\d*)/;
+	my $header_level = $1 || 2;
+	(my $module      = $node->{content} // "") =~ s/\s+//g;
+
+	my $reference = $self->get_reference(
+		'Pod::Plexus::Reference::Index', qr/$module/, ""
+	);
+
+	unless ($reference) {
+		push @$errors, (
+			"Can't find =index $module" .
+			" at " . $self->pathname() . " line $node->{start_line}"
+		);
+		return;
+	}
+
+	return @{$reference->documentation()};
 }
 
 ###
@@ -1387,7 +1529,10 @@ sub _parse_include_spec {
 	}
 
 	return;
-	push @$errors, "Wrong inclusion syntax: =include $node->{content}";
+	push @$errors, (
+		"Wrong inclusion syntax: =include $node->{content}" .
+		" at " . $self->pathname() . " line $node->{start_line}"
+	);
 	return;
 }
 
@@ -1408,12 +1553,18 @@ sub _parse_example_spec {
 	my (@args) = split(/[\s\/]+/, $node->{content});
 
 	if (@args > 2) {
-		push @$errors, "Too many parameters for =example $node->{content}";
+		push @$errors, (
+			"Too many parameters for =example $node->{content}" .
+			" at " . $self->pathname() . " line $node->{start_line}"
+		);
 		return;
 	}
 
 	if (@args < 1) {
-		push @$errors, "Not enough parameters for =example $node->{content}";
+		push @$errors, (
+			"Not enough parameters for =example $node->{content}" .
+			" at " . $self->pathname() . " line $node->{start_line}"
+		);
 		return;
 	}
 
@@ -1509,79 +1660,7 @@ sub dereference_immutables {
 			next NODE;
 		}
 
-		# Index modules in the library that match a given regular
-		# expression.  Dangerous, but we're all friends here, right?
 
-		if ($node->{command} =~ /^index(\d*)/) {
-			my $level = $1 || 2;
-
-			(my $regexp = $node->{content} // "") =~ s/\s+//g;
-			$regexp = "^" . $self->package() . "::" unless length $regexp;
-
-			my @insert = (
-				map {
-					Pod::Elemental::Element::Generic::Command->new(
-						command => "item",
-						content => "*\n",
-					),
-					Pod::Elemental::Element::Generic::Blank->new(
-						content => "\n",
-					),
-					Pod::Elemental::Element::Generic::Text->new(
-						content => (
-							"L<$_|$_> - " .
-							$self->library()->package($_)->abstract()
-						),
-					),
-					Pod::Elemental::Element::Generic::Blank->new(
-						content => "\n",
-					),
-				}
-				sort
-				grep /$regexp/, $self->library()->get_module_names()
-			);
-
-			unless (@insert) {
-				@insert = (
-					Pod::Elemental::Element::Generic::Command->new(
-						command => "item",
-						content => "*\n",
-					),
-					Pod::Elemental::Element::Generic::Blank->new(
-						content => "\n",
-					),
-					Pod::Elemental::Element::Generic::Text->new(
-						content => "No modules match /$regexp/"
-					),
-					Pod::Elemental::Element::Generic::Blank->new(
-						content => "\n",
-					),
-				);
-			}
-
-			splice( @{$doc->children()}, $i, 1, @insert );
-
-			next NODE;
-		}
-
-		### "=abstract (text)" -> "=head1 NAME\n\n(module) - (text)\n\n".
-
-		if ($node->{command} eq 'abstract') {
-			splice(
-				@{$doc->children()}, $i, 1,
-				Pod::Elemental::Element::Generic::Command->new(
-					command => "head1",
-					content => "NAME\n",
-				),
-				Pod::Elemental::Element::Generic::Blank->new(
-					content => "\n",
-				),
-				Pod::Elemental::Element::Generic::Text->new(
-					content => $self->package() . " - " . $self->abstract()
-				),
-			);
-			next NODE;
-		}
 
 	}
 }

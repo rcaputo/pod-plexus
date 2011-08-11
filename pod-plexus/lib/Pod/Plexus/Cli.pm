@@ -238,15 +238,16 @@ sub run {
 	# This pass tries to find and inspect external referents.
 
 	PASS: for (1..5) {
-		my @referents = $self->_library()->get_unresolved_referents();
+		my (@referents) = $self->_library()->get_unresolved_referents();
 		last PASS unless @referents;
 
 		foreach my $referent (@referents) {
+			warn "   $referent";
 			$self->_library()->add_module($referent);
 		}
 	}
 
-	my @referents = sort $self->_library()->get_unresolved_referents();
+	my (@referents) = sort $self->_library()->get_unresolved_referents();
 	if (@referents) {
 		push @errors, "Can't find some modules: @referents";
 	}

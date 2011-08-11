@@ -1,5 +1,9 @@
 package Pod::Plexus::Reference::Cross;
 
+=abstract Remember and render cross-references.
+
+=cut
+
 use Moose;
 extends 'Pod::Plexus::Reference';
 
