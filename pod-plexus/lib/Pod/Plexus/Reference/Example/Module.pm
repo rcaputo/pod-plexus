@@ -1,5 +1,9 @@
 package Pod::Plexus::Reference::Example::Module;
 
+=abstract A reference to a code example from an entire module.
+
+=cut
+
 use Moose;
 extends 'Pod::Plexus::Reference::Example';
 

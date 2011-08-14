@@ -242,7 +242,6 @@ sub run {
 		last PASS unless @referents;
 
 		foreach my $referent (@referents) {
-			warn "   $referent";
 			$self->_library()->add_module($referent);
 		}
 	}

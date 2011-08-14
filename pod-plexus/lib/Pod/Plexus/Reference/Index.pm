@@ -1,5 +1,9 @@
 package Pod::Plexus::Reference::Index;
 
+=abstract A reference to a dynamically generated module index.
+
+=cut
+
 use Moose;
 extends 'Pod::Plexus::Reference';
 
@@ -12,6 +16,27 @@ has header_level => (
 	isa      => 'Num',
 	required => 1,
 );
+
+use constant POD_COMMAND => 'index';
+
+sub new_from_ppi_node {
+	my ($class, $document, $errors, $node) = @_;
+
+	my ($header_level, $regexp) = $class->_parse_content(
+		$document, $errors, $node
+	);
+	return unless $regexp;
+
+	return(
+		$class->new(
+			invoked_in   => $document->package(),
+			module       => $regexp,
+			header_level => $header_level,
+			invoke_path  => $document->pathname(),
+			invoke_line  => $node->{start_line},
+		)
+	);
+}
 
 sub dereference {
 	my ($self, $library, $document, $errors) = @_;
@@ -57,6 +82,54 @@ sub dereference {
 			@referents
 		]
 	);
+}
+
+sub expand {
+	my ($class, $document, $errors, $node) = @_;
+
+	my ($header_level, $regexp) = $class->_parse_content(
+		$document, $errors, $node
+	);
+	return unless $regexp;
+
+	my $reference = $document->get_reference(
+		'Pod::Plexus::Reference::Index', $regexp, ""
+	);
+
+	unless ($reference) {
+		push @$errors, (
+			"Can't find =index $$regexp" .
+			" at " . $document->pathname() . " line $node->{start_line}"
+		);
+		return;
+	}
+
+	return $reference;
+
+}
+
+sub _parse_content {
+	my ($class, $document, $errors, $node) = @_;
+
+	my $regexp = $node->{content};
+
+	my $header_level = (
+		($regexp =~ s/^\s*(\d+)\s*//)
+		? $1
+		: 2
+	);
+
+	$regexp =~ s/\s+//g;
+
+	unless (length $regexp) {
+		push @$errors, (
+			"=$node->{command} command needs a regexp" .
+			" at " . $document->pathname() . " line $node->{start_line}"
+		);
+		return;
+	}
+
+	return( $header_level, qr/$regexp/ );
 }
 
 no Moose;

@@ -6,12 +6,34 @@ package Pod::Plexus::Reference;
 
 =head1 SUBCLASSES
 
-=index2 ^Pod::Plexus::Reference::
+=index 2 ^Pod::Plexus::Reference::
 
 =cut
 
 use Moose;
 with 'Pod::Plexus::Role::Documentable';
+
+
+has discards_command => (
+	is      => 'ro',
+	isa     => 'Bool',
+	default => 0,
+);
+
+
+has discards_text => (
+	is      => 'ro',
+	isa     => 'Bool',
+	default => 0,
+);
+
+
+has includes_text => (
+	is      => 'ro',
+	isa     => 'Bool',
+	default => 0,
+);
+
 
 =attribute key
 
@@ -129,6 +151,7 @@ sub is_local {
 	my $self = shift();
 	return $self->invoked_in() eq $self->module();
 }
+
 
 no Moose;
 

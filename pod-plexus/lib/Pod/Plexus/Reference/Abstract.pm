@@ -1,4 +1,4 @@
-package Pod::Plexus::Reference::Cross;
+package Pod::Plexus::Reference::Abstract;
 
 =abstract Remember and render cross-references.
 
@@ -7,29 +7,26 @@ package Pod::Plexus::Reference::Cross;
 use Moose;
 extends 'Pod::Plexus::Reference';
 
-has '+discards_command' => (
-	default => 1,
-);
-
-has '+discards_text' => (
-	default => 1,
-);
-
 has '+symbol' => (
 	isa      => 'Maybe[Str]',
 	required => 0,
 );
 
-use constant POD_COMMAND => 'xref';
+has abstract => (
+	is       => 'ro',
+	isa      => 'Str',
+	required => 1,
+);
+
+use constant POD_COMMAND => 'abstract';
 
 sub new_from_ppi_node {
 	my ($class, $document, $errors, $node) = @_;
 
-	my ($module) = ($node->{content} =~ /^\s* (\S.*?) \s*$/x);
-
 	my $reference = $class->new(
 		invoked_in  => $document->package(),
-		module      => $module,
+		module      => $document->package(),
+		abstract    => $node->{content},
 		invoke_path => $document->pathname(),
 		invoke_line => $node->{start_line},
 	);
@@ -40,28 +37,38 @@ sub new_from_ppi_node {
 sub dereference {
 	my ($self, $library, $document, $errors) = @_;
 
-	my $referent_name = $self->module();
-	my $referent = $library->get_document($referent_name);
-
 	$self->documentation(
 		[
 			Pod::Elemental::Element::Generic::Command->new(
-				command => "item",
-				content => "*\n",
+				command => "head1",
+				content => "NAME\n",
 			),
 			Pod::Elemental::Element::Generic::Blank->new(
 				content => "\n",
 			),
 			Pod::Elemental::Element::Generic::Text->new(
-				content => (
-					"L<$referent_name|$referent_name> - " . $referent->abstract()
-				),
+				content => $self->module() . " - " . $self->abstract()
 			),
 			Pod::Elemental::Element::Generic::Blank->new(
 				content => "\n",
 			),
 		],
 	);
+}
+
+sub expand {
+	my ($class, $document, $errors, $node) = @_;
+
+	my $reference = $document->get_reference($class);
+
+	unless ($reference) {
+		push @$errors, (
+			"Can't find reference for =abstract" .
+			" at " . $document->pathname() . " line $node->{start_line}"
+		);
+	}
+
+	return $reference;
 }
 
 no Moose;
