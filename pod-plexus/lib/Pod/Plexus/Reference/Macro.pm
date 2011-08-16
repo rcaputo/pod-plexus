@@ -7,7 +7,8 @@ package Pod::Plexus::Reference::Macro;
 use Moose;
 extends 'Pod::Plexus::Reference::Include';
 
-use constant POD_COMMAND => 'macro';
+use constant POD_COMMAND  => 'macro';
+use constant POD_PRIORITY => 9000;
 
 
 has '+discards_command' => (
@@ -20,8 +21,8 @@ has '+includes_text' => (
 );
 
 
-sub new_from_ppi_node {
-	my ($class, $document, $errors, $node) = @_;
+sub new_from_elemental_command {
+	my ($class, $library, $document, $errors, $node) = @_;
 
 	my ($symbol) = ($node->{content} =~ /^\s* (\S+) \s*$/x);
 	unless (defined $symbol) {
@@ -44,8 +45,6 @@ sub new_from_ppi_node {
 }
 
 sub dereference {
-	my $self = shift;
-	warn $_->as_pod_string() foreach @{$self->documentation()};
 	undef;
 }
 

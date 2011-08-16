@@ -18,10 +18,17 @@ has abstract => (
 	required => 1,
 );
 
-use constant POD_COMMAND => 'abstract';
+use constant POD_COMMAND  => 'abstract';
+use constant POD_PRIORITY => 1000;
 
-sub new_from_ppi_node {
-	my ($class, $document, $errors, $node) = @_;
+=method new_from_elemental_command
+
+=include Pod::Plexus::Reference new_from_elemental_command
+
+=cut
+
+sub new_from_elemental_command {
+	my ($class, $library, $document, $errors, $node) = @_;
 
 	my $reference = $class->new(
 		invoked_in  => $document->package(),
@@ -43,15 +50,11 @@ sub dereference {
 				command => "head1",
 				content => "NAME\n",
 			),
-			Pod::Elemental::Element::Generic::Blank->new(
-				content => "\n",
-			),
+			Pod::Elemental::Element::Generic::Blank->new(content => "\n"),
 			Pod::Elemental::Element::Generic::Text->new(
 				content => $self->module() . " - " . $self->abstract()
 			),
-			Pod::Elemental::Element::Generic::Blank->new(
-				content => "\n",
-			),
+			Pod::Elemental::Element::Generic::Blank->new(content => "\n"),
 		],
 	);
 }

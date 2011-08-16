@@ -2,6 +2,7 @@ package Pod::Plexus::Role::Documentable;
 
 use Moose::Role;
 
+
 =attribute documentation
 
 [% ss.name %] contains the Pod::Plexus documentation associated with
@@ -9,7 +10,7 @@ this code entity.
 
 =cut
 
-=method is_dereferenced
+=method is_documented
 
 [% ss.name %] returns a Boolean value indicating whether this code
 entity has associated documentation.
@@ -30,10 +31,11 @@ has documentation => (
 	traits  => [ 'Array' ],
 	default => sub { [ ] },
 	handles => {
-		is_dereferenced     => 'count',
+		is_documented       => 'count',
 		push_documentation  => 'push',
 	},
 );
+
 
 =method cleanup_documentation
 
@@ -65,32 +67,6 @@ sub cleanup_documentation {
 	# TODO - Remove contiguous blank lines?
 }
 
-=attribute _is_resolved
-
-[% ss.name %] describes whether the documentation for the object that
-consumes this role has had its templates resolved.  It may not be true
-until the consumer is also documented.
-
-=cut
-
-has _is_resolved => (
-	is      => 'rw',
-	isa     => 'Bool',
-	default => 0,
-);
-
-
-=method is_resolved
-
-[% ss.name %] returns true if the object consuming this role has
-documentation that has had its templates resolved.
-
-=cut
-
-sub is_resolved {
-	my $self = shift();
-	return $self->is_dereferenced() && $self->_is_resolved();
-}
 
 no Moose::Role;
 

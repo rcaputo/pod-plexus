@@ -7,7 +7,8 @@ package Pod::Plexus::Reference::Example;
 use Moose;
 extends 'Pod::Plexus::Reference';
 
-use constant POD_COMMAND => 'example';
+use constant POD_COMMAND  => 'example';
+use constant POD_PRIORITY => 5000;
 
 has '+symbol' => (
 	isa      => 'Maybe[Str]',
@@ -65,8 +66,8 @@ sub set_example {
 }
 
 
-sub new_from_ppi_node {
-	my ($class, $document, $errors, $node) = @_;
+sub new_from_elemental_command {
+	my ($class, $library, $document, $errors, $node) = @_;
 
 	# Parse the content into a module and/or sub name to include.
 
@@ -96,7 +97,7 @@ sub new_from_ppi_node {
 }
 
 sub expand {
-	my ($class, $document, $errors, $node) = @_;
+	my ($class, $library, $document, $errors, $node) = @_;
 
 	my ($module, $sub) = $class->_parse_example_spec(
 		$document, $errors, $node

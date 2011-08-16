@@ -1,14 +1,11 @@
-package Pod::Plexus::Reference::Include;
+package Pod::Plexus::Reference::Entity;
 
-=abstract A reference to documentation included from elsewhere.
+=abstract A reference to documentation for an attribute or method entity.
 
 =cut
 
 use Moose;
 extends 'Pod::Plexus::Reference';
-
-use constant POD_COMMAND  => 'include';
-use constant POD_PRIORITY => 5000;
 
 sub new_from_elemental_command {
 	my ($class, $library, $document, $errors, $node) = @_;

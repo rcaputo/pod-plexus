@@ -1,17 +1,18 @@
 package Pod::Plexus::Reference::Demacro;
 
-=abstract A reference to a dereferenced macro.
+=abstract A reference to a macro expansion.
 
 =cut
 
 use Moose;
 extends 'Pod::Plexus::Reference::Include';
 
-use constant POD_COMMAND => 'demacro';
+use constant POD_COMMAND  => 'demacro';
+use constant POD_PRIORITY => 5000;
 
 
-sub new_from_ppi_node {
-	my ($class, $document, $errors, $node) = @_;
+sub new_from_elemental_command {
+	my ($class, $library, $document, $errors, $node) = @_;
 
 	my ($symbol) = ($node->{content} =~ /^\s* (\S+) \s*$/x);
 	unless (defined $symbol) {

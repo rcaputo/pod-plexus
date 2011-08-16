@@ -1,13 +1,13 @@
-[_] 4% Stability.
-	[_] 9% Release 1.0
-		[_] 31% Architecture.
-			[_] 31% Three distributions.
+[_] 33% Stability.
+	[_] 34% Release 1.0
+		[_] 37% Architecture.
+			[_] 37% Three distributions.
 				[_] 50% Pod-Plexus comprising the modules that do the work.
 					[X] 100% Reorganize files.
 					[_] 0% Dist::Zilla administrivia.
 						(see checklist below)
-				[_] 0% App-Pod-Plexus stand-alone command line tool.
-					[_] 0% Reorganize files.
+				[_] 25% App-Pod-Plexus stand-alone command line tool.
+					[X] 100% Reorganize files.
 					[_] 0% Decide how this will work.
 					[_] 0% Implement.
 					[_] 0% Dist::Zilla administrivia.
@@ -24,10 +24,10 @@
 					[X] 100% Implement.
 					[_] 0% Dist::Zilla administrivia.
 						(see checklist below)
-		[_] 28% Additional declarative syntax.
-			[_] 33% =for example (class) (method)
+		[_] 64% Additional declarative syntax.
+			[_] 66% =example (class) (method)
 				[X] 100% Methods implemented as Perl subs.
-				[_] 0% Methods implemented as declarative "method" syntax.
+				[X] 100% Methods implemented as declarative "method" syntax.
 				[_] 0% Methods implemented via attribute "handles" clauses.
 				Perhaps find them based on "=method".
 			[_] 0% =for example (class) (attribute)
@@ -35,73 +35,76 @@
 				[_] 0% Attributes implemented as Reflex's "has_many".
 				Perhaps find them based on "=attribute".
 			[X] 100% =copyright (years) (whom)
-				| =head1 COPYRIGHT AND LICENSE
-				|
-				| [% module 0%] is Copyright [% years %] by [% whom %].
-				| All rights are reserved.
-				| [% module 0%] is released under the same terms as Perl itself.
+				Delegating to Pod::Weaver.
 			[X] 100% =abstract (description)
 				| =head1 NAME
 				|
 				| [% module 0%] - [% description %]
-			[_] 0% =attribute (name)
-				[_] 0% Pod::Elemental and/or Pod::Weaver can gather attributes.
-			[_] 25% =consumes (role)
-				[_] 50% Detect and assimilate them into a "consumes" attribute.
+			[_] 66% =attribute (name)
+				[X] 100% Initial implementation.
+				[X] 100% Pod::Elemental and/or Pod::Weaver can gather default docs.
+				[_] 0% Gather supplemental documentation from Class::MOP.
+			[_] 0% Track consumed roles.
+				Manual declaration isn't needed at this time.
+				[_] 0% Detect and assimilate them into a "consumes" attribute.
+					Multiple allowed.
+					See Ancestry.
+					[_] 0% Class::MOP introspection.
+					[_] 0% Generate "=consumes" entries.
+				Automatic inclusion of implementation documentation is a hard problem.
+				Moose doesn't reliably support all cases at the time of this writing.
+					It may support them by the time you read this.
+					Please help if you can.
+					(_) Auto-include documentation from the role being consumed.
+						(_) This is hard for all cases.
+						(_) Flatten out the documentation.
+						(_) At least reference the role for methods it provides.
+							It may be too hard to import meaningful documentation.
+							Role docs may not be appropriate for classes that consume them.
+			[_] 16% Track base classes.
+				[_] 33% Detect and assimilate them into a "extends" attribute.
 					Multiple allowed.
 					See Ancestry.
 					[X] 100% PPI detection.
 					[_] 0% Class::MOP detection.
-				[_] 0% Auto-include documentation from the role being consumed.
-					[_] 0% Flatten out the documentation.
-					[_] 0% At least reference the role for methods it provides.
-						It may be too hard to import meaningful documentation.
-						Role docs may not be appropriate for classes that consume them.
-			[_] 25% =extends (class)
-				[_] 50% Detect and assimilate them into a "extends" attribute.
-					Multiple allowed.
-					See Ancestry.
-					[X] 100% PPI detection.
-					[_] 0% Class::MOP detection.
+					[_] 0% Generate "=extends" entries.
 				[_] 0% Support eplicit syntax when heuristics fail us.
-			[_] 0% =license (?)
-				Implied in =copyright at the moment.
-				[_] 0% Needs more licensing options.
-				[_] 0% Delegate to Pod::Weaver?
-			[_] 0% =method (name)
-				[_] 0% Pod::Elemental and/or Pod::Weaver can gather attributes.
-			[_] 0% =bugs
-				Standard bugs section.
-				Build URL from distribution name.
-		[_] 0% Documentation.
-			[_] 0% Bonus points if it can document itself.
+			[X] 100% =license (?)
+				Delegating to Pod::Weaver.
+			[X] 100% =method (name)
+				[X] 100% Pod::Elemental and/or Pod::Weaver can gather attributes.
+			[X] 100% =bugs
+				Delegating to Pod::Weaver.
+		[_] 50% Documentation.
+			[X] 100% Bonus points if it can document itself.
+			[_] 0% Document everything.
 		[_] 0% Boilerplates.
 			[_] 0% Ancestry.
 				[_] 0% Based on what is put into extends() and consumes().
 				[_] 0% Also list known classes that extend or consume this one.
-		[_] 0% Dist::Zilla administrivia.
-			[_] 0% Break podplexus.pl into libraries.
+		[_] 25% Dist::Zilla administrivia.
+			[X] 100% Break podplexus.pl into libraries.
 			[_] 0% Tests.
 				Although it will be used to document itself.
 			[_] 0% dist.ini
 			[_] 0% MANIFEST.SKIP
-		[_] 0% Do as little as possible.
+		[_] 33% Do as little as possible.
 			The project is currently doing too much.
-			[_] 0% Delegate as much to Pod::Weaver as possible.
+			[X] 100% Delegate as much to Pod::Weaver as possible.
 			[_] 0% Consider making this a Pod::Weaver plugin.
 				[_] 0% Get help making this so.
 			[_] 0% Consider supporting Dist::Zilla directly.
 				[_] 0% Get help making this so.
-	[_] 0% Future / Nice To Have
-		[_] 0% Use Class::MOP to intuit attribute, consumes, extends, and method.
-			Load the module in question.
-			Introspect to find attributes, methods, roles and base classes.
-			Create default documentation for those that aren't already documented.
+	[_] 33% Future / Nice To Have
+		[_] 66% Use Class::MOP to intuit attribute, consumes, extends, and method.
+			[X] 100% Load the module in question.
+			[X] 100% Introspect to find attributes, methods, roles and base classes.
+			[_] 0% Create default documentation for those that aren't already documented.
 		[_] 0% Automatically include implementation in the documentation.
-			Append an "Implementation: (example)" to the ends of method, attribute, etc.
-			Perhaps make it a flag.
-			Rather than "=method xyz ... =for example xyz".
-			Achieves a form of Literate Programming.
+			[_] 0% Append an "Implementation: (example)" to the ends of method, attribute, etc.
+			[_] 0% Perhaps make it a flag.
+			[_] 0% Rather than "=method xyz ... =for example xyz".
+			[_] 0% Achieves a form of Literate Programming.
 Implementation notes.
 	Document represents a parsed document.
 		Includes PPI information.

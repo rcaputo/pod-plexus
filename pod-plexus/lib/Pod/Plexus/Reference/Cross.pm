@@ -20,10 +20,11 @@ has '+symbol' => (
 	required => 0,
 );
 
-use constant POD_COMMAND => 'xref';
+use constant POD_COMMAND  => 'xref';
+use constant POD_PRIORITY => 5000;
 
-sub new_from_ppi_node {
-	my ($class, $document, $errors, $node) = @_;
+sub new_from_elemental_command {
+	my ($class, $library, $document, $errors, $node) = @_;
 
 	my ($module) = ($node->{content} =~ /^\s* (\S.*?) \s*$/x);
 

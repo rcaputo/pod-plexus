@@ -1,13 +1,12 @@
 package Pod::Plexus::Entity;
 
 use Moose;
-with 'Pod::Plexus::Role::Documentable';
 
 use Carp qw(confess);
 
 =attribute name
 
-[% ss.name %] contains this Pod::Plexus documentable entity's name.
+[% ss.name %] contains this Pod::Plexus entity's name.
 
 =cut
 
@@ -53,7 +52,7 @@ no Moose;
 
 1;
 
-=abstract A basic documentable entity.
+=abstract A code attribute or method entity.
 
 =cut
 

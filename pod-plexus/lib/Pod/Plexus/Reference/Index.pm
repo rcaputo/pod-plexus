@@ -17,10 +17,11 @@ has header_level => (
 	required => 1,
 );
 
-use constant POD_COMMAND => 'index';
+use constant POD_COMMAND  => 'index';
+use constant POD_PRIORITY => 5000;
 
-sub new_from_ppi_node {
-	my ($class, $document, $errors, $node) = @_;
+sub new_from_elemental_command {
+	my ($class, $library, $document, $errors, $node) = @_;
 
 	my ($header_level, $regexp) = $class->_parse_content(
 		$document, $errors, $node
