@@ -51,7 +51,7 @@ sub new_from_elemental_command {
 		invoke_line   => $node->{start_line},
 		documentation => [
 			Pod::Elemental::Element::Generic::Command->new(
-				command => "(attribute)",
+				command => "attribute",
 				content => "$symbol_name\n",
 			),
 			Pod::Elemental::Element::Generic::Blank->new(content => "\n"),

@@ -37,15 +37,15 @@ sub dereference {
 
 	my $module_name = $self->module();
 	my $module      = $library->get_document($module_name);
-	my $pod_copy    = $module->pod_section($self->symbol());
+	my $pod_copy    = [ ]; # $module->pod_section($self->symbol());
 
-	unless (@$pod_copy) {
-		push @$errors, (
-			$self->invoked_in() . " includes unknown POD section $module_name/" .
-			$self->symbol()
-		);
-		return;
-	}
+#	unless (@$pod_copy) {
+#		push @$errors, (
+#			$self->invoked_in() . " includes unknown POD section $module_name/" .
+#			$self->symbol()
+#		);
+#		return;
+#	}
 
 	$self->documentation($pod_copy);
 }

@@ -226,9 +226,6 @@ has methods => (
 required or used by the module being documented.  This hash is used to
 find imported symbols, if needed to completely document the module.
 
-index_code_inclusions() populates it by analyzing the module's source
-code for telltale statements.
-
 =cut
 
 =method add_import
@@ -265,9 +262,6 @@ has imports => (
 class being documented.  This hash is used to find inherited symbols,
 if needed to completely document the module.
 
-index_code_inclusions() populates it by analyzing the module's source
-code for telltale statements.
-
 =method add_base_class
 
 [% ss.name %] is a hash setter that adds the name of a base class.  It
@@ -301,9 +295,6 @@ has base_classes => (
 [% ss.name %] contains a hash of all roles directly consumed by the
 class being documented.  This hash is used to find consumed symbols,
 if needed to completely document the module.
-
-index_code_inclusions() populates it by analyzing the module's source
-code for telltale statements.
 
 =cut
 
@@ -600,9 +591,35 @@ messages on failure.
 sub collect_data {
 	my ($self, $errors) = @_;
 
+	# 0. Avoid redundant calls.
+
 	return if $self->collected_data();
 	$self->collected_data(1);
 
+	# 1. Collect data that affects how the document is processed.
+
+	$self->extract_doc_commands($errors, 'extract_doc_skip');
+	return if @$errors;
+
+	# 2. Index code entities: attributes and methods.
+
+	$self->index_code_attributes($errors);
+	$self->index_code_methods($errors);
+	return if @$errors;
+
+	# 3. Collect all the references.
+
+	$self->parse_doc_references($errors);
+
+	# 4. Find or manufacture documentation that we can.
+
+	$self->assimilate_ancestor_method_documentation($errors);
+	$self->assimilate_ancestor_attribute_documentation($errors);
+	return if @$errors;
+
+	return;
+
+	# ----------
 	# TODO - Gathering or grouping documentation into topics.  The idea
 	# is to render them as "=topic" so that Pod::Weaver can gather them.
 	# Possible syntax:
@@ -621,26 +638,8 @@ sub collect_data {
 	#
 	# X<relative timers> indexes this section under the "relative
 	# timers" topic, but it doesn't _define_ that topic.
+	# ----------
 
-	# Documentation for attributes and methods is attached to those
-	# entities in memory, so the code entities must be indexed first.
-	# This group must go last, however, so that references within their
-	# documentation are indexed in advance.
-
-	$self->index_code_attributes($errors);
-	$self->index_code_methods($errors);
-
-	# Simple things go first.
-
-	$self->parse_doc_references($errors);
-
-	# NOTE - Skips are special.
-	$self->extract_doc_commands($errors, 'extract_doc_skip');
-
-	# Code inclusions are "use" and "require", as well as Moose things
-	# that may pull code in from elsewhere.
-
-	$self->index_code_inclusions($errors);
 
 	# NOTE - Attributes and methods are special.  It's okay for them to
 	# be processed specially.
@@ -668,60 +667,6 @@ sub collect_data {
 ###
 ### Collect data from the documentation, but leave markers behind.
 ###
-
-=method index_doc_commands
-
-[% ss.name %] iterates the Pod::Elemental::Element::Generic::Command
-elements of a module's documentation.  Its single parameter is the
-name of a $self method to call for each command node.  Those methods
-should parse the command, enter appropriate data into the object.
-
-=cut
-
-sub index_doc_commands {
-	my ($self, $errors, $method) = @_;
-
-	my $doc = $self->_elemental()->children();
-
-	my $i = @$doc;
-	NODE: while ($i--) {
-		my $node = $doc->[$i];
-
-		next NODE unless $node->isa('Pod::Elemental::Element::Generic::Command');
-
-		my $result = $self->$method($errors, $doc->[$i]);
-
-		# TODO - Better check for $result being an entity?
-		next NODE unless $result and ref $result;
-
-		# The return value is an entity.
-		# Append the following text to its documentation.
-		# Remove the text; we only need the command to mark the location.
-
-		my $j = $i + 2;
-		TEXT: while ($j < @$doc) {
-			unless ($doc->[$j]->isa('Pod::Elemental::Element::Generic::Command')) {
-				$result->push_documentation( splice(@$doc, $j, 1) );
-				next TEXT;
-			}
-
-			if (
-				$doc->[$j]->{command} eq 'cut' or
-				$doc->[$j]->{command} eq 'attribute' or
-				$doc->[$j]->{command} eq 'method' or
-				$doc->[$j]->{command} eq 'xref' or
-				$doc->[$j]->{command} =~ /^head/
-			) {
-				last TEXT;
-			}
-
-			$result->push_documentation( splice(@$doc, $j, 1) );
-		}
-
-		$result->cleanup_documentation();
-	}
-}
-
 
 =method parse_doc_references
 
@@ -760,71 +705,7 @@ sub parse_doc_references {
 
 			$self->_add_reference($reference);
 
-			# The reference class wishes to consume documentation.
-			if ($reference->includes_text()) {
-				my $j = $i + 2;
-				TEXT: while ($j < @$doc) {
-					unless (
-						$doc->[$j]->isa('Pod::Elemental::Element::Generic::Command')
-					) {
-						$reference->push_documentation( splice(@$doc, $j, 1) );
-						next TEXT;
-					}
-
-					if (
-						$doc->[$j]->{command} eq 'cut' or
-						$doc->[$j]->{command} eq 'attribute' or
-						$doc->[$j]->{command} eq 'method' or
-						$doc->[$j]->{command} eq 'xref' or
-						$doc->[$j]->{command} =~ /^head/
-					) {
-						last TEXT;
-					}
-
-					$reference->push_documentation( splice(@$doc, $j, 1) );
-				}
-
-				$reference->cleanup_documentation();
-			}
-
-			elsif ($reference->discards_text()) {
-				my $j = $i + 2;
-				TEXT: while ($j < @$doc) {
-					unless (
-						$doc->[$j]->isa('Pod::Elemental::Element::Generic::Command')
-					) {
-						splice(@$doc, $j, 1);
-						next TEXT;
-					}
-
-					if (
-						$doc->[$j]->{command} eq 'cut' or
-						$doc->[$j]->{command} eq 'attribute' or
-						$doc->[$j]->{command} eq 'method' or
-						$doc->[$j]->{command} eq 'xref' or
-						$doc->[$j]->{command} =~ /^head/
-					) {
-						last TEXT;
-					}
-
-					splice(@$doc, $j, 1);
-				}
-			}
-
-			# Discard the command, if necessary.  Done last.  Everything is
-			# based on offsets, so we work from the higher offsets backward to
-			# avoid renumbering everything.
-
-			if ($reference->discards_command()) {
-				splice(
-					@$doc, $i, 1,
-					Pod::Elemental::Element::Generic::Command->new(
-						command => 'pod',
-						content => "\n",
-					),
-					Pod::Elemental::Element::Generic::Blank->new( content => "\n" ),
-				);
-			}
+			splice @$doc, $i, 1, $reference;
 		}
 	}
 }
@@ -1033,93 +914,177 @@ sub index_code_methods {
 }
 
 
-=method index_code_inclusions
+###
+### Validate attribute and method docs.
+###
 
-Find and register all modules known by Class::MOP to contribute to
-this class.  Base classes and roles are prime examples of the modules
-collected by [% ss.name %].
 
-=cut
+sub assimilate_ancestor_method_documentation {
+	my ($self, $errors) = @_;
 
-sub index_code_inclusions {
-	my $self = shift();
+	my $this_docs   = $self->_elemental()->children();
+	my $this_class  = $self->package();
+	my $meta        = $this_class->meta();
+	my @class_names = $meta->class_precedence_list();
+	my %class_docs;
 
-	# TODO - This uses PPI, but it might be cleaner to use Moose.
+	METHOD: foreach my $method_name ($meta->get_all_method_names()) {
 
-	my $ppi = $self->_ppi();
+		CLASS: foreach my $class_name (@class_names) {
 
-	my $inclusions = $ppi->find(
-		sub {
-			$_[1]->isa('PPI::Statement::Include') or (
-				$_[1]->isa('PPI::Statement') and
-				$_[1]->child(0)->isa('PPI::Token::Word') and
-				$_[1]->child(0)->content() eq 'extends'
-			)
+			# Get the Pod::Plexus::Document for this class.
+			# Create it if necessary.
+
+			my $document = $class_docs{$class_name};
+
+			unless ($document) {
+				$document = $self->library()->get_document($class_name);
+				unless ($document) {
+					$self->library()->add_module($class_name);
+					$document = $self->library()->get_document($class_name);
+					unless ($document) {
+						push @$errors, (
+							"Cannot find and load ancestor $class_name used by $this_class",
+						);
+						next CLASS;
+					}
+				}
+
+				$document->collect_data($errors);
+				return if @$errors;
+			}
+
+			# Does this class document the method?
+
+			my $method_key = Pod::Plexus::Reference->calc_key(
+				'Pod::Plexus::Reference::Entity::Method',
+				$class_name,
+				$method_name
+			);
+
+			unless ($document->_has_reference($method_key)) {
+				$method_key = Pod::Plexus::Reference->calc_key(
+					'Pod::Plexus::Reference::Entity::Method',
+					$class_name,
+					$method_name
+				);
+			}
+
+			if ($document->_has_reference($method_key)) {
+
+				# This class already documents it!
+				next METHOD if $class_name eq $this_class;
+
+				# Include it from elsewhere!
+				$self->document_method(
+					$this_docs,
+					$this_class,
+					$class_name,
+					$method_name,
+					$document,
+					__LINE__
+				);
+
+				next METHOD;
+			}
+
+			next CLASS;
 		}
+
+		# Fell through all the classes.  Do we even want to document it?
+
+		next METHOD if $self->is_skippable_method($method_name);
+
+		# Document that it's not documented.
+
+		my $method_reference = Pod::Plexus::Reference::Entity::Method->new(
+			invoked_in    => $this_class,
+			module        => $this_class,
+			symbol        => $method_name,
+			invoke_path   => $self->pathname(),
+			invoke_line   => -__LINE__,
+			documentation => [
+				Pod::Elemental::Element::Generic::Command->new(
+					command => "method",
+					content => "$method_name\n",
+				),
+			],
+		);
+
+		$self->_add_reference($method_reference);
+
+		push @$this_docs, (
+			Pod::Elemental::Element::Generic::Blank->new(content => "\n"),
+			$method_reference,
+			Pod::Elemental::Element::Generic::Blank->new(content => "\n"),
+			Pod::Elemental::Element::Generic::Text->new(
+				content => (
+					"$method_name() is not documented, but you may find " .
+					"it implemented in " .
+					$meta->find_method_by_name($method_name)->original_package_name() .
+					" or a role it consumes.\n"
+				),
+			),
+			Pod::Elemental::Element::Generic::Blank->new(content => "\n"),
+			Pod::Elemental::Element::Generic::Command->new(
+				command => "cut",
+				content => "\n",
+			),
+		);
+
+		next METHOD;
+	}
+}
+
+sub assimilate_ancestor_attribute_documentation {
+	my ($self, $errors) = @_;
+}
+
+###
+### Build documentation.
+###
+
+sub document_method {
+	my (
+		$self, $this_docs, $this_class, $class_name, $method_name, $document, $line
+	) = @_;
+
+	my $method_reference = Pod::Plexus::Reference::Entity::Method->new(
+		invoked_in    => $this_class,
+		module        => $this_class,
+		symbol        => $method_name,
+		invoke_path   => $document->pathname(),
+		invoke_line   => -__LINE__,
+		documentation => [
+			Pod::Elemental::Element::Generic::Command->new(
+				command => "method",
+				content => "$method_name\n",
+			),
+		],
 	);
 
-	return unless $inclusions and @$inclusions;
+	my $include_reference = Pod::Plexus::Reference::Include->new(
+		invoked_in  => $this_class,
+		module      => $class_name,
+		symbol      => $method_name,
+		invoke_path => $document->pathname(),
+		invoke_line => -__LINE__,
+	);
 
-	foreach (@$inclusions) {
-		my $type = $_->child(0)->content();
+	$self->_add_reference($method_reference);
+	$self->_add_reference($include_reference);
 
-		# Remove "type".
-		my @children = $_->children();
-		splice(@children, 0, 1);
-
-		my @stuff;
-		foreach (@children) {
-			if ($_->isa('PPI::Token::Word')) {
-				push @stuff, $_->content();
-				next;
-			}
-
-			if ($_->isa('PPI::Structure::List')) {
-				push @stuff, map { $_->string() } @{ $_->find('PPI::Token::Quote') };
-				next;
-			}
-
-			if ($_->isa('PPI::Token::QuoteLike::Words')) {
-				push @stuff, $_->literal();
-				next;
-			}
-
-			if ($_->isa('PPI::Token::Quote')) {
-				push @stuff, $_->string();
-				next;
-			}
-
-			# Ignore the others.
-			next;
-		}
-
-		given ($type) {
-			when ('use') {
-				$self->add_import($_, 1) foreach @stuff;
-			}
-			when ('require') {
-				# TODO - Do we care about this?  Probably not if we're
-				# introspecting with Moose, since by the time we get here the
-				# "no" things should have been removed.
-				#
-				# TODO - I guess it only matters if there's an import().
-			}
-			when ('no') {
-				# TODO - Do we care about this?  Probably not if we're
-				# introspecting with Moose, since by the time we get here the
-				# "no" things should have been removed.
-			}
-			when ('extends') {
-				$self->add_base_class($_, 1) foreach @stuff;
-			}
-			when ('with') {
-				$self->add_role($_, 1) foreach @stuff;
-			}
-			default {
-				die "odd type '$type'";
-			}
-		}
-	}
+	push @$this_docs, (
+		Pod::Elemental::Element::Generic::Blank->new(content => "\n"),
+		$method_reference,
+		Pod::Elemental::Element::Generic::Blank->new(content => "\n"),
+		$include_reference,
+		Pod::Elemental::Element::Generic::Blank->new(content => "\n"),
+		Pod::Elemental::Element::Generic::Command->new(
+			command => "cut",
+			content => "\n",
+		),
+	);
 }
 
 ###
@@ -1203,49 +1168,6 @@ sub code {
 	$out->prune('PPI::Token::Pod');
 
 	return $out->serialize();
-}
-
-
-=method pod_section
-
-[% ss.name %] returns a copy of the documentation for a specified POD
-section, or undef if the section doesn't exist.
-
-=cut
-
-sub pod_section {
-	my ($self, $section_name) = @_;
-
-	my $closing_command;
-	my @insert;
-
-	SOURCE_NODE: foreach my $source_node (@{ $self->_elemental()->children() }) {
-
-		unless (
-			$source_node->isa('Pod::Elemental::Element::Generic::Command')
-		) {
-			push @insert, $source_node if $closing_command;
-			next SOURCE_NODE;
-		}
-
-		if ($closing_command) {
-			# TODO - What other conditions close an element?
-
-			last SOURCE_NODE if (
-				$source_node->{command} eq $closing_command or
-				$source_node->{command} eq 'cut'
-			);
-
-			push @insert, $source_node;
-			next SOURCE_NODE;
-		}
-
-		next unless $source_node->{content} =~ /^\Q$section_name\E/;
-
-		$closing_command = $source_node->{command};
-	}
-
-	return dclone(\@insert);
 }
 
 

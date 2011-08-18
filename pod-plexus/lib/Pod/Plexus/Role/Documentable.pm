@@ -68,6 +68,17 @@ sub cleanup_documentation {
 }
 
 
+sub as_pod_string {
+	my $self = shift();
+	return(
+		join(
+			"",
+			map { $_->as_pod_string() }
+			@{ $self->documentation() }
+		)
+	);
+}
+
 no Moose::Role;
 
 1;

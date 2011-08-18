@@ -21,11 +21,6 @@ has abstract => (
 use constant POD_COMMAND  => 'abstract';
 use constant POD_PRIORITY => 1000;
 
-=method new_from_elemental_command
-
-=include Pod::Plexus::Reference new_from_elemental_command
-
-=cut
 
 sub new_from_elemental_command {
 	my ($class, $library, $document, $errors, $node) = @_;
