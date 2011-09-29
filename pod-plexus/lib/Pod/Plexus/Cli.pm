@@ -19,6 +19,7 @@ switches that populate them.
 
 =cut
 
+
 =skip attribute usage
 
 =skip attribute ARGV
@@ -30,6 +31,7 @@ switches that populate them.
 =skip method process_argv
 
 =cut
+
 
 =attribute lib
 
@@ -65,12 +67,15 @@ has module => (
 	is            => 'rw',
 	isa           => 'ArrayRef[Str]',
 	lazy          => 1,
-	default       => sub { [ ] },
+	default       => sub {
+		my $self = shift();
+		return [ sort $self->_library()->get_module_names() ];
+	},
 	documentation => 'modules to render docs for (default: all found)',
 );
 
 
-=attribute podroot
+=attribute UNUSED_podroot
 
 [% ss.name %] defines the root directory where rendered documentation
 will be deposited.  The directory must not previously exist.
@@ -80,7 +85,7 @@ switches.
 
 =cut
 
-has podroot => (
+has UNUSED_podroot => (
 	is            => 'rw',
 	isa           => 'Str',
 	lazy          => 1,
@@ -105,7 +110,7 @@ has _library => (
 );
 
 
-=method is_indexable_file RELATIVE_PATH
+=method is_indexable_file
 
 [% ss.name %] tests whether a file at a RELATIVE_PATH is eligible to
 be documented.  Currently only ".pm" files are eligible.
@@ -121,18 +126,18 @@ sub is_indexable_file {
 }
 
 
-=method collect_files
+=method collect_lib_files
 
 [% ss.name %] collects files that are eligible for documenting.  It
 uses File::Find to descend into directories in the "lib" directories.
 Each file that is_indexable_file() approves is added to the library
 for later processing.
 
-=example collect_files()
+=example collect_lib_files()
 
 =cut
 
-sub collect_files {
+sub collect_lib_files {
 	my $self = shift();
 
 	find(
@@ -151,30 +156,30 @@ sub collect_files {
 }
 
 
-=method index_library
+=method UNUSED_index_library
 
 [% ss.name %] invokes the Pod::Plexus library to index entities and
 their corresponding documentation.  It is a prelude to dereferencing
 entities and rendering their documentation.
 
-=example index_library()
+=example UNUSED_index_library()
 
 =cut
 
-sub index_library {
+sub UNUSED_index_library {
 	my $self = shift();
 	$self->_library()->index();
 	return 0;
 }
 
 
-=method render_library
+=method UNUSED_render_library
 
 [% ss.name %] renders every reqested document in the library.
 
 =cut
 
-sub render_library {
+sub UNUSED_render_library {
 	my $self = shift();
 
 	MODULE: foreach my $module_name (@{$self->module()}) {
@@ -202,6 +207,10 @@ runtime parameters are taken from [% mod.package %] public attributes.
 Thanks to MooseX::Getopt, those attributes are automatically populated
 from corresponding command line arguments.
 
+[% ss.name %] collects all the modules in all the lib() directories.
+Each module is added to the Pod::Plexus library so that it's known by
+the time cross references are resolved.
+
 =example run()
 
 =cut
@@ -212,7 +221,7 @@ sub run {
 	# Collect files from the libraries.
 	# This minimally processes the files.
 
-	$self->collect_files();
+	$self->collect_lib_files();
 
 	my @errors;
 
@@ -227,7 +236,20 @@ sub run {
 			next MODULE;
 		}
 
-		$doc_object->collect_data(\@errors);
+		$doc_object->prepare_to_render(\@errors);
+	}
+
+	if (@errors) {
+		warn "$_\n" foreach @errors;
+		exit 1;
+	}
+
+	# This pass tries to resolve cross references.
+
+	# TODO - Old way?
+	MODULE: foreach my $module_name (@{$self->module()}) {
+		my $doc_object = $self->_library()->get_document($module_name);
+		#$doc_object->resolve_references();
 	}
 
 	if (@errors) {
@@ -237,57 +259,24 @@ sub run {
 
 	# This pass tries to find and inspect external referents.
 
-	PASS: for (1..5) {
-		my (@referents) = $self->_library()->get_unresolved_referents();
-		last PASS unless @referents;
-
-		foreach my $referent (@referents) {
-			$self->_library()->add_module($referent);
-		}
-	}
-
-	my (@referents) = sort $self->_library()->get_unresolved_referents();
-	if (@referents) {
-		push @errors, "Can't find some modules: @referents";
-	}
-
-	if (@errors) {
-		warn "$_\n" foreach @errors;
-		exit 1;
-	}
-
-	# TODO NEXT - After all external references are loaded, begin
-	# derefereincing somehow.
-
 	MODULE: foreach my $module_name (@{$self->module()}) {
 		my $doc_object = $self->_library()->get_document($module_name);
 
-		unless ($doc_object) {
-			push @errors, "Can't find $module_name in library.";
-			next MODULE;
-		}
+		my $rendered_pod = $doc_object->render_as_pod();
 
-		$doc_object->dereference(\@errors);
-	}
+		# TODO - Write to a file, if requested.
 
-	if (@errors) {
-		warn "$_\n" foreach @errors;
-		exit 1;
-	}
-
-	# Render the requested documents.
-
-	MODULE: foreach my $module_name (@{$self->module()}) {
-		my $doc_object = $self->_library()->get_document($module_name);
-
-		# TODO - Render to files, if appropriate.
-		print $doc_object->render(), "\n\n--------------------------------\n\n";
+		print $rendered_pod, "\n\n------------------------------------\n\n";
 	}
 
 	# TODO - Render to files, if appropriate.
 
 	#my $index = $library->generate_index();
 	#my $toc = $library->generate_toc();
+
+	# Successful exit.
+
+	return 0;
 }
 
 no Moose;

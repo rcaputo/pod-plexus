@@ -7,6 +7,7 @@ use Module::Util qw(find_installed);
 
 use Pod::Plexus::Document;
 
+
 =attribute files
 
 [% ss.name %] references a hash of [% lib.main %]::Document objects
@@ -18,7 +19,7 @@ paths.
 
 =cut
 
-=method _add_file FILE_PATH, DOCUMENT_OBJECT
+=method _add_file
 
 Associate a DOCUMENT_OBJECT with the FILE_PATH from which it was
 parsed.  Don't use this directly.  Instead, use the public add_file()
@@ -26,14 +27,14 @@ method, which handles cross references between files and modules.
 
 =cut
 
-=method _get_file FILE_PATH
+=method _get_file
 
 Retrieve a [% lib.main %]::Document from the library by its FILE_PATH
 relative to the distribution's root directory.
 
 =cut
 
-=method has_file FILE_PATH
+=method has_file
 
 [% ss.name %] determines whether the library contains a document for
 the given FILE_PATH.
@@ -101,7 +102,7 @@ has _template => (
 );
 
 
-=method add_file FILE_PATH
+=method add_file
 
 Add a file to the library.  A [% lib.main %]::Document is built from
 the contents of the file at the relative FILE_PATH, and it's added to
@@ -127,7 +128,7 @@ sub add_file {
 }
 
 
-=method add_module MODULE_NAME
+=method add_module
 
 [% ss.name %] adds a module by its MODULE_NAME.  It looks up the full
 path to the module and adds that.
@@ -144,7 +145,7 @@ sub add_module {
 }
 
 
-=method get_document DOCUMENT_REFERENCE
+=method get_document
 
 [% ss.name %] returns a [% lib.main %]::Document that matches a given
 DOCUMENT_REFERENCE, or undef if no document matched.  The document
@@ -182,7 +183,7 @@ sub index {
 }
 
 
-=method dereference
+=method UNUSED_dereference
 
 Resolve references to other code and documentation entities.  Tell
 documents to import the things they reference into the places where
@@ -192,7 +193,7 @@ they're resolved.
 
 =cut
 
-sub dereference {
+sub UNUSED_dereference {
 	my ($self, $errors) = @_;
 
 	my @pending = $self->get_documents();

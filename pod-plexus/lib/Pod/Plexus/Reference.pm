@@ -1,5 +1,15 @@
 package Pod::Plexus::Reference;
 
+# TODO - render() -> as_pod_elements()
+
+sub as_pod_elements {
+	my $self = shift();
+
+	return Pod::Elemental::Element::Generic::Text->new(
+		content => "$self",
+	);
+}
+
 =abstract A generic expandable documentation reference.
 
 =cut
@@ -15,64 +25,35 @@ with 'Pod::Plexus::Role::Documentable';
 
 use Carp qw(croak);
 
-
-# Priorities.
-#
-# 9000 - Directives that control Pod::Plexus behavior.
-# 5000 - Things which may appear within other POD containers.
-# 1000 - Top-level POD containers.
-
-=attribute discards_command
-
-[% ss.name %] contains a boolean value that instructs Pod::Plexus::Document
-whether to discard the POD commands for
-this type of Pod::Plexus reference.
-
-=cut
-
-has discards_command => (
+has is_terminal => (
 	is      => 'ro',
 	isa     => 'Bool',
 	default => 0,
 );
 
+=method consume_element
 
-=attribute discards_text
+[% ss.name %] is called for the Pod::Elemental elements immediately
+following the one that caused this reference to be created.  While
+those trailing elements belong to this one, they should be added to
+this reference's documentation.  [% ss.name %] returns true for as
+long as the elements are part of this reference.  The parser will stop
+looking for new documentation after the first false return value.
 
-[% ss.name %] contains a boolean value that instructs Pod::Plexus::Document
-whether to discard the text following
-this type of Pod::Plexus reference.
-
-[% ss.name %] is implied by includes_text().  If includes_text() is
-true, then [% ss.name %] will count as true no matter what its actual
-value.
-
-=cut
-
-has discards_text => (
-	is      => 'ro',
-	isa     => 'Bool',
-	default => 0,
-);
-
-
-=attribute includes_text
-
-[% ss.name %] contains a boolean value that instructs Pod::Plexus::Document
-whether to include the text following POD commands in the objects for
-this type of Pod::Plexus reference.
-
-[% ss.name %] implies discards_text().  If [% ss.name %] is true, then
-the documentation for this type of Pod::Plexus reference will include
-the text following each command.
+[% mod.name %] implements the base method to do nothing and return
+false immediately.
 
 =cut
 
-has includes_text => (
-	is      => 'ro',
-	isa     => 'Bool',
-	default => 0,
-);
+sub consume_element {
+	my ($self, $element) = @_;
+	return 0;
+}
+
+
+sub _build_documentation {
+	return [ ];
+}
 
 
 =attribute key
@@ -120,9 +101,10 @@ sub calc_key {
 =cut
 
 has invoked_in => (
-	is       => 'ro',
-	isa      => 'Str',
-	required => 1,
+	default => sub { my $self = shift(); $self->document()->package(); },
+	is      => 'ro',
+	isa     => 'Str',
+	lazy    => 1,
 );
 
 
@@ -133,9 +115,10 @@ has invoked_in => (
 =cut
 
 has invoke_path => (
-	is       => 'ro',
-	isa      => 'Str',
-	required => 1,
+	default => sub { my $self = shift(); $self->document()->pathname(); },
+	is      => 'ro',
+	isa     => 'Str',
+	lazy    => 1,
 );
 
 
@@ -146,9 +129,10 @@ has invoke_path => (
 =cut
 
 has invoke_line => (
-	is       => 'ro',
-	isa      => 'Int',
-	required => 1,
+	default => sub { my $self = shift(); $self->node()->{start_line}; },
+	is      => 'ro',
+	isa     => 'Int',
+	lazy    => 1,
 );
 
 
@@ -159,9 +143,10 @@ has invoke_line => (
 =cut
 
 has module => (
+	default  => sub { my $self = shift(); return $self->document()->package(); },
 	is       => 'ro',
 	isa      => 'Str|RegexpRef',
-	required => 1,
+	lazy     => 1,
 );
 
 
@@ -174,9 +159,13 @@ module() as a whole.
 =cut
 
 has symbol => (
-	is       => 'ro',
-	isa      => 'Str',
-	required => 1,
+	default => sub {
+		my $self = shift;
+		confess "$self symbol's default must be overridden";
+	},
+	is      => 'rw',
+	isa     => 'Str',
+	lazy    => 1,
 );
 
 
@@ -193,46 +182,43 @@ sub is_local {
 }
 
 
-=method new_from_elemental_command
+has library => (
+	is       => 'ro',
+	isa      => 'Pod::Plexus::Library',
+	required => 1,
+);
 
-[% ss.name %] does what the label says.  It parses a Pod::Elemental
-command node, and it creates a new [% mod.name %] object from the
-values found in that node.
 
-=cut
+has document => (
+	is       => 'ro',
+	isa      => 'Pod::Plexus::Document',
+	required => 1,
+);
 
-sub new_from_elemental_command {
+
+has errors => (
+	is       => 'rw',
+	isa      => 'ArrayRef',
+	required => 1,
+);
+
+
+has node => (
+	is       => 'ro',
+	isa      => 'Pod::Elemental::Element::Generic::Command',
+	required => 1,
+);
+
+
+sub resolve {
+	# Virtual base method.  Does nothing by default.
+}
+
+
+sub create {
 	my $class = shift();
-	croak "$class->new_from_elemental_command() is a virtual method";
+	return $class->new(@_);
 }
-
-
-=method dereference
-
-[% ss.name %] copies the documentation referenced by a [% mod.name %]
-object into its documentation() attribute.
-
-=cut
-
-sub dereference {
-	my $self = shift();
-	croak "$self->dereference() is a virtual method";
-}
-
-
-=method expand
-
-[% ss.name %] expands a Pod::Elemental command node into the
-dereferenced documentation stored in the [% mod.name %] object's
-documentation() attribute.
-
-=cut
-
-sub expand {
-	my $self = shift();
-	croak "$self->expand() is a virtual method";
-}
-
 
 no Moose;
 

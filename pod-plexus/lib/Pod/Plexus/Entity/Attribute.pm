@@ -3,14 +3,19 @@ package Pod::Plexus::Entity::Attribute;
 use Moose;
 extends 'Pod::Plexus::Entity';
 
-=attribute mop_entity
+=attribute meta_entity
 
-=include Pod::Plexus::Entity mop_entity
+=include Pod::Plexus::Entity meta_entity
 
 =cut
 
-has '+mop_entity' => (
-	isa => 'Class::MOP::Attribute',
+use Moose::Util::TypeConstraints qw(class_type);
+
+class_type('Class::MOP::Attribute');
+class_type('Moose::Meta::Role::Attribute');
+
+has '+meta_entity' => (
+	isa => 'Class::MOP::Attribute | Moose::Meta::Role::Attribute',
 );
 
 no Moose;

@@ -8,7 +8,12 @@ use Moose;
 extends 'Pod::Plexus::Reference';
 
 use constant POD_COMMAND  => 'include';
-use constant POD_PRIORITY => 5000;
+
+
+has '+symbol' => (
+	default => "",
+);
+
 
 sub new_from_elemental_command {
 	my ($class, $library, $document, $errors, $node) = @_;
@@ -49,6 +54,8 @@ sub dereference {
 
 	$self->documentation($pod_copy);
 }
+
+#die "old way";
 
 sub expand {
 	my ($class, $document, $errors, $node) = @_;

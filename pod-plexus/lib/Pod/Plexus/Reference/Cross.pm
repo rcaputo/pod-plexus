@@ -7,36 +7,25 @@ package Pod::Plexus::Reference::Cross;
 use Moose;
 extends 'Pod::Plexus::Reference';
 
-has '+discards_command' => (
-	default => 1,
-);
-
-has '+discards_text' => (
-	default => 1,
-);
-
-has '+symbol' => (
-	isa      => 'Maybe[Str]',
-	required => 0,
-);
 
 use constant POD_COMMAND  => 'xref';
-use constant POD_PRIORITY => 5000;
 
-sub new_from_elemental_command {
-	my ($class, $library, $document, $errors, $node) = @_;
 
-	my ($module) = ($node->{content} =~ /^\s* (\S.*?) \s*$/x);
+has '+symbol' => (
+	default => sub {
+		my $self = shift();
+		return $self->module();
+	},
+);
 
-	my $reference = $class->new(
-		invoked_in  => $document->package(),
-		module      => $module,
-		invoke_path => $document->pathname(),
-		invoke_line => $node->{start_line},
-	);
 
-	return $reference;
-}
+has '+module' => (
+	default => sub {
+		my $self = shift();
+		return($self->node()->{content} =~ /^\s* (\S.*?) \s*$/x);
+	},
+);
+
 
 sub dereference {
 	my ($self, $library, $document, $errors) = @_;
@@ -64,6 +53,7 @@ sub dereference {
 		],
 	);
 }
+
 
 no Moose;
 

@@ -7,56 +7,45 @@ package Pod::Plexus::Reference::Demacro;
 use Moose;
 extends 'Pod::Plexus::Reference::Include';
 
+
 use constant POD_COMMAND  => 'demacro';
-use constant POD_PRIORITY => 5000;
 
 
-sub new_from_elemental_command {
-	my ($class, $library, $document, $errors, $node) = @_;
+sub BUILD {
+	my $self = shift();
 
-	my ($symbol) = ($node->{content} =~ /^\s* (\S+) \s*$/x);
+	my ($symbol) = ($self->node()->{content} =~ /^\s* (\S+) \s*$/x);
 	unless (defined $symbol) {
-		push @$errors, (
-			"Wrong macro syntax: =macro $node->{content}" .
-			" at " . $document->pathname() . " line $node->{start_line}"
+		push @{$self->errors()}, (
+			"Wrong macro syntax: =macro " . $self->node()->{content} .
+			" at " . $self->document()->pathname() .
+			" line " . $self->node()->{start_line}
 		);
 		return;
 	}
 
-	my $reference = $class->new(
-		invoked_in  => $document->package(),
-		module      => $document->package(),
-		symbol      => $symbol,
-		invoke_path => $document->pathname(),
-		invoke_line => $node->{start_line},
-	);
-
-	return $reference;
+	$self->symbol($symbol);
 }
 
-sub dereference {
-	undef;
-}
 
-sub expand {
-	my ($class, $document, $errors, $node) = @_;
+sub resolve {
+	my $self = shift();
 
-	my $module = $document->package();
-	my ($symbol) = ($node->{content} =~ /^\s* (\S+) \s*$/x);
-	my $reference = $document->get_reference(
-		'Pod::Plexus::Reference::Macro', $module, $symbol
+	my $reference = $self->document()->get_reference(
+		'Pod::Plexus::Reference::Macro',
+		$self->document()->package(),
+		$self->symbol()
 	);
 
-warn $document->package(), " = $symbol";
 	unless ($reference) {
-		push @$errors, (
-			"Can't find reference for =demacro $symbol" .
-			" at " . $document->pathname() . " line $node->{start_line}"
+		push @{$self->errors()}, (
+			"Can't find reference for =demacro " . $self->symbol() .
+			" at " . $self->document()->pathname() .
+			" line " . $self->node()->{start_line}
 		);
 	}
-
-	return $reference;
 }
+
 
 no Moose;
 

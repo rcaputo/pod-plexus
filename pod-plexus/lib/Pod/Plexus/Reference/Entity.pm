@@ -29,33 +29,6 @@ sub new_from_elemental_command {
 	return $reference;
 }
 
-sub dereference {
-	my ($self, $library, $document, $errors) = @_;
-
-	my $module_name = $self->module();
-	my $module      = $library->get_document($module_name);
-	my $pod_copy    = $module->pod_section($self->symbol());
-
-	unless (@$pod_copy) {
-		push @$errors, (
-			$self->invoked_in() . " includes unknown POD section $module_name/" .
-			$self->symbol()
-		);
-		return;
-	}
-
-	$self->documentation($pod_copy);
-}
-
-sub expand {
-	my ($class, $document, $errors, $node) = @_;
-
-	my ($module, $symbol) = $class->_parse_include_spec(
-		$document, $errors, $node
-	);
-
-	return $document->get_reference($class, $module, $symbol);
-}
 
 sub _parse_include_spec {
 	my ($class, $document, $errors, $node) = @_;
@@ -75,6 +48,49 @@ sub _parse_include_spec {
 
 	return;
 }
+
+
+sub consume_element {
+	my ($self, $element) = @_;
+
+	return 0 if $self->is_terminated();
+
+	if ($element->isa('Pod::Elemental::Element::Generic::Command')) {
+
+		my $command = $element->{command};
+
+		# "=cut" is consumed.
+
+		if ($command eq 'cut') {
+			$self->push_cut();
+			$self->is_terminated(1);
+			return 1;
+		}
+
+		# Other terminal top-level commands aren't consumed.
+		# They do however imply "=cut".
+
+		if ($command =~ /^head\d$/) {
+			$self->push_cut();
+			$self->is_terminated(1);
+			return 0;
+		}
+	}
+
+	# Other entities terminate this one.
+
+	if ($element->isa('Pod::Plexus::Reference::Entity')) {
+		$self->push_cut();
+		$self->is_terminated(1);
+		return 0;
+	}
+
+	# Otherwise, consume the documentation.
+
+	$self->push_documentation($element);
+	return 1;
+}
+
 
 no Moose;
 

@@ -7,112 +7,113 @@ package Pod::Plexus::Reference::Index;
 use Moose;
 extends 'Pod::Plexus::Reference';
 
+
 has '+symbol' => (
-	required => 0,
+	default => "",
 );
 
-has header_level => (
-	is       => 'ro',
-	isa      => 'Num',
-	required => 1,
-);
 
-use constant POD_COMMAND  => 'index';
-use constant POD_PRIORITY => 5000;
+use constant POD_COMMAND => 'index';
 
-sub new_from_elemental_command {
-	my ($class, $library, $document, $errors, $node) = @_;
 
-	my ($header_level, $regexp) = $class->_parse_content(
-		$document, $errors, $node
-	);
+sub BUILD {
+	my $self = shift();
+
+	my ($header_level, $regexp) = $self->_parse_content();
+
 	return unless $regexp;
 
-	return(
-		$class->new(
-			invoked_in   => $document->package(),
-			module       => $regexp,
-			header_level => $header_level,
-			invoke_path  => $document->pathname(),
-			invoke_line  => $node->{start_line},
-		)
-	);
-}
-
-sub dereference {
-	my ($self, $library, $document, $errors) = @_;
-
-	my $referent_regexp = $self->module();
-
-	my @referents = sort grep /$referent_regexp/, $library->get_module_names();
+	my @referents = sort grep /$regexp/, $self->library()->get_module_names();
 
 	unless (@referents) {
-		push @$errors, (
-			"=index $referent_regexp ... doesn't match anything" .
-			" at " . $self->invoke_path() . " line " . $self->invoke_line
+		push @{$self->errors()}, (
+			"=index $regexp ... doesn't match anything" .
+			" at " . $self->document()->pathname() .
+			" line " . $self->node()->{start_line}
 		);
 		return;
 	}
 
-	$self->documentation(
-		[
-			map {
-				my $foreign_document = $library->get_document($_);
+	$self->push_documentation(
+		map {
+			my $foreign_document = $self->library()->get_document($_);
 
-				$foreign_document->collect_data($errors);
+			$foreign_document->prepare_to_render($self->errors());
+			return if @{$self->errors()};
 
-				my $abstract = $library->get_document($_)->abstract();
-				$abstract = "No abstract defined." unless (
-					defined $abstract and length $abstract
-				);
+			my $abstract = $self->library()->get_document($_)->abstract();
+			$abstract = "No abstract defined." unless (
+				defined $abstract and length $abstract
+			);
 
-				Pod::Elemental::Element::Generic::Command->new(
-					command => "head" . $self->header_level(),
-					content => "\n",
-				),
-				Pod::Elemental::Element::Generic::Blank->new(
-					content => "\n",
-				),
-				Pod::Elemental::Element::Generic::Text->new(
-					content => "L<$_|$_> - $abstract\n",
-				),
-				Pod::Elemental::Element::Generic::Blank->new(
-					content => "\n",
-				),
-			}
-			@referents
-		]
+			Pod::Elemental::Element::Generic::Command->new(
+				command => "head" . $header_level,
+				content => "\n",
+			),
+			Pod::Elemental::Element::Generic::Blank->new(
+				content => "\n",
+			),
+			Pod::Elemental::Element::Generic::Text->new(
+				content => "L<$_|$_> - $abstract\n",
+			),
+			Pod::Elemental::Element::Generic::Blank->new(
+				content => "\n",
+			),
+		}
+		@referents
 	);
 }
 
-sub expand {
-	my ($class, $document, $errors, $node) = @_;
 
-	my ($header_level, $regexp) = $class->_parse_content(
-		$document, $errors, $node
-	);
-	return unless $regexp;
+sub consume_element {
+	my ($self, $element) = @_;
 
-	my $reference = $document->get_reference(
-		'Pod::Plexus::Reference::Index', $regexp, ""
-	);
+	return 0 if $self->is_terminated();
 
-	unless ($reference) {
-		push @$errors, (
-			"Can't find =index $$regexp" .
-			" at " . $document->pathname() . " line $node->{start_line}"
-		);
-		return;
+	if ($element->isa('Pod::Elemental::Element::Generic::Command')) {
+
+		my $command = $element->{command};
+
+		# "=cut" is consumed.
+
+		if ($command eq 'cut') {
+			$self->push_cut();
+			$self->is_terminated(1);
+			return 1;
+		}
+
+		# Other terminal top-level commands aren't consumed.
+		# They do however imply "=cut".
+
+		if ($command =~ /^head\d$/) {
+			$self->push_cut();
+			$self->is_terminated(1);
+			return 0;
+		}
 	}
 
-	return $reference;
+	# Other entities terminate this one.
 
+	if ($element->isa('Pod::Plexus::Reference::Entity')) {
+		$self->push_cut();
+		$self->is_terminal(1);
+		return 0;
+	}
+
+	# Otherwise, discard the documentation.
+
+	return 1 if $element->isa('Pod::Elemental::Element::Generic::Blank');
+
+	$element->{content} =~ s/^/Illegal content in =index: /;
+	$self->push_documentation($element);
+	return 1;
 }
+
 
 sub _parse_content {
-	my ($class, $document, $errors, $node) = @_;
+	my $self = shift();
 
-	my $regexp = $node->{content};
+	my $regexp = $self->node()->{content};
 
 	my $header_level = (
 		($regexp =~ s/^\s*(\d+)\s*//)
@@ -123,15 +124,17 @@ sub _parse_content {
 	$regexp =~ s/\s+//g;
 
 	unless (length $regexp) {
-		push @$errors, (
-			"=$node->{command} command needs a regexp" .
-			" at " . $document->pathname() . " line $node->{start_line}"
+		push @{$self->errors()}, (
+			"=" . $self->node()->{command} . " command needs a regexp" .
+			" at " . $self->document()->pathname() .
+			" line " . $self->node()->{start_line}
 		);
 		return;
 	}
 
 	return( $header_level, qr/$regexp/ );
 }
+
 
 no Moose;
 

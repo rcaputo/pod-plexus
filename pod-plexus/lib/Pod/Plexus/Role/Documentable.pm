@@ -2,6 +2,7 @@ package Pod::Plexus::Role::Documentable;
 
 use Moose::Role;
 
+requires '_build_documentation';
 
 =attribute documentation
 
@@ -17,7 +18,7 @@ entity has associated documentation.
 
 =cut
 
-=method push_documentation POD_ELEMENTAL_PARAGRAPHS
+=method push_documentation
 
 [% ss.name %] pushes one or more Pod::Elemental::Paragraph objects
 onto this entity's documentation.  Paragraphs may be commands, text,
@@ -27,14 +28,37 @@ blank lines, and anything else Pod::Elemental supports.
 
 has documentation => (
 	is      => 'rw',
-	isa     => 'ArrayRef[Pod::Elemental::Paragraph]',
+	isa     => 'ArrayRef[Pod::Elemental::Paragraph|Pod::Plexus::Reference]',
 	traits  => [ 'Array' ],
-	default => sub { [ ] },
+	lazy    => 1,
+	builder => '_build_documentation',
 	handles => {
 		is_documented       => 'count',
 		push_documentation  => 'push',
 	},
 );
+
+
+sub push_cut {
+	my $self = shift();
+	$self->push_documentation(
+		Pod::Elemental::Element::Generic::Command->new(
+			command => "cut",
+			content => "\n",
+		),
+	);
+}
+
+sub push_blank {
+	my $self = shift();
+
+	# TODO - Look at the last line of documentation.
+	# If it's blank, don't bother pushing this blank.
+
+	$self->push_documentation(
+		Pod::Elemental::Element::Generic::Blank->new( content => "\n" ),
+	);
+}
 
 
 =method cleanup_documentation
@@ -78,6 +102,20 @@ sub as_pod_string {
 		)
 	);
 }
+
+
+sub as_pod_elementals {
+	my $self = shift();
+	return @{$self->documentation()};
+}
+
+
+has is_terminated => (
+	is      => 'rw',
+	isa     => 'Bool',
+	default => 0,
+);
+
 
 no Moose::Role;
 

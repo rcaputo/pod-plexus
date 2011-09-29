@@ -125,8 +125,10 @@ has package => (
 sub abstract {
 	my $self = shift();
 
-	$self->collect_data() unless $self->collected_data();
-	my $abstract = $self->get_reference('Pod::Plexus::Reference::Abstract');
+	$self->prepare_to_render() unless $self->is_prepared();
+	my $abstract = $self->get_reference(
+		'Pod::Plexus::Reference::Abstract'
+	);
 	die "No abstract defined for ", $self->package(), "\n" unless $abstract;
 
 	return $abstract->abstract();
@@ -139,12 +141,12 @@ sub abstract {
 use Pod::Plexus::Entity::Method;
 use Pod::Plexus::Entity::Attribute;
 
-=attribute mop_class
+=attribute meta_entity
 
-[% ss.name %] contains a Class::MOP::Class object that describes the
-class being documented from Class::MOP's perspective.  It allows
-Pod::Plexus to introspect the class and do many wonderful things with
-it, such as inherit documentation from parent classes.
+[% ss.name %] contains a meta-object that describes the class being
+documented from Class::MOP's perspective.  It allows Pod::Plexus to
+introspect the class and do many wonderful things with it, such as
+inherit documentation from parent classes.
 
 As of this writing however, it's beyond the author's ability to
 reliable inherit attribute and method documentation from higher up the
@@ -153,11 +155,11 @@ chops can step up.
 
 =cut
 
-use Class::MOP::Class;
+#use Class::MOP::Class;
 
-has mop_class => (
+has meta_entity => (
 	is            => 'rw',
-	isa           => 'Class::MOP::Class',
+	isa           => 'Class::MOP::Module',
 	lazy          => 1,
 	default       => sub {
 		my $self = shift();
@@ -328,13 +330,14 @@ has roles => (
 ### Documentation structure.
 ###
 
+# TODO - Make dynamic based on whatever is installed.
+
 my @reference_classes = qw(
 	Abstract Cross Demacro Entity::Attribute Entity::Method
-	Example::Module Example::Method Include Index Macro
+	Example Include Index Macro
 );
 
-my %pod_prio_commands;
-my %pod_commands;
+my %reference_class;
 
 foreach my $reference_class (@reference_classes) {
 	my $full_class = "Pod::Plexus::Reference::$reference_class";
@@ -344,10 +347,7 @@ foreach my $reference_class (@reference_classes) {
 	require $full_file;
 	$full_class->import();
 
-	$pod_commands{$full_class->POD_COMMAND} =
-	$pod_prio_commands{$full_class->POD_PRIORITY}{$full_class->POD_COMMAND} = (
-		$full_class
-	);
+	$reference_class{$full_class->POD_COMMAND} = $full_class;
 }
 
 has references => (
@@ -365,6 +365,7 @@ has references => (
 
 sub _add_reference {
 	my ($self, $include) = @_;
+
 	my $key = $include->key();
 	return if $self->_has_reference($key);
 	$self->_really_add_reference($key, $include);
@@ -491,6 +492,7 @@ sub get_referents {
 	return values %referents;
 }
 
+
 =method get_reference
 
 [% ss.name %] returns a single reference, keyed on the referent type,
@@ -513,73 +515,81 @@ sub get_reference {
 }
 
 ###
+### Resolver pass.
+###
+
+sub resolve_references {
+	my $self = shift();
+	$_->resolve() foreach $self->_get_references();
+}
+
+###
 ### Final render.
 ###
 
-=method render
+=method render_as_pod
 
 [% ss.name %] generates and returns the POD for the class being
 documented, after all is send and done.
 
 =cut
 
-sub render {
+sub render_as_pod {
 	my $self = shift();
 
-	my $elemental = $self->_elemental();
+	# Render each Pod::Elemental element.
+	# Contents get to be expanded as templates.
 
-	# TODO - I can see why autoboxing is sexy.
+	my $doc = $self->_elemental()->children();
 
-	# TODO - Render each POD section separately so we can have variables
-	# like ss.name to mean the section name.
+	my $rendered_documentation = "";
 
-	my $input = "";
-	my @queue = @{$self->_elemental()->children()};
-	while (@queue) {
+	my @queue = @$doc;
+	NODE: while (@queue) {
 		my $next = shift @queue;
-		$input .= $next->as_pod_string();
 
-		next unless $next->can("children");
+		if ($next->isa('Pod::Plexus::Reference')) {
+			unshift @queue, $next->as_pod_elementals();
+			next NODE;
+		}
+
+		my $next_pod = $next->as_pod_string();
+
+		# Expand $next_pod as a template.
+		# TODO
+
+		$rendered_documentation .= $next_pod;
+
+		next NODE unless $next->can("children");
+
 		my $sub_children = $next->children();
 		unshift @queue, @$sub_children if @$sub_children;
 	}
 
-	my $output = "";
-
-	my %vars = (
-		doc     => $self,
-		lib     => $self->library(),
-		module  => $self->package(),
-	);
-
-	# TODO - Temporary, for debugging.
-	$output = $input;
-
-#	$self->library()->_template()->process(\$input, \%vars, \$output) or die(
-#		$self->library()->_template()->error()
-#	);
-
-	return $output;
+	return $rendered_documentation;
 }
 
 
-=attribute collected_data
+=attribute is_prepared
 
-[% ss.name %] is true if data has been collected for this document, or
-false if it still needs to collect data.  It's mainly used internally
-by collect_data() to guard against redundant collection.
+[% ss.name %] is true if the document has been prepared for rendering.
+It doesn't necessarily indicate whether the preparation was
+successful, however.  prepare_to_render() uses it internally to guard
+against re-entry, but other methods may also use it to avoid callng
+prepare_to_render() unnecessarily.
 
 =cut
 
-has collected_data => (
+has is_prepared => (
 	is      => 'rw',
 	isa     => 'Bool',
 	default => 0,
 );
 
-=method collect_data
 
-[% ss.name %] prepares the document for rendering by performing all
+=method prepare_to_render
+
+[% ss.name %] prepares the document to be rendered by performing all
 prerequisite actions.  Data is collected and validated.  Intermediate
 indexes are built.  And so on.
 
@@ -588,33 +598,37 @@ messages on failure.
 
 =cut
 
-sub collect_data {
+sub prepare_to_render {
 	my ($self, $errors) = @_;
 
-	# 0. Avoid redundant calls.
+	# 0. Don't re-prepare this document.
+	# Comes first to avoid re-entry problems.
 
-	return if $self->collected_data();
-	$self->collected_data(1);
+	return if $self->is_prepared();
+	$self->is_prepared(1);
 
-	# 1. Collect data that affects how the document is processed.
-
-	$self->extract_doc_commands($errors, 'extract_doc_skip');
-	return if @$errors;
-
-	# 2. Index code entities: attributes and methods.
+	# 1. Index code entities: attributes and methods.
+	# Must be done before documentation is parsed.
+	# Methods must come before attributes.
 
 	$self->index_code_attributes($errors);
 	$self->index_code_methods($errors);
 	return if @$errors;
 
-	# 3. Collect all the references.
+	# 2. Collect directives that affect how the document is parsed.
+	# This must be done before everything else.
 
-	$self->parse_doc_references($errors);
+	$self->extract_doc_commands($errors, 'extract_doc_directive_skip');
+	return if @$errors;
+
+	# 3. Parse, build and collect documentation references.
+
+	$self->index_doc_references($errors);
 
 	# 4. Find or manufacture documentation that we can.
 
-	$self->assimilate_ancestor_method_documentation($errors);
-	$self->assimilate_ancestor_attribute_documentation($errors);
+	#$self->assimilate_ancestor_method_documentation($errors);
+	#$self->assimilate_ancestor_attribute_documentation($errors);
 	return if @$errors;
 
 	return;
@@ -640,7 +654,6 @@ sub collect_data {
 	# timers" topic, but it doesn't _define_ that topic.
 	# ----------
 
-
 	# NOTE - Attributes and methods are special.  It's okay for them to
 	# be processed specially.
 
@@ -651,10 +664,6 @@ sub collect_data {
 	# TODO - For each undocumented attribute or method, try to find
 	# documentation up the inheritance or role chain until we reach the
 	# entity's implementation.
-
-	#$self->inherit_documentation();
-
-	#$self->validate_doc_references();
 
 	# TODO - Load and parse all cross referenced modules.  We need
 	# enough data to set xrefs, import inclusions, and import examples
@@ -668,7 +677,7 @@ sub collect_data {
 ### Collect data from the documentation, but leave markers behind.
 ###
 
-=method parse_doc_references
+=method index_doc_references
 
 [% ss.name %] examines each Pod::Elemental command node.  Ones that
 are listed as known reference commands, such as "=abstract" or
@@ -679,37 +688,48 @@ All other Pod::Elemental commands are ignored.
 
 =cut
 
-sub parse_doc_references {
+sub index_doc_references {
 	my ($self, $errors, $method) = @_;
 
 	my $doc = $self->_elemental()->children();
 
-	foreach my $pod_priority (sort { $b <=> $a } keys %pod_prio_commands) {
-		my $available_commands = $pod_prio_commands{$pod_priority};
+	my $i = @$doc;
+	NODE: while ($i--) {
+		my $node = $doc->[$i];
 
-		my $i = @$doc;
-		NODE: while ($i--) {
-			my $node = $doc->[$i];
+		next NODE unless $node->isa('Pod::Elemental::Element::Generic::Command');
+		next NODE unless exists $reference_class{$node->{command}};
 
-			next NODE unless $node->isa('Pod::Elemental::Element::Generic::Command');
-			next NODE unless exists $available_commands->{$node->{command}};
+		my @new_errors;
 
-			my $reference_class = $available_commands->{$node->{command}};
-			my $reference = $reference_class->new_from_elemental_command(
-				$self->library(), $self, $errors, $node
-			);
+		my $reference_class = $reference_class{$node->{command}};
+		my $reference = $reference_class->create(
+			document => $self,
+			errors   => \@new_errors,
+			library  => $self->library(),
+			node     => $node,
+		);
 
-			# One or more errors occurred.
-			# It's up to the reference class to record errors.
-			return unless $reference;
+		if (@new_errors) {
+			push @$errors, @new_errors;
+			next NODE;
+		}
 
-			$self->_add_reference($reference);
+		# It's legal for a reference not to be created.
+		next NODE unless $reference;
 
-			splice @$doc, $i, 1, $reference;
+		# Record the reference for random access.
+		$self->_add_reference($reference);
+
+		# Splice the reference into place for sequential access.
+		splice @$doc, $i, 1, $reference;
+		# Roll up trailing documentation.
+		my $j = $i + 1;
+		while ($j < @$doc and $reference->consume_element($doc->[$j])) {
+			splice @$doc, $j, 1;
 		}
 	}
 }
-
 
 ###
 ### Extract and remove data from documentation.
@@ -805,7 +825,7 @@ memory is affected.  The source on disk is untouched.
 =cut
 
 
-=method extract_doc_skip
+=method extract_doc_directive_skip
 
 [% ss.name %] examines a single Pod::Elemental command node.  If it's
 a "=skip" directive, its data is entered into the [% mod.name %]
@@ -816,7 +836,7 @@ other nodes.
 
 =cut
 
-sub extract_doc_skip {
+sub extract_doc_directive_skip {
 	my ($self, $errors, $node) = @_;
 
 	return unless $node->{command} eq 'skip';
@@ -830,7 +850,6 @@ sub extract_doc_skip {
 
 	return 1;
 }
-
 
 ###
 ### Index data we can glean from the code.
@@ -848,9 +867,10 @@ This is a helper method called by index().
 sub index_code_attributes {
 	my ($self, $errors) = @_;
 
-	my $meta = $self->mop_class();
+	my $meta = $self->meta_entity();
+
 	ATTRIBUTE: foreach my $name ($meta->get_attribute_list()) {
-		next ATTRIBUTE if $self->is_skippable_attribute($name);
+		#next ATTRIBUTE if $self->is_skippable_attribute($name);
 
 		my $attribute = $meta->get_attribute($name);
 
@@ -864,11 +884,19 @@ sub index_code_attributes {
 		}
 
 		my $entity = Pod::Plexus::Entity::Attribute->new(
-			mop_entity => $attribute,
-			name       => $name,
+			meta_entity => $attribute,
+			name        => $name,
 		);
 
 		$self->_add_attribute($name, $entity);
+
+		# Add associated methods.
+
+		foreach my $method_name (keys %{$attribute->handles() // {}}) {
+			my $entity = $self->index_code_method($errors, $method_name);
+
+			# TODO - Indicate the entity came from an attribute.
+		}
 	}
 }
 
@@ -885,39 +913,95 @@ This is a helper method called by index().
 sub index_code_methods {
 	my ($self, $errors) = @_;
 
-	my $meta = $self->mop_class();
-	METHOD: foreach my $name ($meta->get_method_list()) {
-		next METHOD if $self->is_skippable_method($name);
+	# TODO
+	#
+	# get_method_list() returns a list of names for the methoddefined by
+	# this particular class.
+	#
+	# get_all_methods() returns a list of all Class::MOP::Method objects
+	# flattened into this class.  Ones whose names aren't in the
+	# get_method_list() list are inherited somehow.
+	#
+	#   Only available from Class::MOP::Class.
+	#   Roles don't have it.
+	#
+	# find_all_methods_by_name($name) returns all instances of the
+	# method in the inheritance tree.  Order is unspecified, but it
+	# probably means something.
+	#
+	#   Class::MOP::Class and Moose::Meta::Role have this.
+	#
+	# TODO - Probably should subclass Pod::Plexus::Document for the
+	# different kinds of document.  Meanwhile, I'm going to get all
+	# polymorphic here.
 
-		my $method = $meta->get_method($name);
+	my $meta = $self->meta_entity();
 
-		# Assume constants aren't documented.
-		# TODO - Need a better way to identify them, eh?
-		next METHOD if $name =~ /^[A-Z0-9_]+$/;
+	my @methods = (
+		$meta->can('get_all_methods')
+		? (
+			grep { ! $self->_has_method($_->name()) }
+			sort { $a->name() cmp $b->name() }
+			$meta->get_all_methods()
+		)
+		: (map { $meta->get_method($_) } sort $meta->get_method_list())
+	);
 
-		# TODO - How to report the places where it's defined?  Can it be?
-		if ($self->_has_method($name)) {
-			push @$errors, (
-				"Method $name defined more than once.  Second one is" .
-				" at " . $self->pathname() . " line $method->{start_line}"
-			);
-			next METHOD;
-		}
-
-		my $entity = Pod::Plexus::Entity::Method->new(
-			mop_entity => $method,
-			name       => $name,
-		);
-
-		$self->_add_method($name, $entity);
+	METHOD: foreach my $method (@methods) {
+		$self->index_code_method($errors, $method->name());
 	}
 }
 
+sub index_code_method {
+	my ($self, $errors, $method_name) = @_;
+
+	# TODO
+	#
+	# get_method_list() returns a list of names for the methoddefined by
+	# this particular class.
+	#
+	# get_all_methods() returns a list of all Class::MOP::Method objects
+	# flattened into this class.  Ones whose names aren't in the
+	# get_method_list() list are inherited somehow.
+	#
+	#   Only available from Class::MOP::Class.
+	#   Roles don't have it.
+	#
+	# find_all_methods_by_name($name) returns all instances of the
+	# method in the inheritance tree.  Order is unspecified, but it
+	# probably means something.
+	#
+	#   Class::MOP::Class and Moose::Meta::Role have this.
+	#
+	# TODO - Probably should subclass Pod::Plexus::Document for the
+	# different kinds of document.  Meanwhile, I'm going to get all
+	# polymorphic here.
+
+	#my $name = $method->name();
+
+	#returnif $self->is_skippable_method($name);
+
+	#my $method = $meta->get_method($name);
+
+	# Assume constants aren't documented.
+	# TODO - Need a better way to identify them, eh?
+	return if $method_name =~ /^[A-Z0-9_]+$/;
+
+	# TODO - How to report the places where it's defined?  Can it be?
+	return if $self->_has_method($method_name);
+
+	my $entity = Pod::Plexus::Entity::Method->new(
+		name        => $method_name,
+	);
+
+	$self->_add_method($method_name, $entity);
+
+	return $entity;
+}
 
 ###
 ### Validate attribute and method docs.
 ###
-
 
 sub assimilate_ancestor_method_documentation {
 	my ($self, $errors) = @_;
@@ -950,7 +1034,7 @@ sub assimilate_ancestor_method_documentation {
 					}
 				}
 
-				$document->collect_data($errors);
+				$document->prepare_to_render($errors);
 				return if @$errors;
 			}
 
@@ -1091,7 +1175,7 @@ sub document_method {
 ### Dereference documentation references.
 ###
 
-=method dereference
+=method UNUSED_dereference
 
 [% ss.name %] acquires or generates documentation from references.
 Each satisfied reference is considered to be resolved, or
@@ -1104,7 +1188,7 @@ determined during this call.
 
 =cut
 
-sub dereference {
+sub UNUSED_dereference {
 	my ($self, $errors) = @_;
 	my $library = $self->library();
 
@@ -1144,7 +1228,10 @@ sub sub {
 		}
 	);
 
-	die $self->package(), " doesn't define sub $sub_name" unless @$subs;
+	confess $self->package(), " doesn't define sub $sub_name" unless (
+		$subs and @$subs
+	);
+
 	die $self->package(), " defines too many subs $sub_name" if @$subs > 1;
 
 	return $subs->[0]->content();
@@ -1175,7 +1262,7 @@ sub code {
 ### Expand documentation.
 ###
 
-sub expand_doc_commands {
+sub UNUSED_expand_doc_commands {
 	my ($self, $errors, $method) = @_;
 
 	my $doc = $self->_elemental()->children();
@@ -1213,11 +1300,12 @@ sub expand_doc_commands {
 	warn "Potential recursive expansion in ", $self->pathname();
 }
 
-sub expand_doc_simple {
+
+sub UNUSED_expand_doc_simple {
 	my ($self, $errors, $node) = @_;
 
-	return unless exists $pod_commands{$node->{command}};
-	my $reference_class = $pod_commands{$node->{command}};
+	return unless exists $reference_class{$node->{command}};
+	my $reference_class = $reference_class{$node->{command}};
 
 	my $reference = $reference_class->expand($self, $errors, $node);
 	return unless $reference;
@@ -1232,6 +1320,7 @@ sub expand_doc_simple {
 sub BUILD {
 	warn "Absorbing ", shift()->pathname(), " ...\n";
 }
+
 
 =method elementaldump
 

@@ -7,12 +7,14 @@ package Pod::Plexus::Reference::Example;
 use Moose;
 extends 'Pod::Plexus::Reference';
 
-use constant POD_COMMAND  => 'example';
-use constant POD_PRIORITY => 5000;
+use Pod::Plexus::Reference::Example::Method;
+use Pod::Plexus::Reference::Example::Module;
+
+use constant POD_COMMAND => 'example';
+
 
 has '+symbol' => (
-	isa      => 'Maybe[Str]',
-	required => 0,
+	default => "",
 );
 
 
@@ -66,60 +68,68 @@ sub set_example {
 }
 
 
-sub new_from_elemental_command {
-	my ($class, $library, $document, $errors, $node) = @_;
+sub create {
+	my ($class, %args) = @_;
 
 	# Parse the content into a module and/or sub name to include.
 
-	my ($module, $sub) = $class->_parse_example_spec($document, $errors, $node);
+	my ($module, $sub) = $class->_parse_example_spec(
+		$args{document}, $args{errors}, $args{node}
+	);
 	return unless $module;
 
-	if (defined $sub) {
-		return(
+	my $self = (
+		(defined $sub)
+		? (
 			Pod::Plexus::Reference::Example::Method->new(
-				invoked_in  => $document->package(),
-				module      => $module,
-				symbol      => $sub,
-				invoke_path => $document->pathname(),
-				invoke_line => $node->{start_line},
+				%args,
+				module => $module,
+				symbol => $sub,
 			)
-		);
-	}
-
-	return(
-		Pod::Plexus::Reference::Example::Module->new(
-			invoked_in  => $document->package(),
-			module      => $module,
-			invoke_path => $document->pathname(),
-			invoke_line => $node->{start_line},
+		)
+		: (
+			Pod::Plexus::Reference::Example::Module->new(
+				%args,
+				module => $module,
+			)
 		)
 	);
+
+	$self->resolve();
+
+	return $self;
 }
 
-sub expand {
-	my ($class, $library, $document, $errors, $node) = @_;
 
-	my ($module, $sub) = $class->_parse_example_spec(
-		$document, $errors, $node
-	);
+#sub expand {
+#	my ($class, $library, $document, $errors, $node) = @_;
+#
+#	my ($module, $sub) = $class->_parse_example_spec(
+#		$document, $errors, $node
+#	);
+#
+#	my $reference = $document->get_reference($class, $module, $sub);
+#	unless ($reference) {
+#		push @$errors, (
+#			"Can't find =example $module $sub" .
+#			" at " . $document->pathname() . " line $node->{start_line}"
+#		);
+#		return;
+#	}
+#
+#	return $reference;
+#}
 
-	my $reference = $document->get_reference($class, $module, $sub);
-	unless ($reference) {
-		push @$errors, (
-			"Can't find =example $module $sub" .
-			" at " . $document->pathname() . " line $node->{start_line}"
-		);
-		return;
-	}
-
-	return $reference;
-}
 
 =method _parse_example_spec
 
 [% ss.name %] parses the specification for examples.  It's used by the
 "=example" directive to identify which code is being used as an
 example.
+
+This spec parser is different than all the rest.  It's called before
+[% mod.name %] is created.  The particular [% mod.name %] subclass to
+create depends on _parse_example_spec()'s result.
 
 =cut
 
@@ -164,6 +174,7 @@ sub _parse_example_spec {
 	my ($package) = ($node->{content} =~ /\s*(\S.*?)\s*/);
 	return($package, undef);
 }
+
 
 no Moose;
 

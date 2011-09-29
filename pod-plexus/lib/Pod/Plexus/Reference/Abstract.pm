@@ -7,37 +7,30 @@ package Pod::Plexus::Reference::Abstract;
 use Moose;
 extends 'Pod::Plexus::Reference';
 
-has '+symbol' => (
-	isa      => 'Maybe[Str]',
-	required => 0,
-);
-
-has abstract => (
-	is       => 'ro',
-	isa      => 'Str',
-	required => 1,
-);
 
 use constant POD_COMMAND  => 'abstract';
-use constant POD_PRIORITY => 1000;
 
 
-sub new_from_elemental_command {
-	my ($class, $library, $document, $errors, $node) = @_;
+has '+symbol' => (
+	default => sub { "" },
+);
 
-	my $reference = $class->new(
-		invoked_in  => $document->package(),
-		module      => $document->package(),
-		abstract    => $node->{content},
-		invoke_path => $document->pathname(),
-		invoke_line => $node->{start_line},
-	);
 
-	return $reference;
-}
+has '+is_terminal' => (
+	default => 1,
+);
 
-sub dereference {
-	my ($self, $library, $document, $errors) = @_;
+
+has abstract => (
+	default => sub { shift()->node()->{content} },
+	is      => 'ro',
+	isa     => 'Str',
+	lazy    => 1,
+);
+
+
+sub BUILD {
+	my $self = shift();
 
 	$self->documentation(
 		[
@@ -54,20 +47,51 @@ sub dereference {
 	);
 }
 
-sub expand {
-	my ($class, $document, $errors, $node) = @_;
 
-	my $reference = $document->get_reference($class);
+sub consume_element {
+	my ($self, $element) = @_;
 
-	unless ($reference) {
-		push @$errors, (
-			"Can't find reference for =abstract" .
-			" at " . $document->pathname() . " line $node->{start_line}"
-		);
+	return 0 if $self->is_terminated();
+
+	if ($element->isa('Pod::Elemental::Element::Generic::Command')) {
+
+		my $command = $element->{command};
+
+		# "=cut" is consumed.
+
+		if ($command eq 'cut') {
+			$self->push_cut();
+			$self->is_terminated(1);
+			return 1;
+		}
+
+		# Other terminal top-level commands aren't consumed.
+		# They do however imply "=cut".
+
+		if ($command =~ /^head\d$/) {
+			$self->push_cut();
+			$self->is_terminated(1);
+			return 0;
+		}
 	}
 
-	return $reference;
+	# Other entities terminate this one.
+
+	if ($element->isa('Pod::Plexus::Reference::Entity')) {
+		$self->push_cut();
+		$self->is_terminal(1);
+		return 0;
+	}
+
+	# Otherwise, discard the documentation.
+
+	return 1 if $element->isa('Pod::Elemental::Element::Generic::Blank');
+
+	$element->{content} =~ s/^/Illegal content in =abstract: /;
+	$self->push_documentation($element);
+	return 1;
 }
+
 
 no Moose;
 

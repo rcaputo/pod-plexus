@@ -7,50 +7,26 @@ package Pod::Plexus::Reference::Macro;
 use Moose;
 extends 'Pod::Plexus::Reference::Include';
 
+
 use constant POD_COMMAND  => 'macro';
-use constant POD_PRIORITY => 9000;
 
 
-has '+discards_command' => (
-	default => 1,
-);
+sub BUILD {
+	my $self = shift();
 
-
-has '+includes_text' => (
-	default => 1,
-);
-
-
-sub new_from_elemental_command {
-	my ($class, $library, $document, $errors, $node) = @_;
-
-	my ($symbol) = ($node->{content} =~ /^\s* (\S+) \s*$/x);
+	my ($symbol) = ($self->node()->{content} =~ /^\s* (\S+) \s*$/x);
 	unless (defined $symbol) {
-		push @$errors, (
-			"Wrong macro syntax: =macro $node->{content}" .
-			" at " . $document->pathname() . " line $node->{start_line}"
+		push @{$self->errors()}, (
+			"Wrong macro syntax: =macro " . $self->node()->{content} .
+			" at " . $self->document()->pathname() .
+			" line " . $self->node()->{start_line}
 		);
 		return;
 	}
 
-	my $reference = $class->new(
-		invoked_in  => $document->package(),
-		module      => $document->package(),
-		symbol      => $symbol,
-		invoke_path => $document->pathname(),
-		invoke_line => $node->{start_line},
-	);
-
-	return $reference;
+	$self->symbol($symbol);
 }
 
-sub dereference {
-	undef;
-}
-
-sub expand {
-	die;
-}
 
 no Moose;
 

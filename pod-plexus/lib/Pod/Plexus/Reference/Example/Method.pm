@@ -7,13 +7,19 @@ package Pod::Plexus::Reference::Example::Method;
 use Moose;
 extends 'Pod::Plexus::Reference::Example';
 
-sub dereference {
-	my ($self, $library, $document, $errors) = @_;
+sub resolve {
+	my $self = shift();
 
-	my $module_name = $self->module();
-	my $module      = $library->get_document($module_name);
+	my $foreign_doc_name = $self->module();
+	my $foreign_doc      = $self->library()->get_document($foreign_doc_name);
+
+	# TODO - Kinda iffy here to pass in our \@errors?
+	# TODO - Seems like a half-change waiting for rectification.
+	$foreign_doc->prepare_to_render($self->errors());
+	return if @{$self->errors()};
+
 	my $method_name = $self->symbol();
-	my $code        = $self->beautify_code($module->sub($method_name));
+	my $code        = $self->beautify_code($foreign_doc->sub($method_name));
 
 	my $link;
 	if ($self->is_local()) {
@@ -21,8 +27,8 @@ sub dereference {
 	}
 	else {
 		$link = (
-			"This is L<$module_name|$module_name> " .
-			"sub L<$method_name()|$module_name/$method_name>.\n\n"
+			"This is L<$foreign_doc_name|$foreign_doc_name> " .
+			"sub L<$method_name()|$foreign_doc_name/$method_name>.\n\n"
 		);
 	}
 
