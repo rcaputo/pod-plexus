@@ -7,84 +7,66 @@ package Pod::Plexus::Reference::Include;
 use Moose;
 extends 'Pod::Plexus::Reference';
 
-use constant POD_COMMAND  => 'include';
-
 
 has '+symbol' => (
 	default => "",
 );
 
 
-sub new_from_elemental_command {
-	my ($class, $library, $document, $errors, $node) = @_;
+use constant POD_COMMAND  => 'include';
 
-	# Parse the content into a module and POD entry name to include.
 
-	my ($module, $symbol) = $class->_parse_include_spec(
-		$document, $errors, $node
-	);
+sub BUILD {
+	my $self = shift();
+
+	my ($module, $type, $symbol) = $self->_parse_include_spec();
 
 	return unless $module;
 
-	my $reference = $class->new(
-		invoked_in  => $document->package(),
-		module      => $module,
-		symbol      => $symbol,
-		invoke_path => $document->pathname(),
-		invoke_line => $node->{start_line},
+	my $foreign_document = $self->library()->get_document($module);
+	$foreign_document->prepare_to_render($self->errors());
+	return if @{$self->errors()};
+
+	my $foreign_reference = $foreign_document->get_reference(
+		$type, $module, $symbol
 	);
 
-	return $reference;
+	$self->push_documentation(@{$foreign_reference->body()});
+	$self->cleanup_documentation();
 }
 
-sub dereference {
-	my ($self, $library, $document, $errors) = @_;
-
-	my $module_name = $self->module();
-	my $module      = $library->get_document($module_name);
-	my $pod_copy    = [ ]; # $module->pod_section($self->symbol());
-
-#	unless (@$pod_copy) {
-#		push @$errors, (
-#			$self->invoked_in() . " includes unknown POD section $module_name/" .
-#			$self->symbol()
-#		);
-#		return;
-#	}
-
-	$self->documentation($pod_copy);
-}
-
-#die "old way";
-
-sub expand {
-	my ($class, $document, $errors, $node) = @_;
-
-	my ($module, $symbol) = $class->_parse_include_spec(
-		$document, $errors, $node
-	);
-
-	return $document->get_reference($class, $module, $symbol);
-}
 
 sub _parse_include_spec {
-	my ($class, $document, $errors, $node) = @_;
+	my $self = shift();
 
-	if ($node->{content} =~ m!^\s* (\S*) \s+ (\S.*?) \s*$!x) {
-		return($1, $2);
+	my %type_class = (
+		'attribute' => 'Pod::Plexus::Reference::Entity::Attribute',
+		'method'    => 'Pod::Plexus::Reference::Entity::Method',
+	);
+
+	if (
+		$self->node()->{content} =~ m{
+			^\s* (\S*) \s+ (attribute|method) \s+ (\S.*?) \s*$
+		}x
+	) {
+		return($1, $type_class{$2}, $3);
 	}
 
-	if ($node->{content} =~ m!^\s* (\S*) \s*$!x) {
-		return($document->package(), $1);
+	if (
+		$self->node()->{content} =~ m!^\s* (attribute|method) \s+ (\S.*?) \s*$!x
+	) {
+		return($self->document()->package(), $type_class{$1}, $2);
 	}
 
-	push @$errors, (
-		"Wrong inclusion syntax: =include $node->{content}" .
-		" at " . $document->pathname() . " line $node->{start_line}"
+	push @{$self->errors()}, (
+		"Wrong inclusion syntax: =include " . $self->node()->{content} .
+		" at " . $self->document()->pathname() .
+		" line " . $self->node()->{start_line}
 	);
 
 	return;
 }
+
 
 no Moose;
 

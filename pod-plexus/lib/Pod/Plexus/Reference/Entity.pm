@@ -88,7 +88,25 @@ sub consume_element {
 	# Otherwise, consume the documentation.
 
 	$self->push_documentation($element);
+	$self->push_body($element);
 	return 1;
+}
+
+
+has body => (
+	is      => 'rw',
+	isa     => 'ArrayRef[Pod::Elemental::Paragraph|Pod::Plexus::Reference]',
+	traits  => [ 'Array' ],
+	lazy    => 1,
+	builder => '_build_body',
+	handles => {
+		push_body => 'push',
+	},
+);
+
+
+sub _build_body {
+	return [ ];
 }
 
 
