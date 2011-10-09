@@ -9,6 +9,7 @@
 				[_] 25% App-Pod-Plexus stand-alone command line tool.
 					[X] 100% Reorganize files.
 					[_] 0% Decide how this will work.
+						How do traditional "make dist"s translate documentation?
 					[_] 0% Implement.
 					[_] 0% Dist::Zilla administrivia.
 						(see checklist below)
@@ -101,10 +102,11 @@
 			[X] 100% Introspect to find attributes, methods, roles and base classes.
 			[_] 0% Create default documentation for those that aren't already documented.
 		[_] 0% Automatically include implementation in the documentation.
-			[_] 0% Append an "Implementation: (example)" to the ends of method, attribute, etc.
-			[_] 0% Perhaps make it a flag.
-			[_] 0% Rather than "=method xyz ... =for example xyz".
-			[_] 0% Achieves a form of Literate Programming.
+			Automatic is problematic.
+			But it achieves a form of Literate Programming.
+			[_] 0% Is this a necessary feature?
+				We can already do this with "=method (same)".
+				Maybe "=implementation" can be a macro for "=method (same)".
 Implementation notes.
 	Document represents a parsed document.
 		Includes PPI information.

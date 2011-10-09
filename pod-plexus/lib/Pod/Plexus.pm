@@ -59,17 +59,6 @@ code.  Corollary: It's best to have only one package per file.
 The abstract and name of each module may be used by other directives.
 For example, see L<=xref MODULE_NAME>.
 
-=head3 =copyright YEARS HOLDER_NAME
-
-Define the copyright year and the name of the entity who holds it.  It
-renders in place as a basic copyright section.
-
-This directive is obsolete unless someone can justify why
-Pod::Weaver's copious and configurable copyright plugins aren't
-suitable.
-
-	=copyright 2010-2011 Rocco Caputo
-
 =head3 =example METHOD_NAME
 
 Include an example paragraph in the current documentation.  The
