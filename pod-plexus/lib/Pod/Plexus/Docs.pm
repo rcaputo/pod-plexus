@@ -1,4 +1,4 @@
-package Pod::Plexus::Reference;
+package Pod::Plexus::Docs;
 
 # TODO - render() -> as_pod_elements()
 
@@ -16,7 +16,7 @@ sub as_pod_elements {
 
 =head1 SUBCLASSES
 
-=index 2 ^Pod::Plexus::Reference::
+=index 2 ^Pod::Plexus::Docs::
 
 =cut
 

@@ -1,11 +1,11 @@
-package Pod::Plexus::Reference::Entity::Attribute;
+package Pod::Plexus::Docs::Code::Attribute;
 
 =abstract A reference to documentation for a class attribute.
 
 =cut
 
 use Moose;
-extends 'Pod::Plexus::Reference::Entity';
+extends 'Pod::Plexus::Docs::Code';
 
 
 use constant POD_COMMAND  => 'attribute';

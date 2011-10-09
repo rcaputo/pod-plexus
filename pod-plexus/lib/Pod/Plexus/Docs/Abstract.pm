@@ -1,11 +1,11 @@
-package Pod::Plexus::Reference::Abstract;
+package Pod::Plexus::Docs::Abstract;
 
 =abstract Remember and render cross-references.
 
 =cut
 
 use Moose;
-extends 'Pod::Plexus::Reference';
+extends 'Pod::Plexus::Docs';
 
 
 use constant POD_COMMAND  => 'abstract';
@@ -77,7 +77,7 @@ sub consume_element {
 
 	# Other entities terminate this one.
 
-	if ($element->isa('Pod::Plexus::Reference::Entity')) {
+	if ($element->isa('Pod::Plexus::Docs::Code')) {
 		$self->push_cut();
 		$self->is_terminal(1);
 		return 0;

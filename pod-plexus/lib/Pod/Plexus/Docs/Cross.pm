@@ -1,11 +1,11 @@
-package Pod::Plexus::Reference::Cross;
+package Pod::Plexus::Docs::Cross;
 
 =abstract Remember and render cross-references.
 
 =cut
 
 use Moose;
-extends 'Pod::Plexus::Reference';
+extends 'Pod::Plexus::Docs';
 
 
 use constant POD_COMMAND  => 'xref';

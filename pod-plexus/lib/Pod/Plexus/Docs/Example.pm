@@ -1,14 +1,14 @@
-package Pod::Plexus::Reference::Example;
+package Pod::Plexus::Docs::Example;
 
 =abstract A generic reference to a code example.
 
 =cut
 
 use Moose;
-extends 'Pod::Plexus::Reference';
+extends 'Pod::Plexus::Docs';
 
-use Pod::Plexus::Reference::Example::Method;
-use Pod::Plexus::Reference::Example::Module;
+use Pod::Plexus::Docs::Example::Method;
+use Pod::Plexus::Docs::Example::Module;
 
 use constant POD_COMMAND => 'example';
 
@@ -81,14 +81,14 @@ sub create {
 	my $self = (
 		(defined $sub)
 		? (
-			Pod::Plexus::Reference::Example::Method->new(
+			Pod::Plexus::Docs::Example::Method->new(
 				%args,
 				module => $module,
 				symbol => $sub,
 			)
 		)
 		: (
-			Pod::Plexus::Reference::Example::Module->new(
+			Pod::Plexus::Docs::Example::Module->new(
 				%args,
 				module => $module,
 			)

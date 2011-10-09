@@ -1,11 +1,11 @@
-package Pod::Plexus::Reference::Demacro;
+package Pod::Plexus::Docs::Demacro;
 
 =abstract A reference to a macro expansion.
 
 =cut
 
 use Moose;
-extends 'Pod::Plexus::Reference::Include';
+extends 'Pod::Plexus::Docs';
 
 
 use constant POD_COMMAND  => 'demacro';
@@ -32,7 +32,7 @@ sub resolve {
 	my $self = shift();
 
 	my $reference = $self->document()->get_reference(
-		'Pod::Plexus::Reference::Macro',
+		'Pod::Plexus::Docs::Macro',
 		$self->document()->package(),
 		$self->symbol()
 	);

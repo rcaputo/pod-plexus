@@ -1,4 +1,4 @@
-package Pod::Plexus::Entity;
+package Pod::Plexus::Code;
 
 use Moose;
 

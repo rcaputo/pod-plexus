@@ -1,11 +1,11 @@
-package Pod::Plexus::Reference::Macro;
+package Pod::Plexus::Docs::Macro;
 
 =abstract A reference to a macro definition.
 
 =cut
 
 use Moose;
-extends 'Pod::Plexus::Reference::Include';
+extends 'Pod::Plexus::Docs';
 
 
 use constant POD_COMMAND  => 'macro';

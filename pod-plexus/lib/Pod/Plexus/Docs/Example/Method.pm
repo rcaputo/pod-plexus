@@ -1,11 +1,11 @@
-package Pod::Plexus::Reference::Example::Method;
+package Pod::Plexus::Docs::Example::Method;
 
 =abstract A reference to a code example from a method.
 
 =cut
 
 use Moose;
-extends 'Pod::Plexus::Reference::Example';
+extends 'Pod::Plexus::Docs::Example';
 
 sub resolve {
 	my $self = shift();

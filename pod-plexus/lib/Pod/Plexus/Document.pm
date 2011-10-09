@@ -127,7 +127,7 @@ sub abstract {
 
 	$self->prepare_to_render() unless $self->is_prepared();
 	my $abstract = $self->get_reference(
-		'Pod::Plexus::Reference::Abstract'
+		'Pod::Plexus::Docs::Abstract'
 	);
 	die "No abstract defined for ", $self->package(), "\n" unless $abstract;
 
@@ -138,8 +138,8 @@ sub abstract {
 ### Module code structure.
 ###
 
-use Pod::Plexus::Entity::Method;
-use Pod::Plexus::Entity::Attribute;
+use Pod::Plexus::Code::Method;
+use Pod::Plexus::Code::Attribute;
 
 =attribute meta_entity
 
@@ -178,14 +178,14 @@ has meta_entity => (
 
 [% ss.name %] contains an hash of all identified attributes in the
 class being documented.  They are keyed on attribute name, and values
-are Pod::Plexus::Entity::Attribute objects.
+are Pod::Plexus::Code::Attribute objects.
 
 =cut
 
 has attributes => (
 	is      => 'rw',
 	is      => 'rw',
-	isa     => 'HashRef[Pod::Plexus::Entity::Attribute]',
+	isa     => 'HashRef[Pod::Plexus::Code::Attribute]',
 	traits   => [ 'Hash' ],
 	handles => {
 		_add_attribute  => 'set',
@@ -200,13 +200,13 @@ has attributes => (
 
 [% ss.name %] contains an hash of all identified methods in the class
 being documented.  They are keyed on method name, and values are
-Pod::Plexus::Entity::Method objects.
+Pod::Plexus::Code::Method objects.
 
 =cut
 
 has methods => (
 	is     => 'rw',
-	isa    => 'HashRef[Pod::Plexus::Entity::Method]',
+	isa    => 'HashRef[Pod::Plexus::Code::Method]',
 	traits => [ 'Hash' ],
 	handles => {
 		_add_method  => 'set',
@@ -333,14 +333,14 @@ has roles => (
 # TODO - Make dynamic based on whatever is installed.
 
 my @reference_classes = qw(
-	Abstract Cross Demacro Entity::Attribute Entity::Method
+	Abstract Cross Demacro Code::Attribute Code::Method
 	Example Include Index Macro
 );
 
 my %reference_class;
 
 foreach my $reference_class (@reference_classes) {
-	my $full_class = "Pod::Plexus::Reference::$reference_class";
+	my $full_class = "Pod::Plexus::Docs::$reference_class";
 	my $full_file  = "$full_class.pm";
 	$full_file     =~ s/::/\//g;
 
@@ -352,7 +352,7 @@ foreach my $reference_class (@reference_classes) {
 
 has references => (
 	is      => 'rw',
-	isa     => 'HashRef[Pod::Plexus::Reference]',
+	isa     => 'HashRef[Pod::Plexus::Docs]',
 	default => sub { { } },
 	traits  => [ 'Hash' ],
 	handles => {
@@ -506,7 +506,7 @@ sub get_reference {
 	$module //= $self->package();
 	$symbol //= "";
 
-	my $reference_key = Pod::Plexus::Reference->calc_key(
+	my $reference_key = Pod::Plexus::Docs->calc_key(
 		$type, $module, $symbol
 	);
 
@@ -548,7 +548,7 @@ sub render_as_pod {
 	NODE: while (@queue) {
 		my $next = shift @queue;
 
-		if ($next->isa('Pod::Plexus::Reference')) {
+		if ($next->isa('Pod::Plexus::Docs')) {
 			unshift @queue, $next->as_pod_elementals();
 			next NODE;
 		}
@@ -682,7 +682,7 @@ sub prepare_to_render {
 [% ss.name %] examines each Pod::Elemental command node.  Ones that
 are listed as known reference commands, such as "=abstract" or
 "=example", are parsed and recorded by their appropriate
-Pod::Plexus::Reference classes.
+Pod::Plexus::Docs classes.
 
 All other Pod::Elemental commands are ignored.
 
@@ -811,6 +811,17 @@ sub extract_doc_commands {
 }
 
 
+=method extract_doc_directive_skip
+
+[% ss.name %] examines a single Pod::Elemental command node.  If it's
+a "=skip" directive, its data is entered into the [% mod.name %]
+object, and [% ss.name %] returns true.  False is returned for all
+other nodes.
+
+=demacro extract_doc_command_callback
+
+=cut
+
 =macro extract_doc_command_callback
 
 This method is a callback to extract_doc_command().  That other method
@@ -821,18 +832,6 @@ true value.
 
 As with all [% mode.name %] parsers, only the Pod::Elemental data in
 memory is affected.  The source on disk is untouched.
-
-=cut
-
-
-=method extract_doc_directive_skip
-
-[% ss.name %] examines a single Pod::Elemental command node.  If it's
-a "=skip" directive, its data is entered into the [% mod.name %]
-object, and [% ss.name %] returns true.  False is returned for all
-other nodes.
-
-=demacro extract_doc_command_callback
 
 =cut
 
@@ -883,7 +882,7 @@ sub index_code_attributes {
 			next ATTRIBUTE;
 		}
 
-		my $entity = Pod::Plexus::Entity::Attribute->new(
+		my $entity = Pod::Plexus::Code::Attribute->new(
 			meta_entity => $attribute,
 			name        => $name,
 		);
@@ -990,7 +989,7 @@ sub index_code_method {
 	# TODO - How to report the places where it's defined?  Can it be?
 	return if $self->_has_method($method_name);
 
-	my $entity = Pod::Plexus::Entity::Method->new(
+	my $entity = Pod::Plexus::Code::Method->new(
 		name        => $method_name,
 	);
 
@@ -1040,15 +1039,15 @@ sub assimilate_ancestor_method_documentation {
 
 			# Does this class document the method?
 
-			my $method_key = Pod::Plexus::Reference->calc_key(
-				'Pod::Plexus::Reference::Entity::Method',
+			my $method_key = Pod::Plexus::Docs->calc_key(
+				'Pod::Plexus::Docs::Code::Method',
 				$class_name,
 				$method_name
 			);
 
 			unless ($document->_has_reference($method_key)) {
-				$method_key = Pod::Plexus::Reference->calc_key(
-					'Pod::Plexus::Reference::Entity::Method',
+				$method_key = Pod::Plexus::Docs->calc_key(
+					'Pod::Plexus::Docs::Code::Method',
 					$class_name,
 					$method_name
 				);
@@ -1081,7 +1080,7 @@ sub assimilate_ancestor_method_documentation {
 
 		# Document that it's not documented.
 
-		my $method_reference = Pod::Plexus::Reference::Entity::Method->new(
+		my $method_reference = Pod::Plexus::Docs::Code::Method->new(
 			invoked_in    => $this_class,
 			module        => $this_class,
 			symbol        => $method_name,
@@ -1133,7 +1132,7 @@ sub document_method {
 		$self, $this_docs, $this_class, $class_name, $method_name, $document, $line
 	) = @_;
 
-	my $method_reference = Pod::Plexus::Reference::Entity::Method->new(
+	my $method_reference = Pod::Plexus::Docs::Code::Method->new(
 		invoked_in    => $this_class,
 		module        => $this_class,
 		symbol        => $method_name,
@@ -1147,7 +1146,7 @@ sub document_method {
 		],
 	);
 
-	my $include_reference = Pod::Plexus::Reference::Include->new(
+	my $include_reference = Pod::Plexus::Docs::Include->new(
 		invoked_in  => $this_class,
 		module      => $class_name,
 		symbol      => $method_name,

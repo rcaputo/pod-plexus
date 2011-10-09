@@ -1,11 +1,11 @@
-package Pod::Plexus::Reference::Include;
+package Pod::Plexus::Docs::Include;
 
 =abstract A reference to documentation included from elsewhere.
 
 =cut
 
 use Moose;
-extends 'Pod::Plexus::Reference';
+extends 'Pod::Plexus::Docs';
 
 
 has '+symbol' => (
@@ -40,8 +40,8 @@ sub _parse_include_spec {
 	my $self = shift();
 
 	my %type_class = (
-		'attribute' => 'Pod::Plexus::Reference::Entity::Attribute',
-		'method'    => 'Pod::Plexus::Reference::Entity::Method',
+		'attribute' => 'Pod::Plexus::Docs::Code::Attribute',
+		'method'    => 'Pod::Plexus::Docs::Code::Method',
 	);
 
 	if (

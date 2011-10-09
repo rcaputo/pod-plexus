@@ -1,11 +1,11 @@
-package Pod::Plexus::Reference::Example::Module;
+package Pod::Plexus::Docs::Example::Module;
 
 =abstract A reference to a code example from an entire module.
 
 =cut
 
 use Moose;
-extends 'Pod::Plexus::Reference::Example';
+extends 'Pod::Plexus::Docs::Example';
 
 sub dereference {
 	my ($self, $library, $document, $errors) = @_;

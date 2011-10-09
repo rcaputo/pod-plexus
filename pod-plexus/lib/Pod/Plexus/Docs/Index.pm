@@ -1,11 +1,11 @@
-package Pod::Plexus::Reference::Index;
+package Pod::Plexus::Docs::Index;
 
 =abstract A reference to a dynamically generated module index.
 
 =cut
 
 use Moose;
-extends 'Pod::Plexus::Reference';
+extends 'Pod::Plexus::Docs';
 
 
 has '+symbol' => (
@@ -94,7 +94,7 @@ sub consume_element {
 
 	# Other entities terminate this one.
 
-	if ($element->isa('Pod::Plexus::Reference::Entity')) {
+	if ($element->isa('Pod::Plexus::Docs::Code')) {
 		$self->push_cut();
 		$self->is_terminal(1);
 		return 0;

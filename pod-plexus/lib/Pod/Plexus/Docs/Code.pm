@@ -1,11 +1,11 @@
-package Pod::Plexus::Reference::Entity;
+package Pod::Plexus::Docs::Code;
 
 =abstract A reference to documentation for an attribute or method entity.
 
 =cut
 
 use Moose;
-extends 'Pod::Plexus::Reference';
+extends 'Pod::Plexus::Docs';
 
 sub new_from_elemental_command {
 	my ($class, $library, $document, $errors, $node) = @_;
@@ -79,7 +79,7 @@ sub consume_element {
 
 	# Other entities terminate this one.
 
-	if ($element->isa('Pod::Plexus::Reference::Entity')) {
+	if ($element->isa('Pod::Plexus::Docs::Code')) {
 		$self->push_cut();
 		$self->is_terminated(1);
 		return 0;
@@ -95,7 +95,7 @@ sub consume_element {
 
 has body => (
 	is      => 'rw',
-	isa     => 'ArrayRef[Pod::Elemental::Paragraph|Pod::Plexus::Reference]',
+	isa     => 'ArrayRef[Pod::Elemental::Paragraph|Pod::Plexus::Docs]',
 	traits  => [ 'Array' ],
 	lazy    => 1,
 	builder => '_build_body',

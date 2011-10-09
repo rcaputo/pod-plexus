@@ -28,7 +28,7 @@ blank lines, and anything else Pod::Elemental supports.
 
 has documentation => (
 	is      => 'rw',
-	isa     => 'ArrayRef[Pod::Elemental::Paragraph|Pod::Plexus::Reference]',
+	isa     => 'ArrayRef[Pod::Elemental::Paragraph|Pod::Plexus::Docs]',
 	traits  => [ 'Array' ],
 	lazy    => 1,
 	builder => '_build_documentation',

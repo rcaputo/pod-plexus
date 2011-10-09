@@ -1,11 +1,11 @@
-package Pod::Plexus::Reference::Entity::Method;
+package Pod::Plexus::Docs::Code::Method;
 
 =abstract A reference to documentation for a class method.
 
 =cut
 
 use Moose;
-extends 'Pod::Plexus::Reference::Entity';
+extends 'Pod::Plexus::Docs::Code';
 
 
 use constant POD_COMMAND  => 'method';

@@ -1,11 +1,11 @@
-package Pod::Plexus::Entity::Attribute;
+package Pod::Plexus::Code::Attribute;
 
 use Moose;
-extends 'Pod::Plexus::Entity';
+extends 'Pod::Plexus::Code';
 
 =attribute meta_entity
 
-=include Pod::Plexus::Entity attribute meta_entity
+=include Pod::Plexus::Code attribute meta_entity
 
 =cut
 
