@@ -639,7 +639,36 @@ sub prepare_to_render {
 	$self->index_doc_references($errors);
 	return if @$errors;
 
-	# 4. Find or manufacture documentation that we can.
+	# 4. Find or manufacture documentation for things that are not
+	# explicitly documented already.
+
+	# TODO - Are these decision trees complete?
+
+	# Attribute.
+	#   If the attribute is defined in $document:
+	#     Auto-generate documentation from the attribute's signature.
+	#   If attribute is defined elsewhere:
+	#     If attribute is documented there:
+	#       Copy the documentation here.
+	#     Otherwise:
+	#       Auto-generate documentation from signuature.
+
+	# Method.
+	#   If method is implemented by an attribute:
+	#     If the attribute is defined in $document
+	#       Auto-generate documentation from attribute signature?
+	#     If the attribute is defined elsewhere:
+	#       If elsewhere documents the method:
+	#         Copy elsewhere's documentation.
+	#       Otherwise:
+	#         Generate the documentation from the attirubte?
+	#   Is the method defined here?
+	#     Document the method as undocumented.
+	#   Is the method defined elsewhere:
+	#     If elsewhere documents the method:
+	#       Copy elsewhere's documentation here.
+	#     Otherwise:
+	#       Document the method as undocumented.
 
 	#$self->assimilate_ancestor_method_documentation($errors);
 	#$self->assimilate_ancestor_attribute_documentation($errors);
