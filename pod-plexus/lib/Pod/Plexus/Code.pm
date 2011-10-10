@@ -49,6 +49,17 @@ has meta_entity => (
 );
 
 
+sub is_documented {
+	my ($self, $document, $errors) = @_;
+	push @$errors, "Object $self ... class needs to override validate()";
+}
+
+sub validate {
+	my ($self, $document, $errors) = @_;
+	push @$errors, "Object $self ... class needs to override validate()";
+}
+
+
 no Moose;
 
 1;

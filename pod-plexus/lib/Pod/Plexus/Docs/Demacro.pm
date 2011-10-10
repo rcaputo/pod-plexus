@@ -46,25 +46,6 @@ sub BUILD {
 }
 
 
-sub UNUSED_resolve {
-	my $self = shift();
-
-	my $reference = $self->document()->get_reference(
-		'Pod::Plexus::Docs::Macro',
-		$self->document()->package(),
-		$self->symbol()
-	);
-
-	unless ($reference) {
-		push @{$self->errors()}, (
-			"Can't find reference for =demacro " . $self->symbol() .
-			" at " . $self->document()->pathname() .
-			" line " . $self->node()->{start_line}
-		);
-	}
-}
-
-
 no Moose;
 
 1;

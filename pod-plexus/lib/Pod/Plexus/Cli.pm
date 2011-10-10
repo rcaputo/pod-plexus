@@ -20,13 +20,13 @@ switches that populate them.
 =cut
 
 
-=skip attribute usage
+=skip all usage
 
 =skip attribute ARGV
 
-=skip attribute extra_argv
+=skip all extra_argv
 
-=skip attribute help_flag
+=skip all help_flag
 
 =skip method process_argv
 

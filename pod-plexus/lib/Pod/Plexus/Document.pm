@@ -184,9 +184,9 @@ are Pod::Plexus::Code::Attribute objects.
 
 has attributes => (
 	is      => 'rw',
-	is      => 'rw',
 	isa     => 'HashRef[Pod::Plexus::Code::Attribute]',
-	traits   => [ 'Hash' ],
+	traits  => [ 'Hash' ],
+	default => sub { { } },
 	handles => {
 		_add_attribute  => 'set',
 		_has_attribute  => 'exists',
@@ -205,9 +205,10 @@ Pod::Plexus::Code::Method objects.
 =cut
 
 has methods => (
-	is     => 'rw',
-	isa    => 'HashRef[Pod::Plexus::Code::Method]',
-	traits => [ 'Hash' ],
+	is      => 'rw',
+	isa     => 'HashRef[Pod::Plexus::Code::Method]',
+	traits  => [ 'Hash' ],
+	default => sub { { } },
 	handles => {
 		_add_method  => 'set',
 		_has_method  => 'exists',
@@ -396,10 +397,17 @@ has skip_attributes => (
 	traits  => [ 'Hash' ],
 	default => sub { { } },
 	handles => {
-		is_skippable_attribute => 'exists',
+		_is_skippable_attribute => 'exists',
 		_skip_attribute        => 'set',
 	}
 );
+
+
+sub is_skippable_attribute {
+	my ($self, $attribute_name) = @_;
+	return 1 if $attribute_name =~ /^_/;
+	return $self->_is_skippable_attribute($attribute_name);
+}
 
 
 =method skip_attribute
@@ -448,10 +456,17 @@ has skip_methods => (
 		}
 	},
 	handles => {
-		is_skippable_method => 'exists',
+		_is_skippable_method => 'exists',
 		_skip_method        => 'set',
 	}
 );
+
+
+sub is_skippable_method {
+	my ($self, $method_name) = @_;
+	return 1 if $method_name =~ /^_/;
+	return $self->_is_skippable_method($method_name);
+}
 
 
 =method skip_method
@@ -464,6 +479,13 @@ one.  Literally, the number 1.
 sub skip_method {
 	my $self = shift();
 	$self->_skip_method($_, 1) foreach @_;
+}
+
+
+sub skip_all {
+	my $self = shift();
+	$self->skip_attribute(@_);
+	$self->skip_method(@_);
 }
 
 ###
@@ -518,7 +540,7 @@ sub get_reference {
 ### Resolver pass.
 ###
 
-sub resolve_references {
+sub UNUSED_resolve_references {
 	my $self = shift();
 	$_->resolve() foreach $self->_get_references();
 }
@@ -624,12 +646,30 @@ sub prepare_to_render {
 	# 3. Parse, build and collect documentation references.
 
 	$self->index_doc_references($errors);
+	return if @$errors;
 
 	# 4. Find or manufacture documentation that we can.
 
 	#$self->assimilate_ancestor_method_documentation($errors);
 	#$self->assimilate_ancestor_attribute_documentation($errors);
+
+	# 5. Make sure every recognizable code entity has corresponding
+	# documentation.
+
+	foreach my $attribute_name (keys %{$self->attributes()}) {
+		next if $self->is_skippable_attribute($attribute_name);
+		$self->_get_attribute($attribute_name)->validate($self, $errors);
+	}
+
+	foreach my $method_name (keys %{$self->methods()}) {
+		next if $self->is_skippable_method($method_name);
+		$self->_get_method($method_name)->validate($self, $errors);
+	}
+
 	return if @$errors;
+
+#	$self->ensure_documentation($errors);
+#	return if @$errors;
 
 	return;
 
@@ -841,7 +881,7 @@ sub extract_doc_directive_skip {
 	return unless $node->{command} eq 'skip';
 
 	my ($entity_type, $entity_name) = (
-		$node->{content} =~ /^\s* (attribute|method) \s+ (\S.*?) \s*$/x
+		$node->{content} =~ /^\s* (attribute|method|all) \s+ (\S.*?) \s*$/x
 	);
 
 	my $skip_method = "skip_$entity_type";
