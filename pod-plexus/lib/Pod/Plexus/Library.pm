@@ -183,59 +183,6 @@ sub index {
 }
 
 
-=method UNUSED_dereference
-
-Resolve references to other code and documentation entities.  Tell
-documents to import the things they reference into the places where
-they're referenced.  This should be done before variable expansion,
-since the values of those variables depend upon the location where
-they're resolved.
-
-=cut
-
-sub UNUSED_dereference {
-	my ($self, $errors) = @_;
-
-	my @pending = $self->get_documents();
-
-	$_->dereference($errors) foreach @pending;
-	return if @$errors;
-
-#	my $remaining_attempts = 5;
-#
-#	ATTEMPT: while (@pending and $remaining_attempts--) {
-#		my @next_pending;
-#		my @errors;
-#
-#		PENDING: foreach my $next (@pending) {
-#			my @unreferenced = $next->dereference_mutables();
-#			if (@unreferenced) {
-#				push @next_pending, $next;
-#				push @errors, [ $next, \@unreferenced ];
-#				next PENDING;
-#			}
-#		}
-#
-#		last ATTEMPT unless @errors;
-#
-#		if ($remaining_attempts) {
-#			@pending = @next_pending;
-#			next ATTEMPT;
-#		}
-#
-#		# Tried too many times.  What failed?
-#
-#		warn "Couldn't resolve these symbols:\n";
-#		foreach my $error (@errors) {
-#			my ($module, $symbols) = @$error;
-#			warn "  ", $module->package(), " - ", join(", ", @$symbols), "\n";
-#		}
-#
-#		exit 1;
-#	}
-}
-
-
 =method get_unresolved_referents
 
 [% ss.name %] collects and returns the unique referents across all

@@ -75,25 +75,6 @@ has module => (
 );
 
 
-=attribute UNUSED_podroot
-
-[% ss.name %] defines the root directory where rendered documentation
-will be deposited.  The directory must not previously exist.
-
-[% ss.name %] is populated by one or more --[% ss.name %] command line
-switches.
-
-=cut
-
-has UNUSED_podroot => (
-	is            => 'rw',
-	isa           => 'Str',
-	lazy          => 1,
-	default       => '-',
-	documentation => 'root directory where POD files are rendered',
-);
-
-
 =attribute _library
 
 [% ss.name %] contains a Pod::Plexus::Library object.  This object is
@@ -153,50 +134,6 @@ sub collect_lib_files {
 		},
 		@{$self->lib()},
 	);
-}
-
-
-=method UNUSED_index_library
-
-[% ss.name %] invokes the Pod::Plexus library to index entities and
-their corresponding documentation.  It is a prelude to dereferencing
-entities and rendering their documentation.
-
-=example UNUSED_index_library()
-
-=cut
-
-sub UNUSED_index_library {
-	my $self = shift();
-	$self->_library()->index();
-	return 0;
-}
-
-
-=method UNUSED_render_library
-
-[% ss.name %] renders every reqested document in the library.
-
-=cut
-
-sub UNUSED_render_library {
-	my $self = shift();
-
-	MODULE: foreach my $module_name (@{$self->module()}) {
-
-		my $module = $self->_library()->get_document($module_name);
-		unless ($module) {
-			warn "Couldn't find and render $module.  Skipping...\n";
-			next MODULE;
-		}
-
-		# TODO - Write out a file, if needed.
-
-		my $output = $module->render();
-		print $output, "\n";
-	}
-
-	return 0;
 }
 
 

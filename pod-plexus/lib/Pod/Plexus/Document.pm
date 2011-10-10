@@ -537,15 +537,6 @@ sub get_reference {
 }
 
 ###
-### Resolver pass.
-###
-
-sub UNUSED_resolve_references {
-	my $self = shift();
-	$_->resolve() foreach $self->_get_references();
-}
-
-###
 ### Final render.
 ###
 
@@ -1214,40 +1205,6 @@ sub document_method {
 ### Dereference documentation references.
 ###
 
-=method UNUSED_dereference
-
-[% ss.name %] acquires or generates documentation from references.
-Each satisfied reference is considered to be resolved, or
-"dereferenced".
-
-[% ss.name %] will dereference documentation recursively, if needed.
-Previous indexing passes should have guaranteed that all referenced
-modules exist, but the presence of necessary symbols will be
-determined during this call.
-
-=cut
-
-sub UNUSED_dereference {
-	my ($self, $errors) = @_;
-	my $library = $self->library();
-
-	# Dereference explicit references.
-
-	REFERENCE: foreach my $reference ($self->_get_references()) {
-		next REFERENCE if $reference->is_documented();
-		$reference->dereference($library, $self, $errors);
-	}
-
-	return if @$errors;
-
-	$_->cleanup_documentation() foreach $self->_get_references();
-
-	# TODO - This is the only one we should have left.
-	$self->expand_doc_commands($errors, 'expand_doc_simple');
-	return if @$errors;
-}
-
-
 =method sub
 
 [% ss.name %] returns the code for a particular named subroutine or
@@ -1294,62 +1251,6 @@ sub code {
 	$out->prune('PPI::Token::Pod');
 
 	return $out->serialize();
-}
-
-
-###
-### Expand documentation.
-###
-
-sub UNUSED_expand_doc_commands {
-	my ($self, $errors, $method) = @_;
-
-	my $doc = $self->_elemental()->children();
-
-	for (1..10) {
-		my $expansion_count = 0;
-
-		my $i = @$doc;
-		NODE: while ($i--) {
-			my $node = $doc->[$i];
-
-			next NODE unless $node->isa('Pod::Elemental::Element::Generic::Command');
-
-			my @result = $self->$method($errors, $node);
-			next NODE unless @result;
-
-			splice(@$doc, $i, 1, @result);
-
-			++$expansion_count;
-		}
-
-		next if $expansion_count;
-
-		# TODO - Kludge to prevent references from resolving to themselves
-		# over and over again.
-
-		FIXUP: foreach (@$doc) {
-			next FIXUP unless $_->isa('Pod::Elemental::Element::Generic::Command');
-			$_->{command} =~ s/^\((.*?)\)$/$1/;
-		}
-
-		return;
-	}
-
-	warn "Potential recursive expansion in ", $self->pathname();
-}
-
-
-sub UNUSED_expand_doc_simple {
-	my ($self, $errors, $node) = @_;
-
-	return unless exists $reference_class{$node->{command}};
-	my $reference_class = $reference_class{$node->{command}};
-
-	my $reference = $reference_class->expand($self, $errors, $node);
-	return unless $reference;
-
-	return @{$reference->documentation()};
 }
 
 ###
