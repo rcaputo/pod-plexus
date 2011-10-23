@@ -16,19 +16,6 @@ use feature 'switch';
 use PPI::Lexer;
 $PPI::Lexer::STATEMENT_CLASSES{with} = 'PPI::Statement::Include';
 
-use constant {
-	SCOPE_LOCAL    => 0x0001,
-	SCOPE_FOREIGN  => 0x0002,
-
-	TYPE_SUB       => 0x0010,
-	TYPE_PACKAGE   => 0x0020,
-	TYPE_SECTION   => 0x0040,
-	TYPE_FILE      => 0x0080,
-
-	MOD_EXPLICIT   => 0x0100,
-	MOD_IMPLICIT   => 0x0200,
-};
-
 ###
 ### Private data.
 ###
@@ -642,48 +629,23 @@ sub prepare_to_render {
 	# 4. Find or manufacture documentation for things that are not
 	# explicitly documented already.
 
-	# TODO - Are these decision trees complete?
-
-	# Attribute.
-	#   If the attribute is defined in $document:
-	#     Auto-generate documentation from the attribute's signature.
-	#   If attribute is defined elsewhere:
-	#     If attribute is documented there:
-	#       Copy the documentation here.
-	#     Otherwise:
-	#       Auto-generate documentation from signuature.
-
-	# Method.
-	#   If method is implemented by an attribute:
-	#     If the attribute is defined in $document
-	#       Auto-generate documentation from attribute signature?
-	#     If the attribute is defined elsewhere:
-	#       If elsewhere documents the method:
-	#         Copy elsewhere's documentation.
-	#       Otherwise:
-	#         Generate the documentation from the attirubte?
-	#   Is the method defined here?
-	#     Document the method as undocumented.
-	#   Is the method defined elsewhere:
-	#     If elsewhere documents the method:
-	#       Copy elsewhere's documentation here.
-	#     Otherwise:
-	#       Document the method as undocumented.
-
+	warn "currently working on assimilating ancestor docs";
 	#$self->assimilate_ancestor_method_documentation($errors);
 	#$self->assimilate_ancestor_attribute_documentation($errors);
+	$self->document_accessors($errors);
+	return if @$errors;
 
 	# 5. Make sure every recognizable code entity has corresponding
 	# documentation.
 
 	foreach my $attribute_name (keys %{$self->attributes()}) {
 		next if $self->is_skippable_attribute($attribute_name);
-		$self->_get_attribute($attribute_name)->validate($self, $errors);
+		#$self->_get_attribute($attribute_name)->validate($self, $errors);
 	}
 
 	foreach my $method_name (keys %{$self->methods()}) {
 		next if $self->is_skippable_method($method_name);
-		$self->_get_method($method_name)->validate($self, $errors);
+		#$self->_get_method($method_name)->validate($self, $errors);
 	}
 
 	return if @$errors;
@@ -949,12 +911,31 @@ sub index_code_attributes {
 
 		$self->_add_attribute($name, $entity);
 
+		# Scratchpad the attribute's definition information for
+		# inheritance checking later.
+
+
 		# Add associated methods.
 
-		foreach my $method_name (keys %{$attribute->handles() // {}}) {
-			my $entity = $self->index_code_method($errors, $method_name);
+		foreach my $method (values %{$attribute->handles() // {}}) {
+			#my $entity = $self->index_code_method($errors, $method);
 
 			# TODO - Indicate the entity came from an attribute.
+		}
+
+		if ($attribute->has_read_method()) {
+			my $reader_name = $attribute->get_read_method();
+			my $reader_body = $meta->get_method($reader_name);
+			$self->index_code_method($errors, $reader_body);
+
+			if ($attribute->has_write_method()) {
+				my $writer_name = $attribute->get_write_method();
+
+				if ($reader_name ne $writer_name) {
+					my $writer_body = $meta->get_method($writer_name);
+					$self->index_code_method($errors, $writer_body);
+				}
+			}
 		}
 	}
 }
@@ -974,8 +955,8 @@ sub index_code_methods {
 
 	# TODO
 	#
-	# get_method_list() returns a list of names for the methoddefined by
-	# this particular class.
+	# get_method_list() returns a list of names for the method defined
+	# by this particular class.
 	#
 	# get_all_methods() returns a list of all Class::MOP::Method objects
 	# flattened into this class.  Ones whose names aren't in the
@@ -1007,12 +988,12 @@ sub index_code_methods {
 	);
 
 	METHOD: foreach my $method (@methods) {
-		$self->index_code_method($errors, $method->name());
+		$self->index_code_method($errors, $method);
 	}
 }
 
 sub index_code_method {
-	my ($self, $errors, $method_name) = @_;
+	my ($self, $errors, $method) = @_;
 
 	# TODO
 	#
@@ -1042,9 +1023,19 @@ sub index_code_method {
 
 	#my $method = $meta->get_method($name);
 
-	# Assume constants aren't documented.
-	# TODO - Need a better way to identify them, eh?
-	return if $method_name =~ /^[A-Z0-9_]+$/;
+	# Assume all-caps methods are constants if they also have empty
+	# prototypes.
+	#
+	# TODO - Is there a better way to detect constants vs. methods?
+
+	# TODO - Remove after debugging?
+	confess "??? $method" unless ref($method);
+
+	my $method_name = $method->name();
+	if ($method_name =~ /^[A-Z0-9_]+$/) {
+		my $proto = prototype($method->body());
+		return if defined $proto and $proto eq '';
+	}
 
 	# TODO - How to report the places where it's defined?  Can it be?
 	return if $self->_has_method($method_name);
@@ -1062,125 +1053,270 @@ sub index_code_method {
 ### Validate attribute and method docs.
 ###
 
+sub document_accessors {
+	my ($self, $errors) = @_;
+
+	#die "working on the magic";
+
+	my $class_meta = $self->meta_entity();
+
+	foreach my $attribute ($self->_get_attributes()) {
+
+#       $attr->accessor_metaclass
+#           Returns the accessor metaclass name, which defaults to
+#           Moose::Meta::Method::Accessor.
+#
+#       $attr->delegation_metaclass
+#           Returns the delegation metaclass name, which defaults to
+#           Moose::Meta::Method::Delegation.
+#
+#       $attr->handles
+#           This returns the value of the "handles" option passed to the
+#           constructor.
+#
+#       $attr->has_handles
+#           Returns true if this attribute performs delegation.
+#       $attr->trigger
+#           This is the subroutine reference that was in the "trigger" option
+#           passed to the constructor, if any.
+#
+#       $attr->has_trigger
+#           Returns true if this attribute has a trigger set.
+#       $attr->has_applied_traits
+#           Returns true if this attribute has any traits applied.
+
+		my $attribute_meta = $attribute->meta_entity();
+
+		# TODO - If the attribute isn't documented, go to town.
+		# ...
+
+		foreach my $method_meta (values %{$attribute_meta->handles() // {}}) {
+			warn "!!! ", $method_meta->name();
+			my $method = $self->index_code_method(
+				$errors, $method_meta
+			);
+			# TODO ... handles.
+		}
+
+		if ($attribute_meta->has_read_method()) {
+			my $reader_name = $attribute_meta->get_read_method();
+
+			if ($attribute_meta->has_write_method()) {
+				my $writer_name = $attribute_meta->get_write_method();
+
+				if ($reader_name eq $writer_name) {
+					$self->_document_rw_accessor(
+						$errors, $attribute->name(), $reader_name
+					);
+				}
+				else {
+					$self->_document_ro_accessor(
+						$errors, $attribute->name(), $reader_name
+					);
+
+					$self->_document_wo_accessor(
+						$errors, $attribute->name(), $writer_name
+					);
+				}
+			}
+			else {
+				$self->_document_ro_accessor(
+						$errors, $attribute->name(), $reader_name
+				);
+			}
+		}
+	}
+}
+
+use Carp qw(cluck);
+
+sub _document_ro_accessor {
+	my ($self, $errors, $attribute_name, $method_name) = @_;
+	$self->_document_accessor(
+		$errors, $attribute_name, $method_name, 'a read-only accessor'
+	);
+}
+
+sub _document_wo_accessor {
+	my ($self, $errors, $attribute_name, $method_name) = @_;
+	$self->_document_accessor(
+		$errors, $attribute_name, $method_name, 'a write-only mutator'
+	);
+}
+
+sub _document_rw_accessor {
+	my ($self, $errors, $attribute_name, $method_name) = @_;
+	$self->_document_accessor(
+		$errors, $attribute_name, $method_name, 'a read-write mutator'
+	);
+}
+
+sub _document_accessor {
+	my ($self, $errors, $attribute_name, $method_name, $accessor_type) = @_;
+
+	my $method_reference = Pod::Plexus::Docs::Code::Method->new(
+		name     => $method_name,
+		errors   => $errors,
+		document => $self,
+		library  => $self->library(),
+		node     => Pod::Elemental::Element::Generic::Command->new(
+			command    => "method",
+			content    => "$method_name\n",
+			start_line => -__LINE__,
+		),
+	);
+
+	my @body = (
+		Pod::Elemental::Element::Generic::Blank->new(content => "\n"),
+		Pod::Elemental::Element::Generic::Text->new(
+			content => (
+				"$method_name() is $accessor_type " .
+				"for the \"$attribute_name\" attribute.\n"
+			),
+		),
+		Pod::Elemental::Element::Generic::Blank->new(content => "\n"),
+	);
+
+	$method_reference->push_body(@body);
+	$method_reference->push_documentation(@body);
+	$method_reference->push_cut();
+
+	$self->_add_reference($method_reference);
+
+	push @{$self->_elemental()->children()}, (
+		Pod::Elemental::Element::Generic::Blank->new(content => "\n"),
+		$method_reference,
+	);
+}
+
 sub assimilate_ancestor_method_documentation {
 	my ($self, $errors) = @_;
 
 	my $this_docs   = $self->_elemental()->children();
 	my $this_class  = $self->package();
-	my $meta        = $this_class->meta();
+	my $meta        = $self->meta_entity();
 	my @class_names = $meta->class_precedence_list();
 	my %class_docs;
 
+	die "must rewrite this to be =method/=include/=cut";
+
 	METHOD: foreach my $method_name ($meta->get_all_method_names()) {
-
-		CLASS: foreach my $class_name (@class_names) {
-
-			# Get the Pod::Plexus::Document for this class.
-			# Create it if necessary.
-
-			my $document = $class_docs{$class_name};
-
-			unless ($document) {
-				$document = $self->library()->get_document($class_name);
-				unless ($document) {
-					$self->library()->add_module($class_name);
-					$document = $self->library()->get_document($class_name);
-					unless ($document) {
-						push @$errors, (
-							"Cannot find and load ancestor $class_name used by $this_class",
-						);
-						next CLASS;
-					}
-				}
-
-				$document->prepare_to_render($errors);
-				return if @$errors;
-			}
-
-			# Does this class document the method?
-
-			my $method_key = Pod::Plexus::Docs->calc_key(
-				'Pod::Plexus::Docs::Code::Method',
-				$class_name,
-				$method_name
-			);
-
-			unless ($document->_has_reference($method_key)) {
-				$method_key = Pod::Plexus::Docs->calc_key(
-					'Pod::Plexus::Docs::Code::Method',
-					$class_name,
-					$method_name
-				);
-			}
-
-			if ($document->_has_reference($method_key)) {
-
-				# This class already documents it!
-				next METHOD if $class_name eq $this_class;
-
-				# Include it from elsewhere!
-				$self->document_method(
-					$this_docs,
-					$this_class,
-					$class_name,
-					$method_name,
-					$document,
-					__LINE__
-				);
-
-				next METHOD;
-			}
-
-			next CLASS;
-		}
-
-		# Fell through all the classes.  Do we even want to document it?
 
 		next METHOD if $self->is_skippable_method($method_name);
 
-		# Document that it's not documented.
+		my $thunk_name = "_pod_plexus_documents_method_$method_name\_";
+		my $docs = eval { $this_class->$thunk_name() };
+
+		# The method comes from an outside source.
+
+		next METHOD unless $docs;
+
+		# The method is already documented by this class.
+
+		next METHOD if $docs->document() == $self;
+
+		# The method is documented in a superclass.
 
 		my $method_reference = Pod::Plexus::Docs::Code::Method->new(
-			invoked_in    => $this_class,
-			module        => $this_class,
-			symbol        => $method_name,
-			invoke_path   => $self->pathname(),
-			invoke_line   => -__LINE__,
-			documentation => [
-				Pod::Elemental::Element::Generic::Command->new(
-					command => "method",
-					content => "$method_name\n",
-				),
-			],
+			name     => $method_name,
+			errors   => $errors,
+			document => $self,
+			library  => $self->library(),
+			node     => Pod::Elemental::Element::Generic::Command->new(
+				command    => "method",
+				content    => "$method_name\n",
+				start_line => -__LINE__,
+			),
 		);
 
-		$self->_add_reference($method_reference);
-
-		push @$this_docs, (
-			Pod::Elemental::Element::Generic::Blank->new(content => "\n"),
-			$method_reference,
+		my @body = (
+			@{$docs->body()},
 			Pod::Elemental::Element::Generic::Blank->new(content => "\n"),
 			Pod::Elemental::Element::Generic::Text->new(
 				content => (
-					"$method_name() is not documented, but you may find " .
-					"it implemented in " .
-					$meta->find_method_by_name($method_name)->original_package_name() .
-					" or a role it consumes.\n"
+					"It is inherited from " . $docs->document()->package() . ".\n"
 				),
 			),
 			Pod::Elemental::Element::Generic::Blank->new(content => "\n"),
-			Pod::Elemental::Element::Generic::Command->new(
-				command => "cut",
-				content => "\n",
-			),
 		);
 
-		next METHOD;
+		$method_reference->push_body(@body);
+		$method_reference->push_documentation(@body);
+		$method_reference->push_cut();
+
+		$self->_add_reference($method_reference);
+
+		push @{$self->_elemental()->children()}, (
+			Pod::Elemental::Element::Generic::Blank->new(content => "\n"),
+			$method_reference,
+		);
 	}
 }
 
 sub assimilate_ancestor_attribute_documentation {
 	my ($self, $errors) = @_;
+
+	my $this_docs   = $self->_elemental()->children();
+	my $this_class  = $self->package();
+	my $meta        = $self->meta_entity();
+	my @class_names = $meta->class_precedence_list();
+	my %class_docs;
+
+	die "must rewrite this to be =method/=include/=cut";
+
+	ATTRIBUTE: foreach my $attribute ($meta->get_all_attributes()) {
+
+		my $attribute_name = $attribute->name();
+
+		next ATTRIBUTE if $self->is_skippable_attribute($attribute_name);
+
+		my $thunk_name = "_pod_plexus_documents_attribute_$attribute_name\_";
+		my $docs = eval { $this_class->$thunk_name() };
+
+		# The attribute comes from an outside source.
+
+		next ATTRIBUTE unless $docs;
+
+		# The attribute is already documented by this class.
+
+		next ATTRIBUTE if $docs->document() == $self;
+
+		# The attribue is documented in a superclass.
+
+		my $attribute_reference = Pod::Plexus::Docs::Code::Attribute->new(
+			name     => $attribute_name,
+			errors   => $errors,
+			document => $self,
+			library  => $self->library(),
+			node     => Pod::Elemental::Element::Generic::Command->new(
+				command    => "attribute",
+				content    => "$attribute_name\n",
+				start_line => -__LINE__,
+			),
+		);
+
+		my @body = (
+			@{$docs->body()},
+			Pod::Elemental::Element::Generic::Blank->new(content => "\n"),
+			Pod::Elemental::Element::Generic::Text->new(
+				content => (
+					"It is inherited from " . $docs->document()->package() . ".\n"
+				),
+			),
+			Pod::Elemental::Element::Generic::Blank->new(content => "\n"),
+		);
+
+		$attribute_reference->push_body(@body);
+		$attribute_reference->push_documentation(@body);
+		$attribute_reference->push_cut();
+
+		$self->_add_reference($attribute_reference);
+
+		push @{$self->_elemental()->children()}, (
+			Pod::Elemental::Element::Generic::Blank->new(content => "\n"),
+			$attribute_reference,
+		);
+	}
 }
 
 ###
