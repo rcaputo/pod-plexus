@@ -46,6 +46,12 @@ sub BUILD {
 			content => "$symbol_name\n",
 		),
 	);
+
+	# Make a scratchpad entry in the class so we can find documentation.
+
+	$self->document()->meta_entity()->add_method(
+		"_pod_plexus_documents_attribute_$symbol_name\_" => sub { return $self },
+	);
 }
 
 
