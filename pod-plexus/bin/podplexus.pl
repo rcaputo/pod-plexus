@@ -1,5 +1,7 @@
 #!/usr/bin/env perl
 
+# PODNAME: podplexus.pl
+
 use warnings;
 use strict;
 use Pod::Plexus::Cli;

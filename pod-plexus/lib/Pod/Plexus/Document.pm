@@ -1066,13 +1066,50 @@ sub document_accessors {
 	foreach my $attribute ($self->_get_attributes()) {
 
 		my $attribute_meta = $attribute->meta_entity();
+		my $attribute_name = $attribute_meta->name();
 
-		foreach my $method_meta (values %{$attribute_meta->handles() // {}}) {
-			my $method = $self->index_code_method(
-				$errors, $method_meta
+		my %handles = %{$attribute_meta->handles() // {}};
+		while (my ($api_name, $impl_name) = each %handles) {
+
+			my $api_entity = Pod::Plexus::Code::Method->new(name => $api_name);
+			$self->_add_method($api_name, $api_entity);
+
+			my $method_reference = Pod::Plexus::Docs::Code::Method->new(
+				document => $self,
+				errors   => $errors,
+				library  => $self->library(),
+				name     => $api_name,
+				node     => Pod::Elemental::Element::Generic::Command->new(
+					command    => "method",
+					content    => "$api_name\n",
+					start_line => -__LINE__,
+				),
 			);
 
-			# TODO - How do we document "handles"?
+			# Don't document this if we already have it.
+			next if $self->_has_reference($method_reference->key());
+
+			my @body = (
+				Pod::Elemental::Element::Generic::Blank->new(content => "\n"),
+				Pod::Elemental::Element::Generic::Text->new(
+					content => (
+						"$api_name() exposes $impl_name() from the attribute " .
+						"\"$attribute_name\".\n"
+					),
+				),
+				Pod::Elemental::Element::Generic::Blank->new(content => "\n"),
+			);
+
+			$method_reference->push_body(@body);
+			$method_reference->push_documentation(@body);
+			$method_reference->push_cut();
+
+			$self->_add_reference($method_reference);
+
+			push @{$self->_elemental()->children()}, (
+				Pod::Elemental::Element::Generic::Blank->new(content => "\n"),
+				$method_reference,
+			);
 		}
 
 		if ($attribute_meta->has_read_method()) {
@@ -1172,13 +1209,18 @@ sub _document_accessor {
 sub assimilate_ancestor_method_documentation {
 	my ($self, $errors) = @_;
 
-	my $this_docs   = $self->_elemental()->children();
-	my $this_class  = $self->package();
-	my $meta        = $self->meta_entity();
-	my @class_names = $meta->class_precedence_list();
+	my $meta       = $self->meta_entity();
+	my $this_docs  = $self->_elemental()->children();
+	my $this_class = $self->package();
 	my %class_docs;
 
-	METHOD: foreach my $method_name ($meta->get_all_method_names()) {
+	my $get_method_names = (
+		($meta->isa("Moose::Meta::Role"))
+		? "get_method_list"
+		: "get_all_method_names"
+	);
+
+	METHOD: foreach my $method_name ($meta->$get_method_names()) {
 
 		next METHOD if $self->is_skippable_method($method_name);
 
@@ -1209,15 +1251,20 @@ sub assimilate_ancestor_method_documentation {
 sub assimilate_ancestor_attribute_documentation {
 	my ($self, $errors) = @_;
 
-	my $this_docs   = $self->_elemental()->children();
-	my $this_class  = $self->package();
-	my $meta        = $self->meta_entity();
-	my @class_names = $meta->class_precedence_list();
+	my $meta       = $self->meta_entity();
+	my $this_docs  = $self->_elemental()->children();
+	my $this_class = $self->package();
 	my %class_docs;
 
-	ATTRIBUTE: foreach my $attribute ($meta->get_all_attributes()) {
+	my @attribute_names;
+	if ($meta->isa("Moose::Meta::Role")) {
+		@attribute_names = $meta->get_attribute_list();
+	}
+	else {
+		@attribute_names = map { $_->name() } $meta->get_all_attributes();
+	}
 
-		my $attribute_name = $attribute->name();
+	ATTRIBUTE: foreach my $attribute_name (@attribute_names) {
 
 		next ATTRIBUTE if $self->is_skippable_attribute($attribute_name);
 
@@ -1242,35 +1289,6 @@ sub assimilate_ancestor_attribute_documentation {
 			$self,
 			$errors,
 		);
-#
-#		my $attribute_reference = Pod::Plexus::Docs::Code::Attribute->new(
-#			name     => $attribute_name,
-#			errors   => $errors,
-#			document => $self,
-#			library  => $self->library(),
-#			node     => Pod::Elemental::Element::Generic::Command->new(
-#				command    => "attribute",
-#				content    => "$attribute_name\n",
-#				start_line => -__LINE__,
-#			),
-#		);
-#
-#		my @body = (
-#			@{$docs->body()},
-#			Pod::Elemental::Element::Generic::Blank->new(content => "\n"),
-#			Pod::Elemental::Element::Generic::Blank->new(content => "\n"),
-#		);
-#
-#		$attribute_reference->push_body(@body);
-#		$attribute_reference->push_documentation(@body);
-#		$attribute_reference->push_cut();
-#
-#		$self->_add_reference($attribute_reference);
-#
-#		push @{$self->_elemental()->children()}, (
-#			Pod::Elemental::Element::Generic::Blank->new(content => "\n"),
-#			$attribute_reference,
-#		);
 	}
 }
 
@@ -1321,8 +1339,7 @@ sub _document_inherited_method {
 		Pod::Elemental::Element::Generic::Blank->new(content => "\n"),
 		Pod::Elemental::Element::Generic::Text->new(
 			content => (
-				"It is inherited from " .
-				"L<$class_name method $method_name()|$class_name/$method_name>\n"
+				"It is inherited from L<$class_name|$class_name/$method_name>.\n"
 			),
 		),
 		Pod::Elemental::Element::Generic::Blank->new(content => "\n"),
@@ -1403,8 +1420,7 @@ sub _document_inherited_attribute {
 		Pod::Elemental::Element::Generic::Blank->new(content => "\n"),
 		Pod::Elemental::Element::Generic::Text->new(
 			content => (
-				"It is inherited from " .
-				"L<$class_name attribute $attribute_name|$class_name/$attribute_name>\n"
+				"It is inherited from L<$class_name|$class_name/$attribute_name>.\n"
 			),
 		),
 		Pod::Elemental::Element::Generic::Blank->new(content => "\n"),

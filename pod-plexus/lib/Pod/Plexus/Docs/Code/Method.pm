@@ -30,18 +30,25 @@ sub BUILD {
 		return;
 	}
 
-	my $entity = $self->document()->_get_method($symbol_name);
-	unless ($entity) {
-		my $symbol = $self->node()->{content};
-		$symbol =~ s/\s+$//;
+	# TODO - At a late stage in the document writing, probably in
+	# Pod::Plexus::Document, make sure (a) all implementations are
+	# documented and (b) all documentation has an implementation.
 
-		push @{$self->errors()}, (
-			"Cannot find implementation for '=method $symbol'" .
-			" at " . $self->document()->pathname() .
-			" line " .  $self->node()->{start_line}
-		);
-		return;
-	}
+	# TODO - Even better, see if some Dist::Zilla or Pod checker will do
+	# it for us.
+
+#	my $entity = $self->document()->_get_method($symbol_name);
+#	unless ($entity) {
+#		my $symbol = $self->node()->{content};
+#		$symbol =~ s/\s+$//;
+#
+#		push @{$self->errors()}, (
+#			"Cannot find implementation for '=method $symbol'" .
+#			" at " . $self->document()->pathname() .
+#			" line " .  $self->node()->{start_line}
+#		);
+#		return;
+#	}
 
 	$self->push_documentation(
 		Pod::Elemental::Element::Generic::Command->new(

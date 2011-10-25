@@ -21,28 +21,47 @@ sub munge_files {
 	# Index all files.  Done as a single pass before actual munging
 	# since we don't know which files need which index information.
 
-	foreach my $file ($self->zilla()->files()->flatten()) {
+	# We only want things that include POD.
+	# TODO - Is there a better way?
+	# TODO - Also... MANIFEST.SKIP anyone?
 
-		# We only want things that include POD.
-		# TODO - Is there a better way?
-		next unless $file->name() =~ /^(?:bin|lib)\//;
+	my @qualifying_files = (
+		grep { $_->name() !~ /~$/ }
+		grep { $_->name() =~ /^lib\// }
+		$self->zilla()->files()->flatten()
+	);
 
-		$self->library()->add_file($file->name());
+	$self->library()->add_file($_->name()) foreach @qualifying_files;
+
+	my $documents = $self->library()->files();
+	my @errors;
+
+	foreach my $file (@qualifying_files) {
+		my $path = $file->name();
+
+		unless (exists $documents->{$path}) {
+			warn "Why isn't $path in the library";
+			next;
+		}
+
+		my $doc = $documents->{$path};
+		$doc->prepare_to_render(\@errors);
+
+		if (@errors) {
+			warn "$_\n" foreach @errors;
+			exit 1;
+		}
 	}
 
-	# Munge each file individually.
+	# Render documentation.
 
-	my $documents = $self->library()->documents();
-	foreach my $file ($self->zilla()->files()->flatten()) {
+	foreach my $file (@qualifying_files) {
 		my $path = $file->name();
 
 		next unless exists $documents->{$path};
 
 		my $doc = $documents->{$path};
-
-		$doc->expand_commands();
-
-		$file->content( $doc->render() );
+		$file->content( $doc->render_as_pod() );
 	}
 }
 
