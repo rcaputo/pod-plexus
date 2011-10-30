@@ -27,11 +27,53 @@ with 'Pod::Plexus::Role::Documentable';
 
 use Carp qw(croak);
 
+
 has is_terminal => (
 	is      => 'ro',
 	isa     => 'Bool',
 	default => 0,
 );
+
+
+sub _is_terminal_element {
+	my ($self, $element) = @_;
+
+	if ($element->isa('Pod::Elemental::Element::Generic::Command')) {
+
+		my $command = $element->{command};
+
+		# "=cut" is consumed.
+
+		if ($command eq 'cut') {
+			$self->push_cut();
+			$self->is_terminated(1);
+			return(1, 1);
+		}
+
+		# Other terminal top-level commands aren't consumed.
+		# These are POD stuff that Pod::Plexus doesn't know about.
+		# They do however imply "=cut".
+
+		if ($command =~ /^head\d$/) {
+			$self->push_cut();
+			$self->is_terminated(1);
+			return(1, 0);
+		}
+
+		return(0, 0);
+	}
+
+	# Other entities terminate this one.
+
+	if ($element->isa('Pod::Plexus::Docs') and $element->is_terminal()) {
+		$self->push_cut();
+		$self->is_terminated(1);
+		return(1, 0);
+	}
+
+	return(0, 0);
+}
+
 
 =method consume_element
 

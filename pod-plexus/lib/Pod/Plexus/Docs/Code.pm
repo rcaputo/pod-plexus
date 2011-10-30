@@ -34,35 +34,11 @@ sub consume_element {
 
 	return 0 if $self->is_terminated();
 
-	if ($element->isa('Pod::Elemental::Element::Generic::Command')) {
+	my ($is_terminated, $is_consumed) = $self->_is_terminal_element(
+		$self, $element
+	);
 
-		my $command = $element->{command};
-
-		# "=cut" is consumed.
-
-		if ($command eq 'cut') {
-			$self->push_cut();
-			$self->is_terminated(1);
-			return 1;
-		}
-
-		# Other terminal top-level commands aren't consumed.
-		# They do however imply "=cut".
-
-		if ($command =~ /^head\d$/) {
-			$self->push_cut();
-			$self->is_terminated(1);
-			return 0;
-		}
-	}
-
-	# Other entities terminate this one.
-
-	if ($element->isa('Pod::Plexus::Docs::Code')) {
-		$self->push_cut();
-		$self->is_terminated(1);
-		return 0;
-	}
+	return $is_consumed if $is_terminated;
 
 	# Otherwise, consume the documentation.
 
