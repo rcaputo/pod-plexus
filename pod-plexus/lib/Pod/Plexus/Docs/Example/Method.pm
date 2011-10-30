@@ -5,7 +5,7 @@ package Pod::Plexus::Docs::Example::Method;
 =cut
 
 use Moose;
-extends 'Pod::Plexus::Docs::Example';
+extends 'Pod::Plexus::Docs::example';
 
 sub resolve {
 	my $self = shift();

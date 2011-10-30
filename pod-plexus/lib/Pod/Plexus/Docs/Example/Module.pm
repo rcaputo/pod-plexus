@@ -5,7 +5,7 @@ package Pod::Plexus::Docs::Example::Module;
 =cut
 
 use Moose;
-extends 'Pod::Plexus::Docs::Example';
+extends 'Pod::Plexus::Docs::example';
 
 sub dereference {
 	my ($self, $distribution, $module, $errors) = @_;

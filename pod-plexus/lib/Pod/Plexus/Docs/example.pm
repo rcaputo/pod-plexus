@@ -1,4 +1,4 @@
-package Pod::Plexus::Docs::Example;
+package Pod::Plexus::Docs::example;
 
 =abstract A generic reference to a code example.
 
@@ -11,8 +11,6 @@ use Pod::Plexus::Docs::Example::Method;
 use Pod::Plexus::Docs::Example::Module;
 
 use Pod::Plexus::Util::PodElemental qw(text_paragraph blank_line);
-
-use constant POD_COMMAND => 'example';
 
 
 has '+symbol' => (

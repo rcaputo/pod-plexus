@@ -7,6 +7,7 @@ package Pod::Plexus::Docs::Code;
 use Moose;
 extends 'Pod::Plexus::Docs';
 
+
 sub new_from_elemental_command {
 	my ($class, $distribution, $module, $errors, $node) = @_;
 

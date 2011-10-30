@@ -1,4 +1,4 @@
-package Pod::Plexus::Docs::Index;
+package Pod::Plexus::Docs::index;
 
 =abstract A reference to a dynamically generated module index.
 
@@ -17,9 +17,6 @@ use Pod::Plexus::Util::PodElemental qw(
 has '+symbol' => (
 	default => "",
 );
-
-
-use constant POD_COMMAND => 'index';
 
 
 sub BUILD {

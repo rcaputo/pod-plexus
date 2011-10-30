@@ -1,4 +1,4 @@
-package Pod::Plexus::Docs::Demacro;
+package Pod::Plexus::Docs::expand;
 
 =abstract A reference to a macro expansion.
 
@@ -8,16 +8,13 @@ use Moose;
 extends 'Pod::Plexus::Docs';
 
 
-use constant POD_COMMAND  => 'demacro';
-
-
 sub BUILD {
 	my $self = shift();
 
 	my ($symbol_name) = ($self->node()->{content} =~ /^\s* (\S+) \s*$/x);
 	unless (defined $symbol_name) {
 		push @{$self->errors()}, (
-			"Wrong macro syntax: =macro " . $self->node()->{content} .
+			"Wrong macro syntax: =define " . $self->node()->{content} .
 			" at " . $self->module_path() .
 			" line " . $self->node()->{start_line}
 		);
@@ -29,13 +26,13 @@ sub BUILD {
 	# The macro must already exist.
 
 	my $reference = $self->module()->get_documentation(
-		'Pod::Plexus::Docs::Macro',
+		'Pod::Plexus::Docs::define',
 		$self->module_package(),
 		$self->symbol()
 	);
 	unless ($reference) {
 		push @{$self->errors()}, (
-			"Cannot find macro $symbol_name in '=demacro'" .
+			"Cannot find macro $symbol_name in '=expand'" .
 			" at " . $self->module_path() .
 			" line " . $self->node()->{start_line}
 		);

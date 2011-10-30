@@ -13,6 +13,11 @@ use Carp qw(croak);
 
 use feature 'switch';
 
+use Pod::Plexus::Docs::abstract;
+use Pod::Plexus::Docs::method;
+use Pod::Plexus::Docs::attribute;
+use Pod::Plexus::Docs::include;
+
 use Pod::Plexus::Util::PodElemental qw(
 	generic_command
 	blank_line
@@ -129,7 +134,7 @@ sub abstract {
 
 	$self->prepare_to_render() unless $self->is_prepared();
 	my $abstract = $self->get_documentation(
-		'Pod::Plexus::Docs::Abstract'
+		'Pod::Plexus::Docs::abstract'
 	);
 	die "No abstract defined for ", $self->package(), "\n" unless $abstract;
 
@@ -335,25 +340,16 @@ has roles => (
 ### Documentation structure.
 ###
 
-# TODO - Make dynamic based on whatever is installed.
-
-my @reference_classes = qw(
-	Abstract Cross Demacro Code::Attribute Code::Method
-	Example Include Index Macro
+my %standard_pod_commands = (
+	map { $_ => 1 }
+	qw(
+		head1 head2 head3 head4 head5 head6
+		pod cut
+		over back item
+		for begin end
+	)
 );
 
-my %reference_class;
-
-foreach my $reference_class (@reference_classes) {
-	my $full_class = "Pod::Plexus::Docs::$reference_class";
-	my $full_file  = "$full_class.pm";
-	$full_file     =~ s/::/\//g;
-
-	require $full_file;
-	$full_class->import();
-
-	$reference_class{$full_class->POD_COMMAND} = $full_class;
-}
 
 has documentation => (
 	is      => 'rw',
@@ -743,12 +739,21 @@ sub index_doc_references {
 		my $node = $doc->[$i];
 
 		next NODE unless $node->isa('Pod::Elemental::Element::Generic::Command');
-		next NODE unless exists $reference_class{$node->{command}};
+		next NODE if exists $standard_pod_commands{$node->{command}};
 
 		my @new_errors;
 
-		my $reference_class = $reference_class{$node->{command}};
-		my $reference = $reference_class->create(
+		my $doc_class = "Pod::Plexus::Docs::" . $node->{command};
+		my $doc_file  = "$doc_class.pm";
+		$doc_file =~ s/::/\//g;
+
+		eval { require $doc_file };
+		if ($@) {
+			push @$errors, $@;
+			next NODE;
+		}
+
+		my $reference = $doc_class->create(
 			module       => $self,
 			errors       => \@new_errors,
 			distribution => $self->distribution(),
@@ -860,11 +865,11 @@ a "=skip" directive, its data is entered into the [% mod.name %]
 object, and [% ss.name %] returns true.  False is returned for all
 other nodes.
 
-=demacro extract_doc_command_callback
+=expand extract_doc_command_callback
 
 =cut
 
-=macro extract_doc_command_callback
+=define extract_doc_command_callback
 
 This method is a callback to extract_doc_command().  That other method
 is a generic iterator to walk through the Pod::Elemental document in
@@ -1108,7 +1113,7 @@ sub document_accessors {
 			my $api_entity = Pod::Plexus::Code::Method->new(name => $api_name);
 			$self->_add_method($api_name, $api_entity);
 
-			my $method_reference = Pod::Plexus::Docs::Code::Method->new(
+			my $method_reference = Pod::Plexus::Docs::method->new(
 				module => $self,
 				errors   => $errors,
 				distribution  => $self->distribution(),
@@ -1200,7 +1205,7 @@ sub _document_rw_accessor {
 sub _document_accessor {
 	my ($self, $errors, $attribute_name, $method_name, $accessor_type) = @_;
 
-	my $method_reference = Pod::Plexus::Docs::Code::Method->new(
+	my $method_reference = Pod::Plexus::Docs::method->new(
 		module => $self,
 		errors   => $errors,
 		distribution  => $self->distribution(),
@@ -1336,7 +1341,7 @@ sub _document_inherited_method {
 		$module, $errors,
 	) = @_;
 
-	my $method_reference = Pod::Plexus::Docs::Code::Method->new(
+	my $method_reference = Pod::Plexus::Docs::method->new(
 		module => $self,
 		errors   => $errors,
 		distribution  => $self->distribution(),
@@ -1348,7 +1353,7 @@ sub _document_inherited_method {
 		),
 	);
 
-	my $include_reference = Pod::Plexus::Docs::Include->new(
+	my $include_reference = Pod::Plexus::Docs::include->new(
 		errors   => $errors,
 		module => $self,
 		name     => $method_name,
@@ -1412,7 +1417,7 @@ sub _document_inherited_attribute {
 		);
 	}
 
-	my $attribute_reference = Pod::Plexus::Docs::Code::Attribute->new(
+	my $attribute_reference = Pod::Plexus::Docs::attribute->new(
 		errors   => $errors,
 		module => $self,
 		name     => $attribute_name,
@@ -1424,7 +1429,7 @@ sub _document_inherited_attribute {
 		),
 	);
 
-	my $include_reference = Pod::Plexus::Docs::Include->new(
+	my $include_reference = Pod::Plexus::Docs::include->new(
 		errors   => $errors,
 		module => $self,
 		name     => $attribute_name,

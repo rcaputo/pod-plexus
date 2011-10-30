@@ -1,4 +1,4 @@
-package Pod::Plexus::Docs::Macro;
+package Pod::Plexus::Docs::define;
 
 =abstract A reference to a macro definition.
 
@@ -6,9 +6,6 @@ package Pod::Plexus::Docs::Macro;
 
 use Moose;
 extends 'Pod::Plexus::Docs';
-
-
-use constant POD_COMMAND  => 'macro';
 
 
 has body => (
@@ -34,7 +31,7 @@ sub BUILD {
 	my ($symbol) = ($self->node()->{content} =~ /^\s* (\S+) \s*$/x);
 	unless (defined $symbol) {
 		push @{$self->errors()}, (
-			"Wrong macro syntax: =macro " . $self->node()->{content} .
+			"Wrong macro syntax: =define " . $self->node()->{content} .
 			" at " . $self->module_path() .
 			" line " . $self->node()->{start_line}
 		);

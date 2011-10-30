@@ -1,4 +1,4 @@
-package Pod::Plexus::Docs::Include;
+package Pod::Plexus::Docs::include;
 
 =abstract A reference to documentation included from elsewhere.
 
@@ -7,13 +7,12 @@ package Pod::Plexus::Docs::Include;
 use Moose;
 extends 'Pod::Plexus::Docs';
 
+use Pod::Plexus::Docs::attribute;
+use Pod::Plexus::Docs::method;
 
 has '+symbol' => (
 	default => "",
 );
-
-
-use constant POD_COMMAND  => 'include';
 
 
 sub BUILD {
@@ -30,7 +29,7 @@ sub BUILD {
 	my $foreign_reference = $foreign_module->get_documentation(
 		$type, $module, $symbol
 	);
-
+use Carp qw(confess); confess("erm") unless defined $foreign_reference;
 	$self->push_documentation(@{$foreign_reference->body()});
 	$self->cleanup_documentation();
 }
@@ -39,23 +38,18 @@ sub BUILD {
 sub _parse_include_spec {
 	my $self = shift();
 
-	my %type_class = (
-		'attribute' => 'Pod::Plexus::Docs::Code::Attribute',
-		'method'    => 'Pod::Plexus::Docs::Code::Method',
-	);
-
 	if (
 		$self->node()->{content} =~ m{
 			^\s* (\S*) \s+ (attribute|method) \s+ (\S.*?) \s*$
 		}x
 	) {
-		return($1, $type_class{$2}, $3);
+		return($1, "Pod::Plexus::Docs::$2", $3);
 	}
 
 	if (
 		$self->node()->{content} =~ m!^\s* (attribute|method) \s+ (\S.*?) \s*$!x
 	) {
-		return($self->module_package(), $type_class{$1}, $2);
+		return($self->module_package(), "Pod::Plexus::Docs::$1", $2);
 	}
 
 	push @{$self->errors()}, (

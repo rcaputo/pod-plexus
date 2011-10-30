@@ -1,4 +1,4 @@
-package Pod::Plexus::Docs::Abstract;
+package Pod::Plexus::Docs::abstract;
 
 =abstract Remember and render cross-references.
 
@@ -10,8 +10,6 @@ extends 'Pod::Plexus::Docs';
 use Pod::Plexus::Util::PodElemental qw(
 	blank_line head_paragraph text_paragraph
 );
-
-use constant POD_COMMAND  => 'abstract';
 
 
 has '+symbol' => (

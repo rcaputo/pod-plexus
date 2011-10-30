@@ -1,4 +1,4 @@
-package Pod::Plexus::Docs::Code::Attribute;
+package Pod::Plexus::Docs::attribute;
 
 =abstract A reference to documentation for a class attribute.
 
@@ -8,9 +8,6 @@ use Moose;
 extends 'Pod::Plexus::Docs::Code';
 
 use Pod::Plexus::Util::PodElemental qw(generic_command);
-
-
-use constant POD_COMMAND  => 'attribute';
 
 
 sub BUILD {

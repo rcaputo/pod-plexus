@@ -1,4 +1,4 @@
-package Pod::Plexus::Docs::Cross;
+package Pod::Plexus::Docs::xref;
 
 =abstract Remember and render cross-references.
 
@@ -6,9 +6,6 @@ package Pod::Plexus::Docs::Cross;
 
 use Moose;
 extends 'Pod::Plexus::Docs';
-
-
-use constant POD_COMMAND  => 'xref';
 
 
 has '+symbol' => (
