@@ -35,7 +35,7 @@ sub BUILD {
 	unless (defined $symbol) {
 		push @{$self->errors()}, (
 			"Wrong macro syntax: =macro " . $self->node()->{content} .
-			" at " . $self->document()->pathname() .
+			" at " . $self->module()->pathname() .
 			" line " . $self->node()->{start_line}
 		);
 		return;

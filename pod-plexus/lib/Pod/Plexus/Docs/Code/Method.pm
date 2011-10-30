@@ -20,31 +20,31 @@ sub BUILD {
 
 	$self->symbol($symbol_name);
 
-	my $module = $self->library()->get_document($module_name);
+	my $module = $self->distribution()->get_module($module_name);
 	unless ($module) {
 		push @{$self->errors()}, (
 			"=method cannot find module $module_name" .
-			" at " . $self->document()->pathname() .
+			" at " . $self->module()->pathname() .
 			" line " .  $self->node()->{start_line}
 		);
 		return;
 	}
 
-	# TODO - At a late stage in the document writing, probably in
-	# Pod::Plexus::Document, make sure (a) all implementations are
+	# TODO - At a late stage in the documentation process, probably in
+	# Pod::Plexus::Module, make sure (a) all implementations are
 	# documented and (b) all documentation has an implementation.
 
 	# TODO - Even better, see if some Dist::Zilla or Pod checker will do
 	# it for us.
 
-#	my $entity = $self->document()->_get_method($symbol_name);
+#	my $entity = $self->module()->_get_method($symbol_name);
 #	unless ($entity) {
 #		my $symbol = $self->node()->{content};
 #		$symbol =~ s/\s+$//;
 #
 #		push @{$self->errors()}, (
 #			"Cannot find implementation for '=method $symbol'" .
-#			" at " . $self->document()->pathname() .
+#			" at " . $self->module()->pathname() .
 #			" line " .  $self->node()->{start_line}
 #		);
 #		return;
@@ -59,7 +59,7 @@ sub BUILD {
 
 	# Make a scratchpad entry in the class so we can find documentation.
 
-	$self->document()->meta_entity()->add_method(
+	$self->module()->meta_entity()->add_method(
 		"_pod_plexus_documents_method_$symbol_name\_" => sub { return $self },
 	);
 }
@@ -69,12 +69,12 @@ sub _parse_method_spec {
 	my $self = shift();
 
 	if ($self->node()->{content} =~ /^\s* (\S+) \s*$/x) {
-		return($self->document()->package(), $1);
+		return($self->module()->package(), $1);
 	}
 
 	push @{$self->errors()}, (
 		"Wrong syntax: =method " . $self->node()->{content} .
-		" at " . $self->document()->pathname() .
+		" at " . $self->module()->pathname() .
 		" line " . $self->node()->{start_line}
 	);
 

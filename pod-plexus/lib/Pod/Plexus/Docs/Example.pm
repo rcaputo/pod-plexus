@@ -74,7 +74,7 @@ sub create {
 	# Parse the content into a module and/or sub name to include.
 
 	my ($module, $sub) = $class->_parse_example_spec(
-		$args{document}, $args{errors}, $args{node}
+		$args{module}, $args{errors}, $args{node}
 	);
 	return unless $module;
 
@@ -102,17 +102,17 @@ sub create {
 
 
 #sub expand {
-#	my ($class, $library, $document, $errors, $node) = @_;
+#	my ($class, $distribution, $module, $errors, $node) = @_;
 #
 #	my ($module, $sub) = $class->_parse_example_spec(
-#		$document, $errors, $node
+#		$module, $errors, $node
 #	);
 #
-#	my $reference = $document->get_reference($class, $module, $sub);
+#	my $reference = $module->get_reference($class, $module, $sub);
 #	unless ($reference) {
 #		push @$errors, (
 #			"Can't find =example $module $sub" .
-#			" at " . $document->pathname() . " line $node->{start_line}"
+#			" at " . $module->pathname() . " line $node->{start_line}"
 #		);
 #		return;
 #	}
@@ -134,14 +134,14 @@ create depends on _parse_example_spec()'s result.
 =cut
 
 sub _parse_example_spec {
-	my ($class, $document, $errors, $node) = @_;
+	my ($class, $module, $errors, $node) = @_;
 
 	my (@args) = split(/[\s\/]+/, $node->{content});
 
 	if (@args > 2) {
 		push @$errors, (
 			"Too many parameters for =example $node->{content}" .
-			" at " . $document->pathname() . " line $node->{start_line}"
+			" at " . $module->pathname() . " line $node->{start_line}"
 		);
 		return;
 	}
@@ -149,7 +149,7 @@ sub _parse_example_spec {
 	if (@args < 1) {
 		push @$errors, (
 			"Not enough parameters for =example $node->{content}" .
-			" at " . $document->pathname() . " line $node->{start_line}"
+			" at " . $module->pathname() . " line $node->{start_line}"
 		);
 		return;
 	}
@@ -166,7 +166,7 @@ sub _parse_example_spec {
 	# Just "method()".
 
 	if ($node->{content} =~ /^(\w+)\(\)$/) {
-		return($document->package(), $1);
+		return($module->package(), $1);
 	}
 
 	# Assuming just "Module".

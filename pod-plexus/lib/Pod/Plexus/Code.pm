@@ -37,7 +37,7 @@ has private => (
 =attribute meta_entity
 
 [% ss.name %] contains the Class::MOP object representing this entity
-in Moose.  It's added by Pod::Plexus::Document during its indexing
+in Moose.  It's added by Pod::Plexus::Module during its indexing
 phase.
 
 =cut
@@ -50,12 +50,12 @@ has meta_entity => (
 
 
 sub is_documented {
-	my ($self, $document, $errors) = @_;
+	my ($self, $module, $errors) = @_;
 	push @$errors, "Object $self ... class needs to override validate()";
 }
 
 sub validate {
-	my ($self, $document, $errors) = @_;
+	my ($self, $module, $errors) = @_;
 	push @$errors, "Object $self ... class needs to override validate()";
 }
 

@@ -1,6 +1,6 @@
-package Pod::Plexus::Document;
+package Pod::Plexus::Module;
 
-=abstract Represent and render a single Pod::Plexus document.
+=abstract Represent and render a single module in a distribution.
 
 =cut
 
@@ -78,17 +78,18 @@ has pathname => (
 );
 
 
-=attribute library
+=attribute distribution
 
-[% ss.name %] contains the Pod::Plexus::Library object that represents
-the entire library of documents.  It allows the current document to
-find and reference the library and other documents within it.
+[% ss.name %] contains the Pod::Plexus::Distribution object that
+represents the entire distribution of modules.  It allows the current
+module to access its sibling modules through the distribution
+containing them.
 
 =cut
 
-has library => (
+has distribution => (
 	is       => 'ro',
-	isa      => 'Pod::Plexus::Library',
+	isa      => 'Pod::Plexus::Distribution',
 	required => 1,
 	weak_ref => 1,
 );
@@ -490,8 +491,8 @@ sub skip_all {
 
 =method get_referents
 
-[% ss.name %] returns a list of every module referred to by this
-document.  The Pod::Plexus::Library uses it to find new referents.
+[% ss.name %] returns a list of every other module referred to by this
+module.  The Pod::Plexus::Distribution uses it to find new referents.
 
 =cut
 
@@ -581,11 +582,12 @@ sub render_as_pod {
 
 =attribute is_prepared
 
-[% ss.name %] is true if the document has been prepared for rendering.
-It doesn't necessarily indicate whether the preparation was
-successful, however.  prepare_to_render() uses it internally to guard
-against re-entry, but other methods may also use it to avoid callng
-prepare_to_render() unnecessarily.
+[% ss.name %] is true if this module has been prepared to be rendered.
+Praparation includes indexing interesting information and early
+validation checks.  [% ss.name %] doesn't necessarily indicate whether
+the preparation was successful, however.  prepare_to_render() uses it
+internally to guard against re-entry, but other methods may also use
+it to avoid callng prepare_to_render() unnecessarily.
 
 =cut
 
@@ -598,7 +600,7 @@ has is_prepared => (
 
 =method prepare_to_render
 
-[% ss.name %] prepares the document to be rendered by performing all
+[% ss.name %] prepares the module to be rendered by performing all
 prerequisite actions.  Data is collected and validated.  Intermediate
 indexes are built.  And so on.
 
@@ -612,7 +614,7 @@ sub prepare_to_render {
 
 	warn "Preparing to render ", $self->package(), "...\n";
 
-	# 0. Don't re-prepare this document.
+	# 0. Don't re-prepare this module.
 	# Comes first to avoid re-entry problems.
 
 	return if $self->is_prepared();
@@ -626,7 +628,7 @@ sub prepare_to_render {
 	$self->index_code_methods($errors);
 	return if @$errors;
 
-	# 2. Collect directives that affect how the document is parsed.
+	# 2. Collect directives that affect how the module is parsed.
 	# This must be done before everything else.
 
 	$self->extract_doc_commands($errors, 'extract_doc_directive_skip');
@@ -740,9 +742,9 @@ sub index_doc_references {
 
 		my $reference_class = $reference_class{$node->{command}};
 		my $reference = $reference_class->create(
-			document => $self,
+			module => $self,
 			errors   => \@new_errors,
-			library  => $self->library(),
+			distribution  => $self->distribution(),
 			node     => $node,
 		);
 
@@ -997,8 +999,8 @@ sub index_code_methods {
 	#
 	#   Class::MOP::Class and Moose::Meta::Role have this.
 	#
-	# TODO - Probably should subclass Pod::Plexus::Document for the
-	# different kinds of document.  Meanwhile, I'm going to get all
+	# TODO - Probably should subclass Pod::Plexus::Module for the
+	# different kinds of module.  Meanwhile, I'm going to get all
 	# polymorphic here.
 
 	my $meta = $self->meta_entity();
@@ -1039,8 +1041,8 @@ sub index_code_method {
 	#
 	#   Class::MOP::Class and Moose::Meta::Role have this.
 	#
-	# TODO - Probably should subclass Pod::Plexus::Document for the
-	# different kinds of document.  Meanwhile, I'm going to get all
+	# TODO - Probably should subclass Pod::Plexus::Module for the
+	# different kinds of module.  Meanwhile, I'm going to get all
 	# polymorphic here.
 
 	#my $name = $method->name();
@@ -1103,9 +1105,9 @@ sub document_accessors {
 			$self->_add_method($api_name, $api_entity);
 
 			my $method_reference = Pod::Plexus::Docs::Code::Method->new(
-				document => $self,
+				module => $self,
 				errors   => $errors,
-				library  => $self->library(),
+				distribution  => $self->distribution(),
 				name     => $api_name,
 				node     => Pod::Elemental::Element::Generic::Command->new(
 					command    => "method",
@@ -1197,9 +1199,9 @@ sub _document_accessor {
 	my ($self, $errors, $attribute_name, $method_name, $accessor_type) = @_;
 
 	my $method_reference = Pod::Plexus::Docs::Code::Method->new(
-		document => $self,
+		module => $self,
 		errors   => $errors,
-		library  => $self->library(),
+		distribution  => $self->distribution(),
 		name     => $method_name,
 		node     => Pod::Elemental::Element::Generic::Command->new(
 			command    => "method",
@@ -1261,14 +1263,14 @@ sub assimilate_ancestor_method_documentation {
 
 		# The method is already documented by this class.
 
-		next METHOD if $docs->document() == $self;
+		next METHOD if $docs->module() == $self;
 
 		# The method is documented in a superclass.
 
 		$self->_document_inherited_method(
 			$this_docs,
 			$this_class,
-			$docs->document()->package(),
+			$docs->module()->package(),
 			$method_name,
 			$self,
 			$errors,
@@ -1305,7 +1307,7 @@ sub assimilate_ancestor_attribute_documentation {
 
 		# The attribute is already documented by this class.
 
-		next ATTRIBUTE if $docs->document() == $self;
+		next ATTRIBUTE if $docs->module() == $self;
 
 		# The attribue is documented in a superclass.
 
@@ -1331,13 +1333,13 @@ sub assimilate_ancestor_attribute_documentation {
 sub _document_inherited_method {
 	my (
 		$self, $this_docs, $this_class, $class_name, $method_name,
-		$document, $errors,
+		$module, $errors,
 	) = @_;
 
 	my $method_reference = Pod::Plexus::Docs::Code::Method->new(
-		document => $self,
+		module => $self,
 		errors   => $errors,
-		library  => $self->library(),
+		distribution  => $self->distribution(),
 		name     => $method_name,
 		node     => Pod::Elemental::Element::Generic::Command->new(
 			command    => "method",
@@ -1348,9 +1350,9 @@ sub _document_inherited_method {
 
 	my $include_reference = Pod::Plexus::Docs::Include->new(
 		errors   => $errors,
-		document => $self,
+		module => $self,
 		name     => $method_name,
-		library  => $self->library(),
+		distribution  => $self->distribution(),
 		node     => Pod::Elemental::Element::Generic::Command->new(
 			command    => "include",
 			content    => "$class_name method $method_name",
@@ -1389,7 +1391,7 @@ sub _document_inherited_method {
 sub _document_inherited_attribute {
 	my (
 		$self, $this_docs, $this_class, $class_name, $attribute_name,
-		$document, $errors,
+		$module, $errors,
 	) = @_;
 
 	unless ($self->_has_attribute($attribute_name)) {
@@ -1417,9 +1419,9 @@ sub _document_inherited_attribute {
 
 	my $attribute_reference = Pod::Plexus::Docs::Code::Attribute->new(
 		errors   => $errors,
-		document => $self,
+		module => $self,
 		name     => $attribute_name,
-		library  => $self->library(),
+		distribution  => $self->distribution(),
 		node     => Pod::Elemental::Element::Generic::Command->new(
 			command    => "attribute",
 			content    => "$attribute_name\n",
@@ -1429,9 +1431,9 @@ sub _document_inherited_attribute {
 
 	my $include_reference = Pod::Plexus::Docs::Include->new(
 		errors   => $errors,
-		document => $self,
+		module => $self,
 		name     => $attribute_name,
-		library  => $self->library(),
+		distribution  => $self->distribution(),
 		node     => Pod::Elemental::Element::Generic::Command->new(
 			command    => "include",
 			content    => "$class_name attribute $attribute_name",
@@ -1503,7 +1505,7 @@ sub sub {
 =method code
 
 [% ss.name %] returns the code portion of the file represented by this
-document.  This is used to render code examples by quoting entire
+module.  This is used to render code examples by quoting entire
 modules.
 
 =cut

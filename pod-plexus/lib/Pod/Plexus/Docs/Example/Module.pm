@@ -8,11 +8,11 @@ use Moose;
 extends 'Pod::Plexus::Docs::Example';
 
 sub dereference {
-	my ($self, $library, $document, $errors) = @_;
+	my ($self, $distribution, $module, $errors) = @_;
 
-	my $module_name = $self->module();
-	my $module      = $library->get_document($module_name);
-	my $code        = $self->beautify_code($module->code());
+	my $module_name  = $self->module();
+	my $other_module = $distribution->get_module($module_name);
+	my $code         = $self->beautify_code($other_module->code());
 
 	my $link;
 

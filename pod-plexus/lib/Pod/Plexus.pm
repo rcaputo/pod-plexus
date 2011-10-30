@@ -1,7 +1,7 @@
 package Pod::Plexus;
 
-use Pod::Plexus::Library;
-use Pod::Plexus::Document;
+use Pod::Plexus::Distribution;
+use Pod::Plexus::Module;
 
 1;
 
@@ -27,8 +27,8 @@ Pod::Plexus aims to help.
 Code becomes part of the documentation.
 If your code is ugly, go home.
 
-L<Pod::Plexus::Library> describes a library of documents.
-L<Pod::Plexus::Document> encapsulates a single file's documentation.
+L<Pod::Plexus::Distribution> describes a distribution of modules.
+L<Pod::Plexus::Module> encapsulates a single module and its documentation.
 The L<podplexus> command line utility drives it all.
 
 L<Dist::Zilla::Plugin::PodPlexus> provides additional integration.
@@ -91,9 +91,9 @@ content is that of METHOD_NAME in some other MODULE_NAME.  One may
 also use it to explicitly include a method in the current module, but
 that's more work.
 
-Include the implementation of render() from Pod::Plexus::Document:
+Include the implementation of render() from Pod::Plexus::Module:
 
-	=example Pod::Plexus::Document render
+	=example Pod::Plexus::Module render
 
 =head3 =include MODULE_NAME SECTION_NAME
 
@@ -149,7 +149,7 @@ Include a list item referring to another module by its MODULE_NAME.
 
 	=over 4
 
-	=xref Pod::Plexus::Document
+	=xref Pod::Plexus::Module
 
 	=back
 
@@ -161,8 +161,8 @@ As of this writing, the rendered form would be:
 
 	=item *
 
-	L<Pod::Plexus::Document|Pod::Plexus::Document> -
-	Represent and render a single Pod::Plexus document.
+	L<Pod::Plexus::Module|Pod::Plexus::Module> -
+	Represent and render a module.
 
 	=back
 
@@ -171,6 +171,6 @@ for a way to keep the documentation up to date automatically.
 
 =cut
 
-=xref Pod::Plexus::Document
+=xref Pod::Plexus::Module
 
 =cut

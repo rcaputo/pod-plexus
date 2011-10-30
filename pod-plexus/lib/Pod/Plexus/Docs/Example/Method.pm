@@ -11,7 +11,7 @@ sub resolve {
 	my $self = shift();
 
 	my $foreign_doc_name = $self->module();
-	my $foreign_doc      = $self->library()->get_document($foreign_doc_name);
+	my $foreign_doc      = $self->distribution()->get_module($foreign_doc_name);
 
 	# TODO - Kinda iffy here to pass in our \@errors?
 	# TODO - Seems like a half-change waiting for rectification.

@@ -8,45 +8,24 @@ use Moose;
 extends 'Pod::Plexus::Docs';
 
 sub new_from_elemental_command {
-	my ($class, $library, $document, $errors, $node) = @_;
+	my ($class, $distribution, $module, $errors, $node) = @_;
 
 	# Parse the content into a module and POD entry name to include.
 
-	my ($module, $symbol) = $class->_parse_include_spec(
-		$document, $errors, $node
-	);
+	my $parser = "_parse_" . $class->POD_COMMAND() . "_spec";
+	my ($module_name, $symbol) = $class->$parser();
 
-	return unless $module;
+	return unless $module_name;
 
 	my $reference = $class->new(
-		invoked_in  => $document->package(),
-		module      => $module,
+		invoked_in  => $module->package(),
+		module      => $module_name,
 		symbol      => $symbol,
-		invoke_path => $document->pathname(),
+		invoke_path => $module->pathname(),
 		invoke_line => $node->{start_line},
 	);
 
 	return $reference;
-}
-
-
-sub _parse_include_spec {
-	my ($class, $document, $errors, $node) = @_;
-
-	if ($node->{content} =~ m!^\s* (\S*) \s+ (\S.*?) \s*$!x) {
-		return($1, $2);
-	}
-
-	if ($node->{content} =~ m!^\s* (\S*) \s*$!x) {
-		return($document->package(), $1);
-	}
-
-	push @$errors, (
-		"Wrong inclusion syntax: =include $node->{content}" .
-		" at " . $document->pathname() . " line $node->{start_line}"
-	);
-
-	return;
 }
 
 

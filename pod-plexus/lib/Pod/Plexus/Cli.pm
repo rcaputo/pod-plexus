@@ -7,7 +7,7 @@ package Pod::Plexus::Cli;
 use Moose;
 with 'MooseX::Getopt';
 
-use Pod::Plexus::Library;
+use Pod::Plexus::Distribution;
 use File::Find;
 
 =method new_with_options
@@ -33,9 +33,9 @@ switches that populate them.
 =cut
 
 
-=attribute lib
+=attribute distribution
 
-[% ss.name %] contains a list of library directories from which
+[% ss.name %] contains a list of distribution directories from which
 modules will be collected, indexed and possibly rendered.  By default
 it contains a single directory: "./lib".
 
@@ -49,7 +49,7 @@ has lib => (
 	isa           => 'ArrayRef[Str]',
 	required      => 1,
 	default       => sub { [ './lib' ] },
-	documentation => 'one or more library root directories (default: lib)',
+	documentation => 'one or more distribution root directories (default: lib)',
 );
 
 
@@ -69,7 +69,7 @@ has module => (
 	lazy          => 1,
 	default       => sub {
 		my $self = shift();
-		return [ sort $self->_library()->get_module_names() ];
+		return [ sort $self->_distribution()->get_module_names() ];
 	},
 	documentation => 'modules to render docs for (default: all found)',
 );
@@ -83,21 +83,21 @@ has verbose => (
 );
 
 
-=attribute _library
+=attribute _distribution
 
-[% ss.name %] contains a Pod::Plexus::Library object.  This object is
-populated and driven by [% mod.package %].
+[% ss.name %] contains a Pod::Plexus::Distribution object.  This
+object is populated and driven by [% mod.package %].
 
 [% ss.name %] is populated by the --[% ss.name %] command line switch.
 
 =cut
 
-has _library => (
+has _distribution => (
 	is      => 'ro',
-	isa     => 'Pod::Plexus::Library',
+	isa     => 'Pod::Plexus::Distribution',
 	default => sub {
 		my $self = shift();
-		Pod::Plexus::Library->new(_verbose => $self->verbose());
+		Pod::Plexus::Distribution->new(_verbose => $self->verbose());
 	},
 );
 
@@ -126,8 +126,8 @@ sub is_indexable_file {
 
 [% ss.name %] collects files that are eligible for documenting.  It
 uses File::Find to descend into directories in the "lib" directories.
-Each file that is_indexable_file() approves is added to the library
-for later processing.
+Each file that is_indexable_file() approves is added to the
+distribution for later processing.
 
 =example collect_lib_files()
 
@@ -136,16 +136,16 @@ for later processing.
 sub collect_lib_files {
 	my $self = shift();
 
-	$self->verbose() and warn "Collecting library files...\n";
+	$self->verbose() and warn "Collecting distribution modules...\n";
 
 	find(
 		{
 			wanted => sub {
 				return unless -f $_;
 				return unless $self->is_indexable_file($_);
-				return if $self->_library()->has_file($_);
+				return if $self->_distribution()->has_module_by_file($_);
 
-				$self->_library()->add_file($_);
+				$self->_distribution()->add_file($_);
 			},
 			no_chdir => 1,
 		},
@@ -162,8 +162,8 @@ Thanks to MooseX::Getopt, those attributes are automatically populated
 from corresponding command line arguments.
 
 [% ss.name %] collects all the modules in all the lib() directories.
-Each module is added to the Pod::Plexus library so that it's known by
-the time cross references are resolved.
+Each module is added to the Pod::Plexus::Distribution so that it's
+known by the time cross references are resolved.
 
 =example run()
 
@@ -183,10 +183,10 @@ sub run {
 	# Cross-references aren't resolved.  Nothing is rendered yet.
 
 	MODULE: foreach my $module_name (@{$self->module()}) {
-		my $doc_object = $self->_library()->get_document($module_name);
+		my $doc_object = $self->_distribution()->get_module($module_name);
 
 		unless ($doc_object) {
-			push @errors, "Can't find $module_name in library.";
+			push @errors, "Can't find $module_name in distribution.";
 			next MODULE;
 		}
 
@@ -201,7 +201,7 @@ sub run {
 	# This pass tries to find and inspect external referents.
 
 	MODULE: foreach my $module_name (@{$self->module()}) {
-		my $doc_object = $self->_library()->get_document($module_name);
+		my $doc_object = $self->_distribution()->get_module($module_name);
 
 		my $rendered_pod = $doc_object->render_as_pod();
 
@@ -216,8 +216,8 @@ sub run {
 
 	# TODO - Render to files, if appropriate.
 
-	#my $index = $library->generate_index();
-	#my $toc = $library->generate_toc();
+	#my $index = $distribution->generate_index();
+	#my $toc = $distribution->generate_toc();
 
 	# Successful exit.
 

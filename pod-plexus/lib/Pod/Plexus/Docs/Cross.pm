@@ -28,10 +28,10 @@ has '+module' => (
 
 
 sub dereference {
-	my ($self, $library, $document, $errors) = @_;
+	my ($self, $distribution, $module, $errors) = @_;
 
 	my $referent_name = $self->module();
-	my $referent = $library->get_document($referent_name);
+	my $referent = $distribution->get_module($referent_name);
 
 	$self->documentation(
 		[

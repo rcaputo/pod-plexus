@@ -103,7 +103,7 @@ sub calc_key {
 =cut
 
 has invoked_in => (
-	default => sub { my $self = shift(); $self->document()->package(); },
+	default => sub { my $self = shift(); $self->module()->package(); },
 	is      => 'ro',
 	isa     => 'Str',
 	lazy    => 1,
@@ -117,7 +117,7 @@ has invoked_in => (
 =cut
 
 has invoke_path => (
-	default => sub { my $self = shift(); $self->document()->pathname(); },
+	default => sub { my $self = shift(); $self->module()->pathname(); },
 	is      => 'ro',
 	isa     => 'Str',
 	lazy    => 1,
@@ -145,7 +145,7 @@ has invoke_line => (
 =cut
 
 has module => (
-	default  => sub { my $self = shift(); return $self->document()->package(); },
+	default  => sub { my $self = shift(); return $self->module()->package(); },
 	is       => 'ro',
 	isa      => 'Str|RegexpRef',
 	lazy     => 1,
@@ -184,16 +184,16 @@ sub is_local {
 }
 
 
-has library => (
+has distribution => (
 	is       => 'ro',
-	isa      => 'Pod::Plexus::Library',
+	isa      => 'Pod::Plexus::Distribution',
 	required => 1,
 );
 
 
-has document => (
+has module => (
 	is       => 'ro',
-	isa      => 'Pod::Plexus::Document',
+	isa      => 'Pod::Plexus::Module',
 	required => 1,
 );
 

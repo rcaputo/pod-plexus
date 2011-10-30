@@ -23,12 +23,12 @@ sub BUILD {
 
 	return unless $regexp;
 
-	my @referents = sort grep /$regexp/, $self->library()->get_module_names();
+	my @referents = sort grep /$regexp/, $self->distribution()->get_module_names();
 
 	unless (@referents) {
 		push @{$self->errors()}, (
 			"=index $regexp ... doesn't match anything" .
-			" at " . $self->document()->pathname() .
+			" at " . $self->module()->pathname() .
 			" line " . $self->node()->{start_line}
 		);
 		return;
@@ -36,12 +36,12 @@ sub BUILD {
 
 	$self->push_documentation(
 		map {
-			my $foreign_document = $self->library()->get_document($_);
+			my $foreign_module = $self->distribution()->get_module($_);
 
-			$foreign_document->prepare_to_render($self->errors());
+			$foreign_module->prepare_to_render($self->errors());
 			return if @{$self->errors()};
 
-			my $abstract = $self->library()->get_document($_)->abstract();
+			my $abstract = $self->distribution()->get_module($_)->abstract();
 			$abstract = "No abstract defined." unless (
 				defined $abstract and length $abstract
 			);
@@ -126,7 +126,7 @@ sub _parse_content {
 	unless (length $regexp) {
 		push @{$self->errors()}, (
 			"=" . $self->node()->{command} . " command needs a regexp" .
-			" at " . $self->document()->pathname() .
+			" at " . $self->module()->pathname() .
 			" line " . $self->node()->{start_line}
 		);
 		return;

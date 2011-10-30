@@ -15,12 +15,12 @@ has '+meta_entity' => (
 
 
 sub is_documented {
-	my ($self, $document) = @_;
+	my ($self, $module) = @_;
 
-	my $package_name = $document->package();
+	my $package_name = $module->package();
 	my $method_name  = $self->name();
 
-	my $docs = $document->get_reference(
+	my $docs = $module->get_reference(
 		'Pod::Plexus::Docs::Code::Method',
 		$package_name,
 		$method_name,
@@ -32,12 +32,12 @@ sub is_documented {
 
 
 sub validate {
-	my ($self, $document, $errors) = @_;
+	my ($self, $module, $errors) = @_;
 
-	return if $self->is_documented($document);
+	return if $self->is_documented($module);
 
 	push @$errors, (
-		$document->package() .
+		$module->package() .
 		" method " . $self->name() .
 		" is not documented"
 	);
