@@ -13,6 +13,13 @@ use Carp qw(croak);
 
 use feature 'switch';
 
+use Pod::Plexus::Util::PodElemental qw(
+	generic_command
+	blank_line
+	text_paragraph
+	cut_paragraph
+);
+
 use PPI::Lexer;
 $PPI::Lexer::STATEMENT_CLASSES{with} = 'PPI::Statement::Include';
 
@@ -121,7 +128,7 @@ sub abstract {
 	my $self = shift();
 
 	$self->prepare_to_render() unless $self->is_prepared();
-	my $abstract = $self->get_reference(
+	my $abstract = $self->get_documentation(
 		'Pod::Plexus::Docs::Abstract'
 	);
 	die "No abstract defined for ", $self->package(), "\n" unless $abstract;
@@ -348,16 +355,16 @@ foreach my $reference_class (@reference_classes) {
 	$reference_class{$full_class->POD_COMMAND} = $full_class;
 }
 
-has references => (
+has documentation => (
 	is      => 'rw',
 	isa     => 'HashRef[Pod::Plexus::Docs]',
 	default => sub { { } },
 	traits  => [ 'Hash' ],
 	handles => {
-		_really_add_reference => 'set',
-		_has_reference        => 'exists',
-		_get_reference        => 'get',
-		_get_references       => 'values',
+		_really_add_documentation => 'set',
+		_has_documentation        => 'exists',
+		_get_documentation        => 'get',
+		_get_all_documentation    => 'values',
 	},
 );
 
@@ -365,8 +372,8 @@ sub _add_reference {
 	my ($self, $include) = @_;
 
 	my $key = $include->key();
-	return if $self->_has_reference($key);
-	$self->_really_add_reference($key, $include);
+	return if $self->_has_documentation($key);
+	$self->_really_add_documentation($key, $include);
 }
 
 ### Skipping attributes.
@@ -505,21 +512,21 @@ sub get_referents {
 		#$self->get_imports(),
 		$self->get_base_classes(),
 		$self->get_roles(),
-		( map { $_->module() } $self->_get_references() ),
+		( map { $_->module_package() } $self->_get_all_documentation() ),
 	);
 
 	return values %referents;
 }
 
 
-=method get_reference
+=method get_documentation
 
 [% ss.name %] returns a single reference, keyed on the referent type,
 module, and optional symbol name.
 
 =cut
 
-sub get_reference {
+sub get_documentation {
 	my ($self, $type, $module, $symbol) = @_;
 
 	$module //= $self->package();
@@ -529,8 +536,8 @@ sub get_reference {
 		$type, $module, $symbol
 	);
 
-	return unless $self->_has_reference($reference_key);
-	return $self->_get_reference($reference_key);
+	return unless $self->_has_documentation($reference_key);
+	return $self->_get_documentation($reference_key);
 }
 
 ###
@@ -742,10 +749,10 @@ sub index_doc_references {
 
 		my $reference_class = $reference_class{$node->{command}};
 		my $reference = $reference_class->create(
-			module => $self,
-			errors   => \@new_errors,
-			distribution  => $self->distribution(),
-			node     => $node,
+			module       => $self,
+			errors       => \@new_errors,
+			distribution => $self->distribution(),
+			node         => $node,
 		);
 
 		if (@new_errors) {
@@ -811,11 +818,8 @@ sub extract_doc_commands {
 
 		splice(
 			@$doc, $i, 1,
-			Pod::Elemental::Element::Generic::Command->new(
-				command => 'pod',
-				content => "\n",
-			),
-			Pod::Elemental::Element::Generic::Blank->new( content => "\n" ),
+			generic_command("pod", "\n"),
+			blank_line(),
 		);
 
 		# TODO - Better check for $result being an entity?
@@ -1117,17 +1121,15 @@ sub document_accessors {
 			);
 
 			# Don't document this if we already have it.
-			next if $self->_has_reference($method_reference->key());
+			next if $self->_has_documentation($method_reference->key());
 
 			my @body = (
-				Pod::Elemental::Element::Generic::Blank->new(content => "\n"),
-				Pod::Elemental::Element::Generic::Text->new(
-					content => (
-						"$api_name() exposes $impl_name() from the attribute " .
-						"\"$attribute_name\".\n"
-					),
+				blank_line(),
+				text_paragraph(
+					"$api_name() exposes $impl_name() from the attribute " .
+					"\"$attribute_name\".\n"
 				),
-				Pod::Elemental::Element::Generic::Blank->new(content => "\n"),
+				blank_line(),
 			);
 
 			$method_reference->push_body(@body);
@@ -1137,7 +1139,7 @@ sub document_accessors {
 			$self->_add_reference($method_reference);
 
 			push @{$self->_elemental()->children()}, (
-				Pod::Elemental::Element::Generic::Blank->new(content => "\n"),
+				blank_line(),
 				$method_reference,
 			);
 		}
@@ -1211,17 +1213,15 @@ sub _document_accessor {
 	);
 
 	# Don't document this if we already have it.
-	return if $self->_has_reference($method_reference->key());
+	return if $self->_has_documentation($method_reference->key());
 
 	my @body = (
-		Pod::Elemental::Element::Generic::Blank->new(content => "\n"),
-		Pod::Elemental::Element::Generic::Text->new(
-			content => (
-				"$method_name() is $accessor_type " .
-				"for the \"$attribute_name\" attribute.\n"
-			),
+		blank_line(),
+		text_paragraph(
+			"$method_name() is $accessor_type " .
+			"for the \"$attribute_name\" attribute.\n"
 		),
-		Pod::Elemental::Element::Generic::Blank->new(content => "\n"),
+		blank_line(),
 	);
 
 	$method_reference->push_body(@body);
@@ -1231,7 +1231,7 @@ sub _document_accessor {
 	$self->_add_reference($method_reference);
 
 	push @{$self->_elemental()->children()}, (
-		Pod::Elemental::Element::Generic::Blank->new(content => "\n"),
+		blank_line(),
 		$method_reference,
 	);
 }
@@ -1270,7 +1270,7 @@ sub assimilate_ancestor_method_documentation {
 		$self->_document_inherited_method(
 			$this_docs,
 			$this_class,
-			$docs->module()->package(),
+			$docs->module_package(),
 			$method_name,
 			$self,
 			$errors,
@@ -1314,7 +1314,7 @@ sub assimilate_ancestor_attribute_documentation {
 		$self->_document_inherited_attribute(
 			$this_docs,
 			$this_class,
-			$docs->document()->package(),
+			$docs->module_package(),
 			$attribute_name,
 			$self,
 			$errors,
@@ -1364,26 +1364,21 @@ sub _document_inherited_method {
 	$self->_add_reference($include_reference);
 
 	my @body = (
-		Pod::Elemental::Element::Generic::Blank->new(content => "\n"),
+		blank_line(),
 		$include_reference,
-		Pod::Elemental::Element::Generic::Blank->new(content => "\n"),
-		Pod::Elemental::Element::Generic::Text->new(
-			content => (
-				"It is inherited from L<$class_name|$class_name/$method_name>.\n"
-			),
+		blank_line(),
+		text_paragraph(
+			"It is inherited from L<$class_name|$class_name/$method_name>.\n"
 		),
-		Pod::Elemental::Element::Generic::Blank->new(content => "\n"),
-		Pod::Elemental::Element::Generic::Command->new(
-			command => "cut",
-			content => "\n",
-		),
+		blank_line(),
+		cut_paragraph(),
 	);
 
 	$method_reference->push_body(@body);
 	$method_reference->push_documentation(@body);
 
 	push @$this_docs, (
-		Pod::Elemental::Element::Generic::Blank->new(content => "\n"),
+		blank_line(),
 		$method_reference,
 	);
 }
@@ -1445,26 +1440,21 @@ sub _document_inherited_attribute {
 	$self->_add_reference($include_reference);
 
 	my @body = (
-		Pod::Elemental::Element::Generic::Blank->new(content => "\n"),
+		blank_line(),
 		$include_reference,
-		Pod::Elemental::Element::Generic::Blank->new(content => "\n"),
-		Pod::Elemental::Element::Generic::Text->new(
-			content => (
-				"It is inherited from L<$class_name|$class_name/$attribute_name>.\n"
-			),
+		blank_line(),
+		text_paragraph(
+			"It is inherited from L<$class_name|$class_name/$attribute_name>.\n"
 		),
-		Pod::Elemental::Element::Generic::Blank->new(content => "\n"),
-		Pod::Elemental::Element::Generic::Command->new(
-			command => "cut",
-			content => "\n",
-		),
+		blank_line(),
+		cut_paragraph(),
 	);
 
 	$attribute_reference->push_body(@body);
 	$attribute_reference->push_documentation(@body);
 
 	push @$this_docs, (
-		Pod::Elemental::Element::Generic::Blank->new(content => "\n"),
+		blank_line(),
 		$attribute_reference,
 	);
 }

@@ -10,7 +10,7 @@ extends 'Pod::Plexus::Docs::Example';
 sub resolve {
 	my $self = shift();
 
-	my $foreign_doc_name = $self->module();
+	my $foreign_doc_name = $self->module_package();
 	my $foreign_doc      = $self->distribution()->get_module($foreign_doc_name);
 
 	# TODO - Kinda iffy here to pass in our \@errors?

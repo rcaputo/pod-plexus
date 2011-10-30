@@ -7,6 +7,12 @@ package Pod::Plexus::Docs::Index;
 use Moose;
 extends 'Pod::Plexus::Docs';
 
+use Pod::Plexus::Util::PodElemental qw(
+	head_paragraph
+	blank_line
+	text_paragraph
+);
+
 
 has '+symbol' => (
 	default => "",
@@ -23,12 +29,16 @@ sub BUILD {
 
 	return unless $regexp;
 
-	my @referents = sort grep /$regexp/, $self->distribution()->get_module_names();
+	my @referents = (
+		sort
+		grep /$regexp/,
+		$self->distribution()->get_known_module_names()
+	);
 
 	unless (@referents) {
 		push @{$self->errors()}, (
 			"=index $regexp ... doesn't match anything" .
-			" at " . $self->module()->pathname() .
+			" at " . $self->module_path() .
 			" line " . $self->node()->{start_line}
 		);
 		return;
@@ -46,19 +56,12 @@ sub BUILD {
 				defined $abstract and length $abstract
 			);
 
-			Pod::Elemental::Element::Generic::Command->new(
-				command => "head" . $header_level,
-				content => "\n",
-			),
-			Pod::Elemental::Element::Generic::Blank->new(
-				content => "\n",
-			),
-			Pod::Elemental::Element::Generic::Text->new(
-				content => "L<$_|$_> - $abstract\n",
-			),
-			Pod::Elemental::Element::Generic::Blank->new(
-				content => "\n",
-			),
+			(
+				head_paragraph($header_level, "\n"),
+				blank_line(),
+				text_paragraph("L<$_|$_> - $abstract\n"),
+				blank_line(),
+			);
 		}
 		@referents
 	);
@@ -102,7 +105,7 @@ sub _parse_content {
 	unless (length $regexp) {
 		push @{$self->errors()}, (
 			"=" . $self->node()->{command} . " command needs a regexp" .
-			" at " . $self->module()->pathname() .
+			" at " . $self->module_path() .
 			" line " . $self->node()->{start_line}
 		);
 		return;

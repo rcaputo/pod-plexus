@@ -20,7 +20,7 @@ sub is_documented {
 	my $package_name = $module->package();
 	my $method_name  = $self->name();
 
-	my $docs = $module->get_reference(
+	my $docs = $module->get_documentation(
 		'Pod::Plexus::Docs::Code::Method',
 		$package_name,
 		$method_name,

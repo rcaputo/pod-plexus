@@ -2,6 +2,8 @@ package Pod::Plexus::Role::Documentable;
 
 use Moose::Role;
 
+use Pod::Plexus::Util::PodElemental qw(blank_line);
+
 requires '_build_documentation';
 
 =attribute documentation
@@ -55,9 +57,7 @@ sub push_blank {
 	# TODO - Look at the last line of documentation.
 	# If it's blank, don't bother pushing this blank.
 
-	$self->push_documentation(
-		Pod::Elemental::Element::Generic::Blank->new( content => "\n" ),
-	);
+	$self->push_documentation(blank_line());
 }
 
 

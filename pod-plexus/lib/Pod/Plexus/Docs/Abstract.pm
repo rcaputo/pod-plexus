@@ -7,6 +7,9 @@ package Pod::Plexus::Docs::Abstract;
 use Moose;
 extends 'Pod::Plexus::Docs';
 
+use Pod::Plexus::Util::PodElemental qw(
+	blank_line head_paragraph text_paragraph
+);
 
 use constant POD_COMMAND  => 'abstract';
 
@@ -34,15 +37,10 @@ sub BUILD {
 
 	$self->documentation(
 		[
-			Pod::Elemental::Element::Generic::Command->new(
-				command => "head1",
-				content => "NAME\n",
-			),
-			Pod::Elemental::Element::Generic::Blank->new(content => "\n"),
-			Pod::Elemental::Element::Generic::Text->new(
-				content => $self->module() . " - " . $self->abstract()
-			),
-			Pod::Elemental::Element::Generic::Blank->new(content => "\n"),
+			head_paragraph(1, "NAME\n"),
+			blank_line(),
+			text_paragraph($self->module_package() . " - " . $self->abstract()),
+			blank_line(),
 		],
 	);
 }

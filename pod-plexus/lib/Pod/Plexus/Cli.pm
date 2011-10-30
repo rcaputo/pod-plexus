@@ -33,7 +33,7 @@ switches that populate them.
 =cut
 
 
-=attribute distribution
+=attribute lib
 
 [% ss.name %] contains a list of distribution directories from which
 modules will be collected, indexed and possibly rendered.  By default
@@ -69,7 +69,7 @@ has module => (
 	lazy          => 1,
 	default       => sub {
 		my $self = shift();
-		return [ sort $self->_distribution()->get_module_names() ];
+		return [ sort $self->_distribution()->get_known_module_names() ];
 	},
 	documentation => 'modules to render docs for (default: all found)',
 );

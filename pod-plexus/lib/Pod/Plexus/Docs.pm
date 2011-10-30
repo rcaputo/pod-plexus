@@ -6,10 +6,7 @@ package Pod::Plexus::Docs;
 
 sub as_pod_elements {
 	my $self = shift();
-
-	return Pod::Elemental::Element::Generic::Text->new(
-		content => "!!! $self",
-	);
+	return text_paragraph("!!! $self\n");
 }
 
 =abstract A generic expandable documentation reference.
@@ -113,7 +110,7 @@ has key => (
 	lazy    => 1,
 	default => sub {
 		my $self = shift();
-		return $self->calc_key(ref($self), $self->module(), $self->symbol());
+		return $self->calc_key(ref($self), $self->module_package(), $self->symbol());
 	},
 );
 
@@ -138,59 +135,45 @@ sub calc_key {
 }
 
 
-=attribute invoked_in
+=attribute definition_package
 
 [% ss.name %] contains the package the reference was invoked in.
 
 =cut
 
-has invoked_in => (
-	default => sub { my $self = shift(); $self->module()->package(); },
+has definition_package => (
+	default => sub { my $self = shift(); $self->module_package(); },
 	is      => 'ro',
 	isa     => 'Str',
 	lazy    => 1,
 );
 
 
-=attribute invoke_path
+=attribute definition_file
 
 [% ss.name %] contains the path of the file invoking this reference.
 
 =cut
 
-has invoke_path => (
-	default => sub { my $self = shift(); $self->module()->pathname(); },
+has definition_file => (
+	default => sub { my $self = shift(); $self->module_path(); },
 	is      => 'ro',
 	isa     => 'Str',
 	lazy    => 1,
 );
 
 
-=attribute invoke_line
+=attribute definition_line
 
 [% ss.name %] contains the line number of this reference's invocation.
 
 =cut
 
-has invoke_line => (
+has definition_line => (
 	default => sub { my $self = shift(); $self->node()->{start_line}; },
 	is      => 'ro',
 	isa     => 'Int',
 	lazy    => 1,
-);
-
-
-=attribute module
-
-[% ss.name %] contains the module being referenced.  This is required.
-
-=cut
-
-has module => (
-	default  => sub { my $self = shift(); return $self->module()->package(); },
-	is       => 'ro',
-	isa      => 'Str|RegexpRef',
-	lazy     => 1,
 );
 
 
@@ -222,7 +205,7 @@ invoking it.
 
 sub is_local {
 	my $self = shift();
-	return $self->invoked_in() eq $self->module();
+	return $self->definition_package() eq $self->module_package();
 }
 
 
@@ -237,6 +220,10 @@ has module => (
 	is       => 'ro',
 	isa      => 'Pod::Plexus::Module',
 	required => 1,
+	handles  => {
+		module_package => 'package',
+		module_path => 'pathname',
+	},
 );
 
 

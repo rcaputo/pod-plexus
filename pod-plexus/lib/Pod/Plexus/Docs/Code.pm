@@ -18,11 +18,11 @@ sub new_from_elemental_command {
 	return unless $module_name;
 
 	my $reference = $class->new(
-		invoked_in  => $module->package(),
-		module      => $module_name,
-		symbol      => $symbol,
-		invoke_path => $module->pathname(),
-		invoke_line => $node->{start_line},
+		definition_file    => $module->pathname(),
+		definition_line    => $node->{start_line},
+		definition_package => $module->package(),
+		module             => $module_name,
+		symbol             => $symbol,
 	);
 
 	return $reference;

@@ -10,7 +10,7 @@ extends 'Pod::Plexus::Docs::Example';
 sub dereference {
 	my ($self, $distribution, $module, $errors) = @_;
 
-	my $module_name  = $self->module();
+	my $module_name  = $self->module_package();
 	my $other_module = $distribution->get_module($module_name);
 	my $code         = $self->beautify_code($other_module->code());
 

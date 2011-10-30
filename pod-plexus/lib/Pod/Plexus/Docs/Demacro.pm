@@ -18,7 +18,7 @@ sub BUILD {
 	unless (defined $symbol_name) {
 		push @{$self->errors()}, (
 			"Wrong macro syntax: =macro " . $self->node()->{content} .
-			" at " . $self->module()->pathname() .
+			" at " . $self->module_path() .
 			" line " . $self->node()->{start_line}
 		);
 		return;
@@ -28,15 +28,15 @@ sub BUILD {
 
 	# The macro must already exist.
 
-	my $reference = $self->module()->get_reference(
+	my $reference = $self->module()->get_documentation(
 		'Pod::Plexus::Docs::Macro',
-		$self->module()->package(),
+		$self->module_package(),
 		$self->symbol()
 	);
 	unless ($reference) {
 		push @{$self->errors()}, (
 			"Cannot find macro $symbol_name in '=demacro'" .
-			" at " . $self->module()->pathname() .
+			" at " . $self->module_path() .
 			" line " . $self->node()->{start_line}
 		);
 		return;

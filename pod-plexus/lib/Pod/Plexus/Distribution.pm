@@ -197,7 +197,7 @@ sub get_unresolved_referents {
 			my $referent = shift @referents;
 
 			if (ref($referent) eq 'Regexp') {
-				push @referents, (grep /$referent/, $self->get_module_names());
+				push @referents, (grep /$referent/, $self->get_known_module_names());
 				next REFERENT;
 			}
 

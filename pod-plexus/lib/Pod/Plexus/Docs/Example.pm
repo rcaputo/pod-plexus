@@ -10,6 +10,8 @@ extends 'Pod::Plexus::Docs';
 use Pod::Plexus::Docs::Example::Method;
 use Pod::Plexus::Docs::Example::Module;
 
+use Pod::Plexus::Util::PodElemental qw(text_paragraph blank_line);
+
 use constant POD_COMMAND => 'example';
 
 
@@ -57,12 +59,8 @@ sub set_example {
 	my ($self, $link, $code) = @_;
 	$self->documentation(
 		[
-			Pod::Elemental::Element::Generic::Text->new(
-				content => $link . $code,
-			),
-			Pod::Elemental::Element::Generic::Blank->new(
-				content => "\n",
-			),
+			text_paragraph($link . $code),
+			blank_line(),
 		]
 	);
 }
@@ -83,14 +81,14 @@ sub create {
 		? (
 			Pod::Plexus::Docs::Example::Method->new(
 				%args,
-				module => $module,
-				symbol => $sub,
+				module_name => $module,
+				symbol      => $sub,
 			)
 		)
 		: (
 			Pod::Plexus::Docs::Example::Module->new(
 				%args,
-				module => $module,
+				module_name => $module,
 			)
 		)
 	);
@@ -108,7 +106,7 @@ sub create {
 #		$module, $errors, $node
 #	);
 #
-#	my $reference = $module->get_reference($class, $module, $sub);
+#	my $reference = $module->get_documentation($class, $module, $sub);
 #	unless ($reference) {
 #		push @$errors, (
 #			"Can't find =example $module $sub" .

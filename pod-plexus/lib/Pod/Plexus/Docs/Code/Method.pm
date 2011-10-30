@@ -7,6 +7,8 @@ package Pod::Plexus::Docs::Code::Method;
 use Moose;
 extends 'Pod::Plexus::Docs::Code';
 
+use Pod::Plexus::Util::PodElemental qw(generic_command);
+
 
 use constant POD_COMMAND  => 'method';
 
@@ -24,7 +26,7 @@ sub BUILD {
 	unless ($module) {
 		push @{$self->errors()}, (
 			"=method cannot find module $module_name" .
-			" at " . $self->module()->pathname() .
+			" at " . $self->module_path() .
 			" line " .  $self->node()->{start_line}
 		);
 		return;
@@ -44,17 +46,14 @@ sub BUILD {
 #
 #		push @{$self->errors()}, (
 #			"Cannot find implementation for '=method $symbol'" .
-#			" at " . $self->module()->pathname() .
+#			" at " . $self->module_path() .
 #			" line " .  $self->node()->{start_line}
 #		);
 #		return;
 #	}
 
 	$self->push_documentation(
-		Pod::Elemental::Element::Generic::Command->new(
-			command => "method",
-			content => "$symbol_name\n",
-		),
+		generic_command("method", "$symbol_name\n"),
 	);
 
 	# Make a scratchpad entry in the class so we can find documentation.
@@ -69,12 +68,12 @@ sub _parse_method_spec {
 	my $self = shift();
 
 	if ($self->node()->{content} =~ /^\s* (\S+) \s*$/x) {
-		return($self->module()->package(), $1);
+		return($self->module_package(), $1);
 	}
 
 	push @{$self->errors()}, (
 		"Wrong syntax: =method " . $self->node()->{content} .
-		" at " . $self->module()->pathname() .
+		" at " . $self->module_path() .
 		" line " . $self->node()->{start_line}
 	);
 

@@ -14,7 +14,7 @@ use constant POD_COMMAND  => 'xref';
 has '+symbol' => (
 	default => sub {
 		my $self = shift();
-		return $self->module();
+		return $self->module_package();
 	},
 );
 
@@ -30,26 +30,17 @@ has '+module' => (
 sub dereference {
 	my ($self, $distribution, $module, $errors) = @_;
 
-	my $referent_name = $self->module();
+	my $referent_name = $self->module_package();
 	my $referent = $distribution->get_module($referent_name);
 
 	$self->documentation(
 		[
-			Pod::Elemental::Element::Generic::Command->new(
-				command => "item",
-				content => "*\n",
+			generic_command("item", "*\n"),
+			blank_line(),
+			text_paragraph(
+				"L<$referent_name|$referent_name> - " . $referent->abstract()
 			),
-			Pod::Elemental::Element::Generic::Blank->new(
-				content => "\n",
-			),
-			Pod::Elemental::Element::Generic::Text->new(
-				content => (
-					"L<$referent_name|$referent_name> - " . $referent->abstract()
-				),
-			),
-			Pod::Elemental::Element::Generic::Blank->new(
-				content => "\n",
-			),
+			blank_line(),
 		],
 	);
 }

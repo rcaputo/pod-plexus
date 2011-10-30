@@ -27,7 +27,7 @@ sub BUILD {
 	$foreign_module->prepare_to_render($self->errors());
 	return if @{$self->errors()};
 
-	my $foreign_reference = $foreign_module->get_reference(
+	my $foreign_reference = $foreign_module->get_documentation(
 		$type, $module, $symbol
 	);
 
@@ -55,12 +55,12 @@ sub _parse_include_spec {
 	if (
 		$self->node()->{content} =~ m!^\s* (attribute|method) \s+ (\S.*?) \s*$!x
 	) {
-		return($self->module()->package(), $type_class{$1}, $2);
+		return($self->module_package(), $type_class{$1}, $2);
 	}
 
 	push @{$self->errors()}, (
 		"Wrong inclusion syntax: =include " . $self->node()->{content} .
-		" at " . $self->module()->pathname() .
+		" at " . $self->module_path() .
 		" line " . $self->node()->{start_line}
 	);
 

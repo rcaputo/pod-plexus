@@ -26,7 +26,7 @@ sub is_documented {
 	my $package_name   = $module->package();
 	my $attribute_name = $self->name();
 
-	my $docs = $module->get_reference(
+	my $docs = $module->get_documentation(
 		'Pod::Plexus::Docs::Code::Attribute',
 		$package_name,
 		$attribute_name,
