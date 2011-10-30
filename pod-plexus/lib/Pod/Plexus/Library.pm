@@ -102,6 +102,13 @@ has _template => (
 );
 
 
+has _verbose => (
+	is      => 'rw',
+	isa     => 'Bool',
+	default => 0,
+);
+
+
 =method add_file
 
 Add a file to the library.  A [% lib.main %]::Document is built from
@@ -119,6 +126,7 @@ sub add_file {
 		pathname  => $file_path,
 		library   => $self,
 		_template => $self->_template(),
+		_verbose  => $self->_verbose(),
 	);
 
 	$self->_add_file($file_path => $document);

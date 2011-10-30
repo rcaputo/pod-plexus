@@ -75,6 +75,14 @@ has module => (
 );
 
 
+has verbose => (
+	is            => 'rw',
+	isa           => 'Bool',
+	default       => 0,
+	documentation => 'enable a lot of stderr output',
+);
+
+
 =attribute _library
 
 [% ss.name %] contains a Pod::Plexus::Library object.  This object is
@@ -87,7 +95,10 @@ populated and driven by [% mod.package %].
 has _library => (
 	is      => 'ro',
 	isa     => 'Pod::Plexus::Library',
-	default => sub { Pod::Plexus::Library->new() },
+	default => sub {
+		my $self = shift();
+		Pod::Plexus::Library->new(_verbose => $self->verbose());
+	},
 );
 
 
@@ -102,7 +113,11 @@ be documented.  Currently only ".pm" files are eligible.
 
 sub is_indexable_file {
 	my ($self, $qualified_path) = @_;
+
 	return unless $qualified_path =~ /\.pm$/;
+	return unless $qualified_path =~ /^lib/;
+	return if $qualified_path =~ /~$/;
+
 	return 1;
 }
 
@@ -120,6 +135,8 @@ for later processing.
 
 sub collect_lib_files {
 	my $self = shift();
+
+	$self->verbose() and warn "Collecting library files...\n";
 
 	find(
 		{
@@ -181,19 +198,6 @@ sub run {
 		exit 1;
 	}
 
-	# This pass tries to resolve cross references.
-
-	# TODO - Old way?
-	MODULE: foreach my $module_name (@{$self->module()}) {
-		my $doc_object = $self->_library()->get_document($module_name);
-		#$doc_object->resolve_references();
-	}
-
-	if (@errors) {
-		warn "$_\n" foreach @errors;
-		exit 1;
-	}
-
 	# This pass tries to find and inspect external referents.
 
 	MODULE: foreach my $module_name (@{$self->module()}) {
@@ -203,7 +207,11 @@ sub run {
 
 		# TODO - Write to a file, if requested.
 
-		print $rendered_pod, "\n\n------------------------------------\n\n";
+		print(
+			(("-" x 40) . "\n") x 3,
+			$rendered_pod,
+			(("-" x 40) . "\n") x 3,
+		);
 	}
 
 	# TODO - Render to files, if appropriate.

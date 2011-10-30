@@ -53,6 +53,13 @@ has _elemental => (
 	default => sub { Pod::Elemental->read_file( shift()->pathname() ) },
 );
 
+
+has _verbose => (
+	is      => 'rw',
+	isa     => 'Bool',
+	default => 0,
+);
+
 ###
 ### Basic public data.
 ###
@@ -156,7 +163,9 @@ has meta_entity => (
 
 		# Must be loaded to be introspected.
 		Class::MOP::load_class($class_name);
-		return Class::MOP::Class->initialize($class_name);
+		my $x = Class::MOP::Class->initialize($class_name);
+		warn ref($x);
+		return $x;
 	},
 );
 
@@ -601,6 +610,8 @@ messages on failure.
 sub prepare_to_render {
 	my ($self, $errors) = @_;
 
+	warn "Preparing to render ", $self->package(), "...\n";
+
 	# 0. Don't re-prepare this document.
 	# Comes first to avoid re-entry problems.
 
@@ -891,10 +902,18 @@ This is a helper method called by index().
 sub index_code_attributes {
 	my ($self, $errors) = @_;
 
+	$self->_verbose() and warn(
+		"  indexing ", $self->package(), " code attributes...\n"
+	);
+
 	my $meta = $self->meta_entity();
 
 	ATTRIBUTE: foreach my $name ($meta->get_attribute_list()) {
 		#next ATTRIBUTE if $self->is_skippable_attribute($name);
+
+		$self->_verbose() and warn(
+			"    indexing ", $self->package(), " attribute $name\n"
+		);
 
 		my $attribute = $meta->get_attribute($name);
 
@@ -955,6 +974,10 @@ This is a helper method called by index().
 
 sub index_code_methods {
 	my ($self, $errors) = @_;
+
+	$self->_verbose() and warn(
+		"  indexing ", $self->package(), " code methods...\n"
+	);
 
 	# TODO
 	#
@@ -1035,6 +1058,11 @@ sub index_code_method {
 	confess "??? $method" unless ref($method);
 
 	my $method_name = $method->name();
+
+	$self->_verbose() and warn(
+		"    indexing ", $self->package(), " method $method_name\n"
+	);
+
 	if ($method_name =~ /^[A-Z0-9_]+$/) {
 		my $proto = prototype($method->body());
 		return if defined $proto and $proto eq '';
@@ -1496,7 +1524,8 @@ sub code {
 ###
 
 sub BUILD {
-	warn "Absorbing ", shift()->pathname(), " ...\n";
+	my $self = shift();
+	$self->_verbose() and warn "  absorbing ", $self->pathname(), " ...\n";
 }
 
 

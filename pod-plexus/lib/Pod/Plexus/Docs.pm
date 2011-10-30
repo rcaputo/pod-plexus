@@ -1,6 +1,8 @@
 package Pod::Plexus::Docs;
 
 # TODO - render() -> as_pod_elements()
+# TODO - Nested Pod::Elemental bits.
+# TODO - Proper cloning of copied bits so they may be written.
 
 sub as_pod_elements {
 	my $self = shift();
