@@ -7,61 +7,55 @@ package Pod::Plexus::Docs::abstract;
 use Moose;
 extends 'Pod::Plexus::Docs';
 
+
 use Pod::Plexus::Util::PodElemental qw(
-	blank_line head_paragraph text_paragraph
+	blank_line head_paragraph cut_paragraph
 );
 
 
-has '+symbol' => (
-	default => sub { "" },
-);
-
-
-has '+is_terminal' => (
-	default => 1,
-);
+sub is_top_level { 1 }
 
 
 has abstract => (
-	default => sub { shift()->node()->{content} },
 	is      => 'ro',
 	isa     => 'Str',
-	lazy    => 1,
+	default => sub {
+		my $self = shift();
+
+		my $abstract = $self->docs()->[ $self->docs_index() ]->content();
+		$abstract =~ s/^\s+//;
+		$abstract =~ s/\s+$//;
+		$abstract =~ s/\s+/ /g;
+
+		return $abstract;
+	},
+);
+
+
+has '+doc_prefix' => (
+	default => sub {
+		my $self = shift();
+		return [
+			head_paragraph(
+				1,
+				"NAME " . $self->module_package() . " - " . $self->abstract() . "\n"
+			),
+			blank_line()
+		];
+	},
+);
+
+
+has '+doc_suffix' => (
+	default => sub {
+		return [ blank_line(), cut_paragraph() ];
+	},
 );
 
 
 sub BUILD {
 	my $self = shift();
-
-	$self->documentation(
-		[
-			head_paragraph(1, "NAME\n"),
-			blank_line(),
-			text_paragraph($self->module_package() . " - " . $self->abstract()),
-			blank_line(),
-		],
-	);
-}
-
-
-sub consume_element {
-	my ($self, $element) = @_;
-
-	return 0 if $self->is_terminated();
-
-	my ($is_terminated, $is_consumed) = $self->_is_terminal_element(
-		$self, $element
-	);
-
-	return $is_consumed if $is_terminated;
-
-	# Otherwise, discard the documentation.
-
-	return 1 if $element->isa('Pod::Elemental::Element::Generic::Blank');
-
-	$element->{content} =~ s/^/Illegal content in =abstract: /;
-	$self->push_documentation($element);
-	return 1;
+	$self->push_body( $self->extract_my_section() );
 }
 
 

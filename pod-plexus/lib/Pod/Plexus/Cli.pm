@@ -97,7 +97,9 @@ has _distribution => (
 	isa     => 'Pod::Plexus::Distribution',
 	default => sub {
 		my $self = shift();
-		Pod::Plexus::Distribution->new(_verbose => $self->verbose());
+		Pod::Plexus::Distribution->new(
+			verbose => $self->verbose(),
+		);
 	},
 );
 
@@ -183,14 +185,14 @@ sub run {
 	# Cross-references aren't resolved.  Nothing is rendered yet.
 
 	MODULE: foreach my $module_name (@{$self->module()}) {
-		my $doc_object = $self->_distribution()->get_module($module_name);
+		my $module_object = $self->_distribution()->get_module($module_name);
 
-		unless ($doc_object) {
+		unless ($module_object) {
 			push @errors, "Can't find $module_name in distribution.";
 			next MODULE;
 		}
 
-		$doc_object->prepare_to_render(\@errors);
+		push @errors, $module_object->cache_structure();
 	}
 
 	if (@errors) {

@@ -15,7 +15,7 @@ sub resolve {
 
 	# TODO - Kinda iffy here to pass in our \@errors?
 	# TODO - Seems like a half-change waiting for rectification.
-	$foreign_doc->prepare_to_render($self->errors());
+	$foreign_doc->cache_structure($self->errors());
 	return if @{$self->errors()};
 
 	my $method_name = $self->symbol();

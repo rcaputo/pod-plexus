@@ -33,7 +33,7 @@ sub BUILD {
 		push @{$self->errors()}, (
 			"Wrong macro syntax: =define " . $self->node()->{content} .
 			" at " . $self->module_path() .
-			" line " . $self->node()->{start_line}
+			" line " . $self->node()->start_line()
 		);
 		return;
 	}

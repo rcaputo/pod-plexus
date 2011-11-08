@@ -104,11 +104,12 @@ sub create {
 #		$module, $errors, $node
 #	);
 #
-#	my $reference = $module->get_documentation($class, $module, $sub);
+#	my $reference = $module->get_matter($typ, $symbol);
 #	unless ($reference) {
 #		push @$errors, (
 #			"Can't find =example $module $sub" .
-#			" at " . $module->pathname() . " line $node->{start_line}"
+#			" at " . $module->pathname() .
+#			" line " . $node->start_line()
 #		);
 #		return;
 #	}
@@ -137,7 +138,8 @@ sub _parse_example_spec {
 	if (@args > 2) {
 		push @$errors, (
 			"Too many parameters for =example $node->{content}" .
-			" at " . $module->pathname() . " line $node->{start_line}"
+			" at " . $module->pathname() .
+			" line " . $node->start_line()
 		);
 		return;
 	}
@@ -145,7 +147,8 @@ sub _parse_example_spec {
 	if (@args < 1) {
 		push @$errors, (
 			"Not enough parameters for =example $node->{content}" .
-			" at " . $module->pathname() . " line $node->{start_line}"
+			" at " . $module->pathname() .
+			" line " . $node->start_line()
 		);
 		return;
 	}

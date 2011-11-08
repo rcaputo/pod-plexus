@@ -92,7 +92,7 @@ has modules_by_package => (
 );
 
 
-has _verbose => (
+has verbose => (
 	is      => 'rw',
 	isa     => 'Bool',
 	default => 0,
@@ -114,7 +114,7 @@ sub add_file {
 	my $module = Pod::Plexus::Module->new(
 		pathname     => $file_path,
 		distribution => $self,
-		_verbose     => $self->_verbose(),
+		verbose      => $self->verbose(),
 	);
 
 	$self->_add_module_by_file($file_path => $module);

@@ -5,58 +5,68 @@ package Pod::Plexus::Docs::include;
 =cut
 
 use Moose;
-extends 'Pod::Plexus::Docs';
+extends 'Pod::Plexus::Docs::Reference';
 
 use Pod::Plexus::Docs::attribute;
 use Pod::Plexus::Docs::method;
 
-has '+symbol' => (
-	default => "",
-);
+
+sub is_top_level { 0 }
 
 
 sub BUILD {
 	my $self = shift();
 
-	my ($module, $type, $symbol) = $self->_parse_include_spec();
+	my $element = $self->docs()->[ $self->docs_index() ];
+	my $content = $element->content();
+	chomp $content;
 
-	return unless $module;
+	my ($module, $type, $symbol);
 
-	my $foreign_module = $self->distribution()->get_module($module);
-	$foreign_module->prepare_to_render($self->errors());
-	return if @{$self->errors()};
-
-	my $foreign_reference = $foreign_module->get_documentation(
-		$type, $module, $symbol
-	);
-use Carp qw(confess); confess("erm") unless defined $foreign_reference;
-	$self->push_documentation(@{$foreign_reference->body()});
-	$self->cleanup_documentation();
-}
-
-
-sub _parse_include_spec {
-	my $self = shift();
-
-	if (
-		$self->node()->{content} =~ m{
-			^\s* (\S*) \s+ (attribute|method) \s+ (\S.*?) \s*$
-		}x
-	) {
-		return($1, "Pod::Plexus::Docs::$2", $3);
+	if ($content =~ m{^\s* (\S*) \s+ (attribute|method) \s+ (\S.*?) \s*$ }x) {
+		($module, $type, $symbol) = ($1, "Pod::Plexus::Docs::$2", $3);
+	}
+	elsif ($content =~ m!^\s* (attribute|method) \s+ (\S.*?) \s*$!x) {
+		($module, $type, $symbol) = ($self->module_package,
+			"Pod::Plexus::Docs::$1", $2);
+	}
+	else {
+		$self->push_error(
+			"Wrong syntax: (=include $content) " .
+			" at " . $self->module_pathname() .
+			" line " . $element->start_line()
+		);
+		return;
 	}
 
-	if (
-		$self->node()->{content} =~ m!^\s* (attribute|method) \s+ (\S.*?) \s*$!x
-	) {
-		return($self->module_package(), "Pod::Plexus::Docs::$1", $2);
+	my $foreign_module = $self->module_distribution()->get_module($module);
+	unless ($foreign_module) {
+		$self->push_error(
+			"Unknown referent module: (=include $content) " .
+			" at " . $self->module_pathname() .
+			" line " . $element->start_line()
+		);
+		return;
 	}
 
-	push @{$self->errors()}, (
-		"Wrong inclusion syntax: =include " . $self->node()->{content} .
-		" at " . $self->module_path() .
-		" line " . $self->node()->{start_line}
-	);
+	my @errors = $foreign_module->cache_structure();
+	if (@errors) {
+		$self->push_error(@errors);
+		return;
+	}
+
+	my $referent = $foreign_module->get_docs_matter($type, $symbol);
+	unless ($referent) {
+		$self->push_error(
+			"Can't find referent in " . $foreign_module->docs() . ": (=include $content) " .
+			" at " . $self->module_pathname() .
+			" line " . $element->start_line()
+		);
+		return;
+	}
+
+	$self->referent($referent);
+	$self->doc_body($referent->clone_body());
 
 	return;
 }

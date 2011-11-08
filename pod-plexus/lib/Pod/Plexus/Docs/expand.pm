@@ -16,7 +16,7 @@ sub BUILD {
 		push @{$self->errors()}, (
 			"Wrong macro syntax: =define " . $self->node()->{content} .
 			" at " . $self->module_path() .
-			" line " . $self->node()->{start_line}
+			" line " . $self->node()->start_line()
 		);
 		return;
 	}
@@ -25,16 +25,15 @@ sub BUILD {
 
 	# The macro must already exist.
 
-	my $reference = $self->module()->get_documentation(
-		'Pod::Plexus::Docs::define',
-		$self->module_package(),
+	my $reference = $self->module()->get_matter(
+		'boilerplate',
 		$self->symbol()
 	);
 	unless ($reference) {
 		push @{$self->errors()}, (
 			"Cannot find macro $symbol_name in '=expand'" .
 			" at " . $self->module_path() .
-			" line " . $self->node()->{start_line}
+			" line " . $self->node()->start_line()
 		);
 		return;
 	}

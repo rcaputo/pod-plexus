@@ -36,7 +36,7 @@ sub BUILD {
 		push @{$self->errors()}, (
 			"=index $regexp ... doesn't match anything" .
 			" at " . $self->module_path() .
-			" line " . $self->node()->{start_line}
+			" line " . $self->node()->start_line()
 		);
 		return;
 	}
@@ -45,7 +45,7 @@ sub BUILD {
 		map {
 			my $foreign_module = $self->distribution()->get_module($_);
 
-			$foreign_module->prepare_to_render($self->errors());
+			$foreign_module->cache_structure($self->errors());
 			return if @{$self->errors()};
 
 			my $abstract = $self->distribution()->get_module($_)->abstract();
@@ -103,7 +103,7 @@ sub _parse_content {
 		push @{$self->errors()}, (
 			"=" . $self->node()->{command} . " command needs a regexp" .
 			" at " . $self->module_path() .
-			" line " . $self->node()->{start_line}
+			" line " . $self->node()->start_line()
 		);
 		return;
 	}

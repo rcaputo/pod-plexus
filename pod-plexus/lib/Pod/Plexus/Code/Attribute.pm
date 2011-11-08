@@ -3,9 +3,19 @@ package Pod::Plexus::Code::Attribute;
 use Moose;
 extends 'Pod::Plexus::Code';
 
-=attribute meta_entity
+=before Pod::Plexus::Code attribute meta_entity
 
-=include Pod::Plexus::Code attribute meta_entity
+Some stuff that goes before it.
+
+=cut
+
+=after Pod::Plexus::Code attribute meta_entity
+
+Some stuff that goes after it.
+
+=cut
+
+=inherits Pod::Plexus::Code attribute meta_entity
 
 =cut
 
@@ -26,11 +36,8 @@ sub is_documented {
 	my $package_name   = $module->package();
 	my $attribute_name = $self->name();
 
-	my $docs = $module->get_documentation(
-		'Pod::Plexus::Docs::Code::Attribute',
-		$package_name,
-		$attribute_name,
-	);
+
+	my $docs = $module->get_matter('attribute', $attribute_name);
 
 	return 1 if $docs;
 	return;

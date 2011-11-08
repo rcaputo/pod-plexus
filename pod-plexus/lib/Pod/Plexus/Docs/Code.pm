@@ -8,61 +8,44 @@ use Moose;
 extends 'Pod::Plexus::Docs';
 
 
-sub new_from_elemental_command {
-	my ($class, $distribution, $module, $errors, $node) = @_;
-
-	# Parse the content into a module and POD entry name to include.
-
-	my $parser = "_parse_" . $class->POD_COMMAND() . "_spec";
-	my ($module_name, $symbol) = $class->$parser();
-
-	return unless $module_name;
-
-	my $reference = $class->new(
-		definition_file    => $module->pathname(),
-		definition_line    => $node->{start_line},
-		definition_package => $module->package(),
-		module             => $module_name,
-		symbol             => $symbol,
-	);
-
-	return $reference;
-}
+use Pod::Plexus::Util::PodElemental qw(blank_line cut_paragraph);
 
 
-sub consume_element {
-	my ($self, $element) = @_;
+has name => (
+	is      => 'ro',
+	isa     => 'Str',
+	default => sub {
+		my $self = shift();
 
-	return 0 if $self->is_terminated();
+		my $element = $self->docs()->[ $self->docs_index() ];
 
-	my ($is_terminated, $is_consumed) = $self->_is_terminal_element(
-		$self, $element
-	);
+		return $1 if $element->content() =~ /^\s* (\S+) \s*$/x;
 
-	return $is_consumed if $is_terminated;
+		my $error = (
+			"Wrong syntax: =" . $element->command() . " " . $element->content() .
+			" at " . $self->module_path() .
+			" line " . $element->start_line()
+		);
 
-	# Otherwise, consume the documentation.
-
-	$self->push_documentation($element);
-	$self->push_body($element);
-	return 1;
-}
-
-
-has body => (
-	is      => 'rw',
-	isa     => 'ArrayRef[Pod::Elemental::Paragraph|Pod::Plexus::Docs]',
-	traits  => [ 'Array' ],
-	lazy    => 1,
-	builder => '_build_body',
-	handles => {
-		push_body => 'push',
+		$self->push_error($error);
+		return '(failed)';
 	},
 );
 
 
-sub _build_body {
-	return [ ];
+# TODO - This tends to be common.
+# How about abstracting it?
+# Defining it as the default value in the base class?
+has '+doc_suffix' => (
+	default => sub {
+		return [ blank_line(), cut_paragraph() ];
+	},
+);
+
+
+sub BUILD {
+	my $self = shift();
+	$self->push_body( $self->extract_my_section() );
 }
 
 
