@@ -7,6 +7,10 @@ package Pod::Plexus::Docs::inherits;
 use Moose;
 extends 'Pod::Plexus::Docs::include';
 
+
+sub is_top_level { 1 }
+
+
 sub BUILD {
 	my $self = shift();
 	my $referent = $self->referent();

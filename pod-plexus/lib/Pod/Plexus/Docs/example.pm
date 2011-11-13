@@ -5,23 +5,100 @@ package Pod::Plexus::Docs::example;
 =cut
 
 use Moose;
-extends 'Pod::Plexus::Docs';
+extends 'Pod::Plexus::Docs::Reference';
 
 use Pod::Plexus::Docs::Example::Method;
 use Pod::Plexus::Docs::Example::Module;
 
-use Pod::Plexus::Util::PodElemental qw(text_paragraph blank_line);
+use Pod::Plexus::Util::PodElemental qw(text_paragraph);
 
 
-has '+symbol' => (
-	default => "",
+has '+referent' => (
+	isa => 'Pod::Plexus::Code',
 );
+
+
+sub is_top_level { 0 }
+
+
+sub BUILD {
+	my $self = shift();
+
+	my $element = $self->docs()->[ $self->docs_index() ];
+	my $content = $element->content();
+	chomp $content;
+
+	my ($module, $type, $symbol);
+
+	if ($content =~ m/^\s* (module) \s+ (\S+) \s*$/x) {
+		($module, $type, $symbol) = ($2, $1, undef);
+	}
+	elsif ($content =~ m/^\s* (\S+) \s+ (attribute|method) \s+ (\S+) \s*$/x) {
+		($module, $type, $symbol) = ($1, $2, $3);
+	}
+	elsif ($content =~ m/^\s* (attribute|method) \s+ (\S+) \s* $/x) {
+		($module, $type, $symbol) = (
+			$self->module_package(), $1, $2
+		);
+	}
+	else {
+		$self->push_error(
+			"Wrong syntax: (=example $content) " .
+			" at " . $self->module_pathname() .
+			" line " . $element->start_line()
+		);
+		return;
+	}
+
+	my $referent_module = $self->module_distribution()->get_module($module);
+	unless ($referent_module) {
+		$self->push_error(
+			"Unknown referent module: (=example $content) " .
+			" at " . $self->module_pathname() .
+			" line " . $element->start_line()
+		);
+		return;
+	}
+
+	my @errors = $referent_module->cache_structure();
+	if (@errors) {
+		$self->push_error(@errors);
+		return;
+	}
+
+	my ($code, $link);
+	if ($type eq 'attribute') {
+		$code = $referent_module->get_attribute_code($symbol);
+	}
+	elsif ($type eq 'method') {
+		$code = $referent_module->get_sub_code($symbol);
+	}
+	elsif ($type eq 'module') {
+		$code = $referent_module->get_module_code();
+	}
+	else {
+		die "example type cannot be '$type'";
+	}
+
+	unless (defined $code and length $code) {
+		$self->push_error(
+			"Can't find code referred to by: (=include $content) " .
+			" at " . $self->module_pathname() .
+			" line " . $element->start_line()
+		);
+		return;
+	}
+
+	$code = $self->beautify_code($code);
+	$self->doc_body([ text_paragraph($code) ]);
+}
 
 
 =method beautify_code
 
 [% ss.name %] beautifies the code passed to it in its only parameter.
-Code is assumed to be a multiline string.  A beautified version is
+Code is expected to be a single string containing multiple lines
+separated by newlines.  A string of "beautified" multiple-line code is
 returned.
 
 =cut
@@ -38,140 +115,13 @@ sub beautify_code {
 
 	# Indent two spaces.  Remove leading and trailing blank lines.
 	$code =~ s/\A(^\s*$)+//m;
-	$code =~ s/(^\s*$)+\Z//m;
+	$code =~ s/(^\s*$)+\Z/\n/m;
 	$code =~ s/^/  /mg;
 
+	# Code must end in a newline.
+	$code =~ s/\n*$/\n/;
+
 	return $code;
-}
-
-
-=method set_example
-
-[% ss.name %] takes a POD link and a beautified code, both as strings.
-It wraps the strings in appropriate Pod::Elemental objects, and
-replaces the documentation() with them.
-
-=cut
-
-sub set_example {
-	my ($self, $link, $code) = @_;
-	$self->documentation(
-		[
-			text_paragraph($link . $code),
-			blank_line(),
-		]
-	);
-}
-
-
-sub create {
-	my ($class, %args) = @_;
-
-	# Parse the content into a module and/or sub name to include.
-
-	my ($module, $sub) = $class->_parse_example_spec(
-		$args{module}, $args{errors}, $args{node}
-	);
-	return unless $module;
-
-	my $self = (
-		(defined $sub)
-		? (
-			Pod::Plexus::Docs::Example::Method->new(
-				%args,
-				module_name => $module,
-				symbol      => $sub,
-			)
-		)
-		: (
-			Pod::Plexus::Docs::Example::Module->new(
-				%args,
-				module_name => $module,
-			)
-		)
-	);
-
-	$self->resolve();
-
-	return $self;
-}
-
-
-#sub expand {
-#	my ($class, $distribution, $module, $errors, $node) = @_;
-#
-#	my ($module, $sub) = $class->_parse_example_spec(
-#		$module, $errors, $node
-#	);
-#
-#	my $reference = $module->get_matter($typ, $symbol);
-#	unless ($reference) {
-#		push @$errors, (
-#			"Can't find =example $module $sub" .
-#			" at " . $module->pathname() .
-#			" line " . $node->start_line()
-#		);
-#		return;
-#	}
-#
-#	return $reference;
-#}
-
-
-=method _parse_example_spec
-
-[% ss.name %] parses the specification for examples.  It's used by the
-"=example" directive to identify which code is being used as an
-example.
-
-This spec parser is different than all the rest.  It's called before
-[% mod.name %] is created.  The particular [% mod.name %] subclass to
-create depends on _parse_example_spec()'s result.
-
-=cut
-
-sub _parse_example_spec {
-	my ($class, $module, $errors, $node) = @_;
-
-	my (@args) = split(/[\s\/]+/, $node->{content});
-
-	if (@args > 2) {
-		push @$errors, (
-			"Too many parameters for =example $node->{content}" .
-			" at " . $module->pathname() .
-			" line " . $node->start_line()
-		);
-		return;
-	}
-
-	if (@args < 1) {
-		push @$errors, (
-			"Not enough parameters for =example $node->{content}" .
-			" at " . $module->pathname() .
-			" line " . $node->start_line()
-		);
-		return;
-	}
-
-	# TODO - TYPE_FILE if the spec contains a "." or "/" to indicate a
-	# path name.
-
-	# "Module::method()" or "Module method()".
-
-	if ($node->{content} =~ /^\s*(\S+)(?:\s+|::)(\w+)\(\)\s*$/) {
-		return($1, $2);
-	}
-
-	# Just "method()".
-
-	if ($node->{content} =~ /^(\w+)\(\)$/) {
-		return($module->package(), $1);
-	}
-
-	# Assuming just "Module".
-
-	my ($package) = ($node->{content} =~ /\s*(\S.*?)\s*/);
-	return($package, undef);
 }
 
 

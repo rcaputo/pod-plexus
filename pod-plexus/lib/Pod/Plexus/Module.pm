@@ -40,7 +40,10 @@ has code => (
 		);
 	},
 	handles => {
-		package => 'package',
+		package            => 'package',
+		get_sub_code       => 'get_sub',
+		get_module_code    => 'get_module',
+		get_attribute_code => 'get_attribute',
 	},
 );
 
@@ -211,58 +214,6 @@ sub cache_structure {
 	# and outside the current distribution.
 }
 
-#-###
-#-### Dereference documentation references.
-#-###
-#-
-#-=method sub
-#-
-#-[% ss.name %] returns the code for a particular named subroutine or
-#-method in the class being documented.  This is used to render code
-#-examples from single subroutines.
-#-
-#-=cut
-#-
-#-sub sub {
-#-	my ($self, $sub_name) = @_;
-#-
-#-	my $subs = $self->_ppi()->find(
-#-		sub {
-#-			$_[1]->isa('PPI::Statement::Sub') and
-#-			defined($_[1]->name()) and
-#-			$_[1]->name() eq $sub_name
-#-		}
-#-	);
-#-
-#-	confess $self->package(), " doesn't define sub $sub_name" unless (
-#-		$subs and @$subs
-#-	);
-#-
-#-	die $self->package(), " defines too many subs $sub_name" if @$subs > 1;
-#-
-#-	return $subs->[0]->content();
-#-}
-#-
-#-
-#-#=method code
-#-#
-#-#[% ss.name %] returns the code portion of the file represented by this
-#-#module.  This is used to render code examples by quoting entire
-#-#modules.
-#-#
-#-#=cut
-#-#
-#-#sub code {
-#-#	my $self = shift();
-#-#
-#-#	my $out = $self->_ppi()->clone();
-#-#	$out->prune('PPI::Statement::End');
-#-#	$out->prune('PPI::Statement::Data');
-#-#	$out->prune('PPI::Token::Pod');
-#-#
-#-#	return $out->serialize();
-#-#}
-#-
 #-###
 #-### Debugging.
 #-###

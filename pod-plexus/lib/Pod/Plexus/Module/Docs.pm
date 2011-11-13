@@ -237,8 +237,6 @@ sub cache_all_matter {
 		my $doc_file  = "$doc_class.pm";
 		$doc_file =~ s/::/\//g;
 
-		warn "!!! $doc_class = $doc_file";
-
 		eval { require $doc_file };
 		if ($@) {
 			next ELEMENT if $@ =~ /^Can't locate/;

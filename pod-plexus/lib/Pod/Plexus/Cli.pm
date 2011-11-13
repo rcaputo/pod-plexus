@@ -90,6 +90,13 @@ object is populated and driven by [% mod.package %].
 
 [% ss.name %] is populated by the --[% ss.name %] command line switch.
 
+
+11111
+
+=example attribute _distribution
+
+22222
+
 =cut
 
 has _distribution => (
@@ -109,7 +116,7 @@ has _distribution => (
 [% ss.name %] tests whether a file at a RELATIVE_PATH is eligible to
 be documented.  Currently only ".pm" files are eligible.
 
-=example is_indexable_file()
+=example method is_indexable_file
 
 =cut
 
@@ -131,7 +138,7 @@ uses File::Find to descend into directories in the "lib" directories.
 Each file that is_indexable_file() approves is added to the
 distribution for later processing.
 
-=example collect_lib_files()
+=example method collect_lib_files
 
 =cut
 
@@ -167,7 +174,7 @@ from corresponding command line arguments.
 Each module is added to the Pod::Plexus::Distribution so that it's
 known by the time cross references are resolved.
 
-=example run()
+=example method run
 
 =cut
 

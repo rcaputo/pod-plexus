@@ -383,4 +383,82 @@ sub validate_docs {
 	return;
 }
 
+=method get_sub
+
+[% ss.name %] returns the code for a particular named subroutine or
+method in the class being documented.  This is used to render code
+examples from single subroutines.
+
+=cut
+
+sub get_sub {
+	my ($self, $sub_name) = @_;
+
+	my $subs = $self->_ppi()->find(
+		sub {
+			return 0 unless $_[1]->isa('PPI::Statement::Sub');
+			return 0 unless defined $_[1]->name();
+			return 0 unless $_[1]->name() eq $sub_name;
+			return 1;
+		}
+	);
+
+	return unless $subs and @$subs;
+	return $subs->[0]->content();
+}
+
+
+=method get_module
+
+[% ss.name %] returns the code portion of the file represented by this
+module.  This is used to render code examples by quoting entire
+modules.
+
+=cut
+
+sub get_module {
+	my $self = shift();
+
+	my $out = $self->_ppi()->clone();
+	$out->prune('PPI::Statement::End');
+	$out->prune('PPI::Statement::Data');
+	$out->prune('PPI::Token::Pod');
+
+	return $out->serialize();
+}
+
+
+sub get_attribute {
+	my ($self, $attribute_name) = @_;
+
+	my $attributes = $self->_ppi()->find(
+		sub {
+			return 0 unless $_[1]->isa('PPI::Statement');
+
+			my @elements = $_[1]->elements();
+
+			return 0 unless @elements > 3;
+
+			return 0 unless (
+				$elements[0]->isa('PPI::Token::Word') and
+				$elements[0]->literal() eq 'has'
+			);
+
+			return 0 unless $elements[1]->isa('PPI::Token::Whitespace');
+
+			return 0 unless (
+				$elements[2]->isa('PPI::Token::Word') and
+				$elements[2]->literal() eq $attribute_name
+			);
+
+			return 1;
+		}
+	);
+
+	return unless $attributes and @$attributes;
+
+	return $attributes->[0]->content();
+}
+
+
 1;

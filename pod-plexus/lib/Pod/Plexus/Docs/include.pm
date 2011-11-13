@@ -23,15 +23,17 @@ sub BUILD {
 
 	my ($module, $type, $symbol);
 
-	if ($content =~ m{
+	if (
+		$content =~ m{
 			^\s* (\S*) \s+ (attribute|boilerplate|method) \s+ (\S.*?) \s*$
 		}x
 	) {
 		($module, $type, $symbol) = ($1, "Pod::Plexus::Docs::$2", $3);
 	}
-	elsif ($content =~ m!^\s* (attribute|boilerplate|method) \s+ (\S.*?) \s*$!x) {
-		($module, $type, $symbol) = ($self->module_package,
-			"Pod::Plexus::Docs::$1", $2);
+	elsif ($content =~ m/^\s* (attribute|boilerplate|method) \s+ (\S.*?) \s*$/x) {
+		($module, $type, $symbol) = (
+			$self->module_package(), "Pod::Plexus::Docs::$1", $2
+		);
 	}
 	else {
 		$self->push_error(
@@ -42,8 +44,8 @@ sub BUILD {
 		return;
 	}
 
-	my $foreign_module = $self->module_distribution()->get_module($module);
-	unless ($foreign_module) {
+	my $referent_module = $self->module_distribution()->get_module($module);
+	unless ($referent_module) {
 		$self->push_error(
 			"Unknown referent module: (=include $content) " .
 			" at " . $self->module_pathname() .
@@ -52,18 +54,16 @@ sub BUILD {
 		return;
 	}
 
-	my @errors = $foreign_module->cache_structure();
+	my @errors = $referent_module->cache_structure();
 	if (@errors) {
 		$self->push_error(@errors);
 		return;
 	}
 
-warn "$foreign_module ... $type ... $symbol";
-
-	my $referent = $foreign_module->get_docs_matter($type, $symbol);
+	my $referent = $referent_module->get_docs_matter($type, $symbol);
 	unless ($referent) {
 		$self->push_error(
-			"Can't find referent in " . $foreign_module->docs() .
+			"Can't find referent in " . $referent_module->docs() .
 			": (=include $content) " .
 			" at " . $self->module_pathname() .
 			" line " . $element->start_line()
