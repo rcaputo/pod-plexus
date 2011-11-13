@@ -157,14 +157,14 @@ has methods => (
 
 
 
-=method ppidump
+=method dump
 
 [% ss.name %] is a debugging helper method to print the PPI document
 for the class being documented, in PPI::Dumper format.
 
 =cut
 
-sub ppidump {
+sub dump {
 	my $self = shift();
 	use PPI::Dumper;
 	my $d = PPI::Dumper->new( $self->_ppi() );
@@ -172,10 +172,6 @@ sub ppidump {
 	exit;
 }
 
-###
-### Cache data we can glean from the code.
-### These things are NOT extracted.
-###
 
 =method cache_attributes
 

@@ -6,12 +6,12 @@ with qw(
 );
 
 use Moose::Autobox;
-use Pod::Plexus::Library;
+use Pod::Plexus::Distribution;
 
-has library => (
-	default => sub { Pod::Plexus::Library->new() },
+has distribution => (
+	default => sub { Pod::Plexus::Distribution->new() },
 	is      => 'rw',
-	isa     => 'Pod::Plexus::Library',
+	isa     => 'Pod::Plexus::Distribution',
 	lazy    => 1,
 );
 
@@ -31,22 +31,22 @@ sub munge_files {
 		$self->zilla()->files()->flatten()
 	);
 
-	$self->library()->add_file($_->name()) foreach @qualifying_files;
+	my $distribution = $self->distribution();
 
-	my $documents = $self->library()->files();
+	$distribution->add_file($_->name()) foreach @qualifying_files;
+
 	my @errors;
 
-	foreach my $file (@qualifying_files) {
+	PREPARE: foreach my $file (@qualifying_files) {
 		my $path = $file->name();
 
-		unless (exists $documents->{$path}) {
-			warn "Why isn't $path in the library";
-			next;
+		my $module = $distribution->get_module($path);
+		unless ($module) {
+			warn "Why isn't $path in the distribution";
+			next PREPARE;
 		}
 
-		my $doc = $documents->{$path};
-		$doc->prepare_to_render(\@errors);
-
+		my @errors = $module->cache_structure();
 		if (@errors) {
 			warn "$_\n" foreach @errors;
 			exit 1;
@@ -55,13 +55,16 @@ sub munge_files {
 
 	# Render documentation.
 
-	foreach my $file (@qualifying_files) {
+	RENDER: foreach my $file (@qualifying_files) {
 		my $path = $file->name();
 
-		next unless exists $documents->{$path};
+		my $module = $distribution->get_module($path);
+		unless ($module) {
+			warn "Why isn't $path in the distribution";
+			next RENDER;
+		}
 
-		my $doc = $documents->{$path};
-		$file->content( $doc->render_as_pod() );
+		$file->content( $module->render_as_pod() );
 	}
 }
 

@@ -354,6 +354,21 @@ sub render_as_pod {
 	return $rendered_documentation;
 }
 
+
+=method dump
+
+[% ss.name %] is a debugging helper method to print the Pod::Elemental
+data for the class being documented, in YAML format.
+
+=cut
+
+sub dump {
+	my $self = shift();
+	use YAML;
+	print YAML::Dump($self->_elemental());
+	exit;
+}
+
 1;
 
 __END__
@@ -394,20 +409,6 @@ sub process_plexus_commands {
 __END__
 
 
-
-=method elementaldump
-
-[% ss.name %] is a debugging helper method to print the Pod::Elemental
-data for the class being documented, in YAML format.
-
-=cut
-
-sub elementaldump {
-	my $self = shift();
-	use YAML;
-	print YAML::Dump($self->_elemental());
-	exit;
-}
 
 ###
 ### Collect data from the documentation, but leave markers behind.

@@ -214,9 +214,6 @@ sub cache_structure {
 	# and outside the current distribution.
 }
 
-#-###
-#-### Debugging.
-#-###
 
 sub BUILD {
 	my $self = shift();
