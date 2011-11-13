@@ -16,7 +16,6 @@ sub as_pod_elementals {
 	return:
 }
 
-sub BUILD { warn }
 
 no Moose;
 

@@ -4,7 +4,7 @@ package Pod::Plexus::Docs;
 
 =head1 SUBCLASSES
 
-=index 2 ^Pod::Plexus::Docs::
+=toc 2 ^Pod::Plexus::Docs::
 
 =cut
 
@@ -183,7 +183,7 @@ more convenient to access the key() attribute instead.
 sub calc_key {
 	(undef, my ($type, $symbol)) = @_;
 	$type =~ s/^Pod::Plexus::Docs:://;
-	return join("\t", $type, ($symbol // "(none)"));
+	return join("\t", $type, ($symbol // ""));
 }
 
 

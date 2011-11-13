@@ -268,7 +268,7 @@ sub abstract {
 	my $self = shift();
 
 	my $abstract = $self->get_matter('abstract');
-	die "No abstract defined for ", $self->package(), "\n" unless $abstract;
+	confess "No abstract defined for ", $self->package(), "\n" unless $abstract;
 
 	return $abstract->abstract();
 }

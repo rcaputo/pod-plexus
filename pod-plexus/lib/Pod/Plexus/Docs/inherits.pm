@@ -21,7 +21,7 @@ sub BUILD {
 
 sub handle_body {
 	my $self = shift();
-	my @section = $self->discard_my_section();
+	$self->discard_my_section();
 }
 
 

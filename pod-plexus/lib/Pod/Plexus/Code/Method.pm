@@ -5,7 +5,7 @@ extends 'Pod::Plexus::Code';
 
 =attribute meta_entity
 
-=include Pod::Plexus::Code method meta_entity
+=include Pod::Plexus::Code attribute meta_entity
 
 =cut
 
