@@ -10,7 +10,7 @@ extends 'Pod::Plexus::Docs::Code';
 use Pod::Plexus::Util::PodElemental qw(generic_command blank_line);
 
 
-sub is_top_selector { 1 }
+sub is_top_level { 1 }
 
 
 has '+doc_prefix' => (

@@ -141,7 +141,7 @@ has matter => (
 #			eval { require $doc_file };
 #			next COMMAND if $@;
 #
-#			next COMMAND unless $doc_class->is_top_selector();
+#			next COMMAND unless $doc_class->is_top_level();
 #
 #			$top_selector_commands{$command}    = 1;
 #			$top_selector_terminators{$command} = 1;
@@ -237,8 +237,13 @@ sub cache_all_matter {
 		my $doc_file  = "$doc_class.pm";
 		$doc_file =~ s/::/\//g;
 
+		warn "!!! $doc_class = $doc_file";
+
 		eval { require $doc_file };
-		next ELEMENT if $@;
+		if ($@) {
+			next ELEMENT if $@ =~ /^Can't locate/;
+			die $@;
+		}
 
 		my $docs_object = $doc_class->new(
 			module     => $self->module(),
@@ -550,11 +555,11 @@ a "=skip" directive, its data is entered into the [% mod.name %]
 object, and [% ss.name %] returns true.  False is returned for all
 other nodes.
 
-=expand extract_plexus_command_callback
+=include boilerplate extract_plexus_command_callback
 
 =cut
 
-=define extract_plexus_command_callback
+=boilerplate extract_plexus_command_callback
 
 This method is a callback to extract_plexus_command().  That other method
 is a generic iterator to walk through the Pod::Elemental document in

@@ -23,10 +23,13 @@ sub BUILD {
 
 	my ($module, $type, $symbol);
 
-	if ($content =~ m{^\s* (\S*) \s+ (attribute|method) \s+ (\S.*?) \s*$ }x) {
+	if ($content =~ m{
+			^\s* (\S*) \s+ (attribute|boilerplate|method) \s+ (\S.*?) \s*$
+		}x
+	) {
 		($module, $type, $symbol) = ($1, "Pod::Plexus::Docs::$2", $3);
 	}
-	elsif ($content =~ m!^\s* (attribute|method) \s+ (\S.*?) \s*$!x) {
+	elsif ($content =~ m!^\s* (attribute|boilerplate|method) \s+ (\S.*?) \s*$!x) {
 		($module, $type, $symbol) = ($self->module_package,
 			"Pod::Plexus::Docs::$1", $2);
 	}
@@ -55,10 +58,13 @@ sub BUILD {
 		return;
 	}
 
+warn "$foreign_module ... $type ... $symbol";
+
 	my $referent = $foreign_module->get_docs_matter($type, $symbol);
 	unless ($referent) {
 		$self->push_error(
-			"Can't find referent in " . $foreign_module->docs() . ": (=include $content) " .
+			"Can't find referent in " . $foreign_module->docs() .
+			": (=include $content) " .
 			" at " . $self->module_pathname() .
 			" line " . $element->start_line()
 		);

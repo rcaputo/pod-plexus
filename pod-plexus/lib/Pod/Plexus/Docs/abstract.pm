@@ -55,7 +55,7 @@ has '+doc_suffix' => (
 
 sub BUILD {
 	my $self = shift();
-	$self->push_body( $self->extract_my_section() );
+	$self->discard_my_section();
 }
 
 
