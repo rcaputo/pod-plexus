@@ -11,10 +11,10 @@ use Pod::Plexus::Util::PodElemental qw(
 	cut_paragraph
 );
 
-use Pod::Plexus::Docs::abstract;
-use Pod::Plexus::Docs::method;
-use Pod::Plexus::Docs::attribute;
-use Pod::Plexus::Docs::include;
+use Pod::Plexus::Matter::abstract;
+use Pod::Plexus::Matter::method;
+use Pod::Plexus::Matter::attribute;
+use Pod::Plexus::Matter::include;
 
 
 ###
@@ -84,7 +84,7 @@ and optional symbol name.
 sub get_matter {
 	my ($self, $type, $symbol) = @_;
 
-	my $reference_key = Pod::Plexus::Docs->calc_key(
+	my $reference_key = Pod::Plexus::Matter->calc_key(
 		$type, $symbol
 	);
 
@@ -101,7 +101,7 @@ sub add_matter {
 
 has matter => (
 	is      => 'rw',
-	isa     => 'HashRef[Pod::Plexus::Docs]',
+	isa     => 'HashRef[Pod::Plexus::Matter]',
 	default => sub { { } },
 	traits  => [ 'Hash' ],
 	handles => {
@@ -128,7 +128,7 @@ has matter => (
 #			grep { $_->does('Pod::Elemental::Command') }
 #			@{$elemental_document->children()}
 #		) {
-#			my $doc_class = "Pod::Plexus::Docs::$command";
+#			my $doc_class = "Pod::Plexus::Matter::$command";
 #
 #			# If we can't require a module for the class, then this command
 #			# isn't recognized by Pod::Plexus.  This is a bit ugly, but it
@@ -232,7 +232,7 @@ sub cache_all_matter {
 
 		my $command = $element->command();
 
-		my $doc_class = "Pod::Plexus::Docs::$command";
+		my $doc_class = "Pod::Plexus::Matter::$command";
 
 		my $doc_file  = "$doc_class.pm";
 		$doc_file =~ s/::/\//g;
@@ -331,7 +331,7 @@ sub render_as_pod {
 	NODE: while (@queue) {
 		my $next = shift @queue;
 
-		if ($next->isa('Pod::Plexus::Docs')) {
+		if ($next->isa('Pod::Plexus::Matter')) {
 			unshift @queue, $next->as_pod_elementals();
 			next NODE;
 		}
@@ -418,7 +418,7 @@ sub elementaldump {
 [% ss.name %] examines each Pod::Elemental command node.  Ones that
 are listed as known reference commands, such as "=abstract" or
 "=example", are parsed and recorded by their appropriate
-Pod::Plexus::Docs classes.
+Pod::Plexus::Matter classes.
 
 All other Pod::Elemental commands are ignored.
 
@@ -438,7 +438,7 @@ sub index_matter_references {
 
 		my @new_errors;
 
-		my $doc_class = "Pod::Plexus::Docs::" . $node->{command};
+		my $doc_class = "Pod::Plexus::Matter::" . $node->{command};
 		my $doc_file  = "$doc_class.pm";
 		$doc_file =~ s/::/\//g;
 
@@ -610,7 +610,7 @@ sub document_accessors {
 			my $api_entity = Pod::Plexus::Code::Method->new(name => $api_name);
 			$self->_add_method($api_name, $api_entity);
 
-			my $method_reference = Pod::Plexus::Docs::method->new(
+			my $method_reference = Pod::Plexus::Matter::method->new(
 				module => $self,
 				errors   => $errors,
 				distribution  => $self->distribution(),
@@ -704,7 +704,7 @@ sub _document_rw_accessor {
 sub _document_accessor {
 	my ($self, $errors, $attribute_name, $method_name, $accessor_type) = @_;
 
-	my $method_reference = Pod::Plexus::Docs::method->new(
+	my $method_reference = Pod::Plexus::Matter::method->new(
 		module => $self,
 		errors   => $errors,
 		distribution  => $self->distribution(),
@@ -961,7 +961,7 @@ sub _document_inherited_method {
 		$module, $errors,
 	) = @_;
 
-	my $method_reference = Pod::Plexus::Docs::method->new(
+	my $method_reference = Pod::Plexus::Matter::method->new(
 		module => $self,
 		errors   => $errors,
 		distribution  => $self->distribution(),
@@ -973,7 +973,7 @@ sub _document_inherited_method {
 		),
 	);
 
-	my $include_reference = Pod::Plexus::Docs::include->new(
+	my $include_reference = Pod::Plexus::Matter::include->new(
 		errors   => $errors,
 		module => $self,
 		name     => $method_name,
@@ -1038,7 +1038,7 @@ sub _document_inherited_attribute {
 		);
 	}
 
-	my $attribute_reference = Pod::Plexus::Docs::attribute->new(
+	my $attribute_reference = Pod::Plexus::Matter::attribute->new(
 		errors   => $errors,
 		module => $self,
 		name     => $attribute_name,
@@ -1050,7 +1050,7 @@ sub _document_inherited_attribute {
 		),
 	);
 
-	my $include_reference = Pod::Plexus::Docs::include->new(
+	my $include_reference = Pod::Plexus::Matter::include->new(
 		errors   => $errors,
 		module => $self,
 		name     => $attribute_name,

@@ -1,11 +1,11 @@
-package Pod::Plexus::Docs::inherits;
+package Pod::Plexus::Matter::inherits;
 
 =abstract Inherit a Pod::Plexus documentation section wholesale.
 
 =cut
 
 use Moose;
-extends 'Pod::Plexus::Docs::include';
+extends 'Pod::Plexus::Matter::include';
 
 
 sub is_top_level { 1 }

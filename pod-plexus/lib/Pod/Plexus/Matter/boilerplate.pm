@@ -1,11 +1,11 @@
-package Pod::Plexus::Docs::boilerplate;
+package Pod::Plexus::Matter::boilerplate;
 
 =abstract A reference to a macro definition.
 
 =cut
 
 use Moose;
-extends 'Pod::Plexus::Docs::Code';
+extends 'Pod::Plexus::Matter::Code';
 
 
 sub is_top_level { 1 }

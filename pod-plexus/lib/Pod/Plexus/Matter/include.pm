@@ -1,14 +1,14 @@
-package Pod::Plexus::Docs::include;
+package Pod::Plexus::Matter::include;
 
 =abstract A reference to documentation included from elsewhere.
 
 =cut
 
 use Moose;
-extends 'Pod::Plexus::Docs::Reference';
+extends 'Pod::Plexus::Matter::Reference';
 
-use Pod::Plexus::Docs::attribute;
-use Pod::Plexus::Docs::method;
+use Pod::Plexus::Matter::attribute;
+use Pod::Plexus::Matter::method;
 
 
 sub is_top_level { 0 }
@@ -28,11 +28,11 @@ sub BUILD {
 			^\s* (\S*) \s+ (attribute|boilerplate|method) \s+ (\S.*?) \s*$
 		}x
 	) {
-		($module, $type, $symbol) = ($1, "Pod::Plexus::Docs::$2", $3);
+		($module, $type, $symbol) = ($1, "Pod::Plexus::Matter::$2", $3);
 	}
 	elsif ($content =~ m/^\s* (attribute|boilerplate|method) \s+ (\S.*?) \s*$/x) {
 		($module, $type, $symbol) = (
-			$self->module_package(), "Pod::Plexus::Docs::$1", $2
+			$self->module_package(), "Pod::Plexus::Matter::$1", $2
 		);
 	}
 	else {

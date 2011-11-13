@@ -1,11 +1,11 @@
-package Pod::Plexus::Docs::Code;
+package Pod::Plexus::Matter::Code;
 
 =abstract A reference to documentation for an attribute or method entity.
 
 =cut
 
 use Moose;
-extends 'Pod::Plexus::Docs';
+extends 'Pod::Plexus::Matter';
 
 
 use Pod::Plexus::Util::PodElemental qw(blank_line cut_paragraph);

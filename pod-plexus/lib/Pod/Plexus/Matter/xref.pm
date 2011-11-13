@@ -1,11 +1,11 @@
-package Pod::Plexus::Docs::xref;
+package Pod::Plexus::Matter::xref;
 
 =abstract Remember and render cross-references.
 
 =cut
 
 use Moose;
-extends 'Pod::Plexus::Docs';
+extends 'Pod::Plexus::Matter';
 
 use Pod::Plexus::Util::PodElemental qw(
 	generic_command
@@ -18,8 +18,8 @@ sub BUILD {
 	my $self = shift();
 
 	# TODO - The code to parse a module|attribute|method spec is common
-	# with at least Pod::Plexus::Docs::example.  Consider hoisting into
-	# a parent class.
+	# with at least Pod::Plexus::Matter::example.  Consider hoisting
+	# into a parent class.
 
 	my $element = $self->docs()->[ $self->docs_index() ];
 	my $content = $element->content();
@@ -63,7 +63,7 @@ sub BUILD {
 		return;
 	}
 
-	# However this differs from Pod::Plexus::Docs::example in that it
+	# However this differs from Pod::Plexus::Matter::example in that it
 	# refers to a documentation entity.
 
 	$self->push_prefix(

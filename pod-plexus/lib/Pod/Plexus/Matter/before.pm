@@ -1,11 +1,11 @@
-package Pod::Plexus::Docs::before;
+package Pod::Plexus::Matter::before;
 
 =abstract Inherit documentation, and add content before it.
 
 =cut
 
 use Moose;
-extends 'Pod::Plexus::Docs::inherits';
+extends 'Pod::Plexus::Matter::inherits';
 
 use Pod::Plexus::Util::PodElemental qw(blank_line);
 

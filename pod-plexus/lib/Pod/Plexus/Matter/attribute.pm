@@ -1,11 +1,11 @@
-package Pod::Plexus::Docs::attribute;
+package Pod::Plexus::Matter::attribute;
 
 =abstract A reference to documentation for a class attribute.
 
 =cut
 
 use Moose;
-extends 'Pod::Plexus::Docs::Code';
+extends 'Pod::Plexus::Matter::Code';
 
 use Pod::Plexus::Util::PodElemental qw(generic_command blank_line);
 

@@ -1,11 +1,11 @@
-package Pod::Plexus::Docs::abstract;
+package Pod::Plexus::Matter::abstract;
 
 =abstract Remember and render cross-references.
 
 =cut
 
 use Moose;
-extends 'Pod::Plexus::Docs';
+extends 'Pod::Plexus::Matter';
 
 
 use Pod::Plexus::Util::PodElemental qw(

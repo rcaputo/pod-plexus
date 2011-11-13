@@ -1,11 +1,11 @@
-package Pod::Plexus::Docs::method;
+package Pod::Plexus::Matter::method;
 
 =abstract A reference to documentation for a class method.
 
 =cut
 
 use Moose;
-extends 'Pod::Plexus::Docs::Code';
+extends 'Pod::Plexus::Matter::Code';
 
 use Pod::Plexus::Util::PodElemental qw(generic_command blank_line);
 

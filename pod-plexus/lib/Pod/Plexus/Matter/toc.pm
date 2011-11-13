@@ -1,11 +1,11 @@
-package Pod::Plexus::Docs::toc;
+package Pod::Plexus::Matter::toc;
 
 =abstract A reference to a dynamically generated module index.
 
 =cut
 
 use Moose;
-extends 'Pod::Plexus::Docs';
+extends 'Pod::Plexus::Matter';
 
 use Pod::Plexus::Util::PodElemental qw(
 	head_paragraph

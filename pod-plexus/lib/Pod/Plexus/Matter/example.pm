@@ -1,11 +1,11 @@
-package Pod::Plexus::Docs::example;
+package Pod::Plexus::Matter::example;
 
 =abstract A generic reference to a code example.
 
 =cut
 
 use Moose;
-extends 'Pod::Plexus::Docs::Reference';
+extends 'Pod::Plexus::Matter::Reference';
 
 use Pod::Plexus::Util::PodElemental qw(text_paragraph blank_line);
 
@@ -22,7 +22,7 @@ sub BUILD {
 	my $self = shift();
 
 	# TODO - The code to parse a module|attribute|method spec is common
-	# with at least Pod::Plexus::Docs::xref.  Consider hoisting into a
+	# with at least Pod::Plexus::Matter::xref.  Consider hoisting into a
 	# parent class.
 
 	my $element = $self->docs()->[ $self->docs_index() ];
@@ -67,7 +67,7 @@ sub BUILD {
 		return;
 	}
 
-	# However this differs from Pod::Plexus::Docs::example in that it
+	# However this differs from Pod::Plexus::Matter::example in that it
 	# refers to a code entity.
 
 	my ($code, $link);

@@ -1,16 +1,16 @@
-package Pod::Plexus::Docs::Reference;
+package Pod::Plexus::Matter::Reference;
 
 =abstract An abstract section that references something else.
 
 =cut
 
 use Moose;
-extends 'Pod::Plexus::Docs';
+extends 'Pod::Plexus::Matter';
 
 
 has referent => (
 	is       => 'rw',
-	isa      => 'Pod::Plexus::Docs',
+	isa      => 'Pod::Plexus::Matter',
 	weak_ref => 1,
 );
 
