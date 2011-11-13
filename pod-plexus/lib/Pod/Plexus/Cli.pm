@@ -90,12 +90,7 @@ object is populated and driven by [% mod.package %].
 
 [% ss.name %] is populated by the --[% ss.name %] command line switch.
 
-
-11111
-
 =example attribute _distribution
-
-22222
 
 =cut
 

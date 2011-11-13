@@ -7,10 +7,7 @@ package Pod::Plexus::Docs::example;
 use Moose;
 extends 'Pod::Plexus::Docs::Reference';
 
-use Pod::Plexus::Docs::Example::Method;
-use Pod::Plexus::Docs::Example::Module;
-
-use Pod::Plexus::Util::PodElemental qw(text_paragraph);
+use Pod::Plexus::Util::PodElemental qw(text_paragraph blank_line);
 
 
 has '+referent' => (
@@ -23,6 +20,10 @@ sub is_top_level { 0 }
 
 sub BUILD {
 	my $self = shift();
+
+	# TODO - The code to parse a module|attribute|method spec is common
+	# with at least Pod::Plexus::Docs::xref.  Consider hoisting into a
+	# parent class.
 
 	my $element = $self->docs()->[ $self->docs_index() ];
 	my $content = $element->content();
@@ -66,15 +67,39 @@ sub BUILD {
 		return;
 	}
 
+	# However this differs from Pod::Plexus::Docs::example in that it
+	# refers to a code entity.
+
 	my ($code, $link);
 	if ($type eq 'attribute') {
 		$code = $referent_module->get_attribute_code($symbol);
+
+		if ($module eq $self->module_package()) {
+			$link = "This is attribute L<$symbol|/$symbol>.\n";
+		}
+		else {
+			$link = (
+				"This is L<$module|$module> " .
+				"attribute L<$symbol()|$module/$symbol>.\n"
+			);
+		}
 	}
 	elsif ($type eq 'method') {
 		$code = $referent_module->get_sub_code($symbol);
+
+		if ($module eq $self->module_package()) {
+			$link = "This is method L<$symbol()|/$symbol>.\n";
+		}
+		else {
+			$link = (
+				"This is L<$module|$module> " .
+				"method L<$symbol()|$module/$symbol>.\n"
+			);
+		}
 	}
 	elsif ($type eq 'module') {
 		$code = $referent_module->get_module_code();
+		$link = "This is L<$module|$module>.\n";
 	}
 	else {
 		die "example type cannot be '$type'";
@@ -90,7 +115,13 @@ sub BUILD {
 	}
 
 	$code = $self->beautify_code($code);
-	$self->doc_body([ text_paragraph($code) ]);
+	$self->doc_body(
+		[
+			text_paragraph($link),
+			blank_line(),
+			text_paragraph($code)
+		]
+	);
 }
 
 
