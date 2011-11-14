@@ -144,12 +144,6 @@ sub as_pod_elementals {
 }
 
 
-sub create {
-	my $class = shift();
-	return $class->new(@_);
-}
-
-
 =attribute key
 
 [% ss.name %] contains a reference's unique identifying key.  It calls
