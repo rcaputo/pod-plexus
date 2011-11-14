@@ -7,121 +7,87 @@ package Pod::Plexus::Matter::example;
 use Moose;
 extends 'Pod::Plexus::Matter::Reference';
 
+use Pod::Plexus::Matter::example::module;
+use Pod::Plexus::Matter::example::attribute;
+use Pod::Plexus::Matter::example::method;
+
 use Pod::Plexus::Util::PodElemental qw(text_paragraph blank_line);
+
+use Carp qw(confess);
+
+
+has referent_name => (
+	is  => 'ro',
+	isa => 'Str',
+);
 
 
 has '+referent' => (
-	isa => 'Pod::Plexus::Code',
+	isa     => 'Pod::Plexus::Module',
+	lazy    => 1,
+	default => sub {
+		my $self = shift();
+
+		my $referent_name = $self->referent_name();
+		my $referent = $self->module_distribution()->get_module($referent_name);
+		return $referent if $referent;
+
+		$self->push_error(
+			"Unknown referent module ($referent_name) in =example" .
+			" at " . $self->module_pathname() .
+			" line " . $self->element()->start_line()
+		);
+
+		return;
+	}
 );
 
 
 sub is_top_level { 0 }
 
 
-sub BUILD {
-	my $self = shift();
+sub new_from_element {
+	my ($class, %args) = @_;
 
-	# TODO - The code to parse a module|attribute|method spec is common
-	# with at least Pod::Plexus::Matter::xref.  Consider hoisting into a
-	# parent class.
-
-	my $element = $self->docs()->[ $self->docs_index() ];
+	my $element = $args{element} // confess "element required";
 	my $content = $element->content();
 	chomp $content;
 
-	my ($module, $type, $symbol);
-
 	if ($content =~ m/^\s* (module) \s+ (\S+) \s*$/x) {
-		($module, $type, $symbol) = ($2, $1, undef);
+		my ($module_name, $type) = ($2, $1);
+		$class .= "::$type";
+		return $class->new(%args, referent_name => $module_name);
 	}
-	elsif ($content =~ m/^\s* (\S+) \s+ (attribute|method) \s+ (\S+) \s*$/x) {
-		($module, $type, $symbol) = ($1, $2, $3);
+
+	if ($content =~ m/^\s* (\S+) \s+ (attribute|method) \s+ (\S+) \s*$/x) {
+		my ($module_name, $type, $name) = ($1, $2, $3);
+		$class .= "::$type";
+		return $class->new(%args, referent_name => $module_name, name => $name);
 	}
-	elsif ($content =~ m/^\s* (attribute|method) \s+ (\S+) \s* $/x) {
-		($module, $type, $symbol) = (
-			$self->module_package(), $1, $2
+
+	if ($content =~ m/^\s* (attribute|method) \s+ (\S+) \s* $/x) {
+		my ($type, $name) = ($1, $2);
+		$class .= "::$type";
+		return $class->new(
+			%args,
+			referent_name => $args{module}->package(),
+			name          => $name,
 		);
 	}
-	else {
-		$self->push_error(
-			"Wrong syntax: (=example $content) " .
-			" at " . $self->module_pathname() .
-			" line " . $element->start_line()
-		);
-		return;
-	}
 
-	my $referent_module = $self->module_distribution()->get_module($module);
-	unless ($referent_module) {
-		$self->push_error(
-			"Unknown referent module: (=example $content) " .
-			" at " . $self->module_pathname() .
-			" line " . $element->start_line()
-		);
-		return;
-	}
-
-	my @errors = $referent_module->cache_structure();
-	if (@errors) {
-		$self->push_error(@errors);
-		return;
-	}
-
-	# However this differs from Pod::Plexus::Matter::example in that it
-	# refers to a code entity.
-
-	my ($code, $link);
-	if ($type eq 'attribute') {
-		$code = $referent_module->get_attribute_code($symbol);
-
-		if ($module eq $self->module_package()) {
-			$link = "This is attribute L<$symbol|/$symbol>.\n";
-		}
-		else {
-			$link = (
-				"This is L<$module|$module> " .
-				"attribute L<$symbol()|$module/$symbol>.\n"
-			);
-		}
-	}
-	elsif ($type eq 'method') {
-		$code = $referent_module->get_sub_code($symbol);
-
-		if ($module eq $self->module_package()) {
-			$link = "This is method L<$symbol()|/$symbol>.\n";
-		}
-		else {
-			$link = (
-				"This is L<$module|$module> " .
-				"method L<$symbol()|$module/$symbol>.\n"
-			);
-		}
-	}
-	elsif ($type eq 'module') {
-		$code = $referent_module->get_module_code();
-		$link = "This is L<$module|$module>.\n";
-	}
-	else {
-		die "example type cannot be '$type'";
-	}
-
-	unless (defined $code and length $code) {
-		$self->push_error(
-			"Can't find code referred to by: (=include $content) " .
-			" at " . $self->module_pathname() .
-			" line " . $element->start_line()
-		);
-		return;
-	}
-
-	$code = $self->beautify_code($code);
-	$self->doc_body(
-		[
-			text_paragraph($link),
-			blank_line(),
-			text_paragraph($code)
-		]
+	my $self = $class->new(%args);
+	$self->push_error(
+		"Wrong syntax: (=example $content) " .
+		" at " . $self->module_pathname() .
+		" line " . $element->start_line()
 	);
+	return $self;
+}
+
+
+sub _is_local {
+	my $self = shift();
+	return $self->referent_name() eq $self->module_package();
 }
 
 
@@ -155,6 +121,17 @@ sub beautify_code {
 	return $code;
 }
 
+
+sub _set_example {
+	my ($self, $link, $code) = @_;
+	$self->doc_body(
+		[
+			text_paragraph($link),
+			blank_line(),
+			text_paragraph( $self->beautify_code($code) )
+		]
+	);
+}
 
 no Moose;
 

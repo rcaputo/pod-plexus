@@ -61,7 +61,6 @@ other things.
 
 =cut
 
-
 has _elemental => (
 	is      => 'ro',
 	isa     => 'Pod::Elemental::Document',
@@ -73,6 +72,7 @@ has _elemental => (
 		);
 	},
 );
+
 
 =method get_matter
 
@@ -250,7 +250,7 @@ sub cache_all_matter {
 
 		next ELEMENT if $doc_class->isa('Pod::Plexus::Matter::Directive');
 
-		my $docs_object = $doc_class->new(
+		my $docs_object = $doc_class->new_from_element(
 			module     => $self->module(),
 			verbose    => $self->verbose(),
 			docs       => $docs,
