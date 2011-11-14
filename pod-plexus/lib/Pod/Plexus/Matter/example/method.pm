@@ -1,5 +1,9 @@
 package Pod::Plexus::Matter::example::method;
 
+=abstract Render a method implementation as a code example.
+
+=cut
+
 use Moose;
 extends 'Pod::Plexus::Matter::example';
 

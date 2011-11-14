@@ -1,5 +1,9 @@
 package Pod::Plexus::Matter::example::attribute;
 
+=abstract Render an attribute implementation as a code example.
+
+=cut
+
 use Moose;
 extends 'Pod::Plexus::Matter::example';
 

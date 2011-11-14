@@ -1,5 +1,9 @@
 package Pod::Plexus::Matter::example::module;
 
+=abstract Render the code for a whole module as an example.
+
+=cut
+
 use Moose;
 extends 'Pod::Plexus::Matter::example';
 
