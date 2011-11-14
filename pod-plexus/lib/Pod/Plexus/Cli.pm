@@ -1,6 +1,6 @@
 package Pod::Plexus::Cli;
 
-=abstract The Pod::Plexus command line utility implementation.
+=abstract Implementation of the Pod::Plexus command line utility.
 
 =cut
 
@@ -9,6 +9,7 @@ with 'MooseX::Getopt';
 
 use Pod::Plexus::Distribution;
 use File::Find;
+
 
 =method new_with_options
 
@@ -20,13 +21,19 @@ switches that populate them.
 =cut
 
 
-=skip all usage
+=skip method usage
+
+=skip attribute usage
 
 =skip attribute ARGV
 
-=skip all extra_argv
+=skip method extra_argv
 
-=skip all help_flag
+=skip attribute extra_argv
+
+=skip method help_flag
+
+=skip attribute help_flag
 
 =skip method process_argv
 

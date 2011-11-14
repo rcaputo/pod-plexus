@@ -220,6 +220,9 @@ has verbose => (
 sub cache_all_matter {
 	my $self = shift();
 
+	# TODO - This has a lot in common with cache_plexus_directives().
+	# Hoist commonalities into one or more helpers.
+
 	my @errors;
 	my $docs = $self->_elemental()->children();
 
@@ -233,7 +236,6 @@ sub cache_all_matter {
 		my $command = $element->command();
 
 		my $doc_class = "Pod::Plexus::Matter::$command";
-
 		my $doc_file  = "$doc_class.pm";
 		$doc_file =~ s/::/\//g;
 
@@ -242,6 +244,11 @@ sub cache_all_matter {
 			next ELEMENT if $@ =~ /^Can't locate/;
 			die $@;
 		}
+
+		# The method name is a lie.  We cache all matter that isn't
+		# directives.
+
+		next ELEMENT if $doc_class->isa('Pod::Plexus::Matter::Directive');
 
 		my $docs_object = $doc_class->new(
 			module     => $self->module(),
@@ -264,13 +271,26 @@ sub cache_all_matter {
 	return @errors;
 }
 
+
 sub abstract {
 	my $self = shift();
-
 	my $abstract = $self->get_matter('abstract');
 	confess "No abstract defined for ", $self->package(), "\n" unless $abstract;
-
 	return $abstract->abstract();
+}
+
+
+sub skips_attribute {
+	my ($self, $name) = @_;
+	my $skip = $self->get_matter('skip::attribute');
+	return defined $skip;
+}
+
+
+sub skips_method {
+	my ($self, $name) = @_;
+	my $skip = $self->get_matter('skip::method');
+	return defined $skip;
 }
 
 
@@ -369,9 +389,6 @@ sub dump {
 	exit;
 }
 
-1;
-
-__END__
 
 =method cache_plexus_directives
 
@@ -384,21 +401,52 @@ values for the rest of the parser to use.
 sub cache_plexus_directives {
 	my $self = shift();
 
-	my @errors;
-	return @errors if push @errors, $self->process_plexus_commands('handle_plexus_skip')
-
-
-sub process_plexus_commands {
-	my ($self, $handler_name) = @_;
+	# TODO - This has a lot in common with cache_all_matter().
+	# Hoist commonalities into one or more helpers.
 
 	my @errors;
-	my $doc = $self->_elemental()->children();
+	my $docs = $self->_elemental()->children();
 
-	my $i = @$doc;
-	NODE: while ($i--) {
-		my $node = $doc->[$i];
-		next NODE unless $node->isa('Pod::Elemental::Element::Generic::Command');
-		push @errors, $self->$handler_name($doc, $i);
+	my $i = @$docs;
+	ELEMENT: while ($i--) {
+		my $element = $docs->[$i];
+		next ELEMENT unless (
+			$element->isa('Pod::Elemental::Element::Generic::Command')
+		);
+
+		my $command = $element->command();
+
+		my $doc_class = "Pod::Plexus::Matter::$command";
+
+		my $doc_file  = "$doc_class.pm";
+		$doc_file =~ s/::/\//g;
+
+		eval { require $doc_file };
+		if ($@) {
+			next ELEMENT if $@ =~ /^Can't locate/;
+			die $@;
+		}
+
+		# We only cache directives at this point.
+
+		next ELEMENT unless $doc_class->isa('Pod::Plexus::Matter::Directive');
+
+		my $docs_object = $doc_class->new_from_element(
+			module     => $self->module(),
+			verbose    => $self->verbose(),
+			docs       => $docs,
+			docs_index => $i,
+			element    => $element,
+		);
+
+		if ($docs_object->failed()) {
+			push @errors, @{$docs_object->errors()};
+			next ELEMENT;
+		}
+
+		$docs->[$i] = $docs_object;
+
+		$self->add_matter($docs_object);
 	}
 
 	return @errors;
@@ -407,7 +455,6 @@ sub process_plexus_commands {
 1;
 
 __END__
-
 
 
 ###

@@ -24,6 +24,8 @@ has docs => (
 		abstract        => 'abstract',
 		render_as_pod   => 'render_as_pod',
 		get_docs_matter => 'get_matter',
+		skips_attribute => 'skips_attribute',
+		skips_method    => 'skips_method',
 	},
 );
 
@@ -133,7 +135,7 @@ sub cache_structure {
 
 	# TODO - Considering removing this.  Let's see if we still need it.
 
-	#return @errors if push @errors, $self->docs()->cache_plexus_directives();
+	return @errors if push @errors, $self->docs()->cache_plexus_directives();
 
 	# 2. Index code entities: attributes and methods.
 	# Must be done before documentation is parsed.

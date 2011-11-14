@@ -14,6 +14,7 @@ use Carp qw(croak);
 use Pod::Plexus::Util::PodElemental qw(cleanup_element_arrayref);
 use Storable qw(dclone);
 
+
 =attribute module
 
 [% ss.name %] holds the Pod::Plexus::Module that contains this
@@ -34,17 +35,20 @@ has module => (
 	},
 );
 
+
 has name => (
-	is      => 'ro',
+	is      => 'rw',
 	isa     => 'Str',
 	default => "",
 );
+
 
 has verbose => (
 	is       => 'ro',
 	isa      => 'Bool',
 	required => 1,
 );
+
 
 has docs => (
 	is       => 'ro',
@@ -53,11 +57,13 @@ has docs => (
 	weak_ref => 1,
 );
 
+
 has docs_index => (
 	is       => 'ro',
 	isa      => 'Int',
 	required => 1,
 );
+
 
 has doc_prefix => (
 	is      => 'rw',
@@ -71,6 +77,7 @@ has doc_prefix => (
 	},
 );
 
+
 has doc_body => (
 	is      => 'rw',
 	isa     => 'ArrayRef[Pod::Elemental::Paragraph|Pod::Plexus::Matter]',
@@ -83,6 +90,7 @@ has doc_body => (
 		unshift_body => 'unshift',
 	},
 );
+
 
 has doc_suffix => (
 	is      => 'rw',
@@ -102,10 +110,12 @@ sub clone_prefix {
 	return dclone $self->doc_prefix();
 }
 
+
 sub clone_body {
 	my $self = shift;
 	return dclone $self->doc_body();
 }
+
 
 sub clone_suffix {
 	my $self = shift;
@@ -140,16 +150,6 @@ sub create {
 }
 
 
-has key => (
-	is      => 'ro',
-	isa     => 'Str',
-	lazy    => 1,
-	default => sub {
-		my $self = shift();
-		return $self->calc_key(ref($self), $self->name());
-	},
-);
-
 =attribute key
 
 [% ss.name %] contains a reference's unique identifying key.  It calls
@@ -166,6 +166,7 @@ has key => (
 		return $self->calc_key(ref($self), $self->name());
 	},
 );
+
 
 =method calc_key
 
@@ -197,6 +198,7 @@ has errors => (
 		push_error => 'push',
 	},
 );
+
 
 sub extract_my_section {
 	my $self = shift();
@@ -251,6 +253,12 @@ sub discard_my_section {
 		" at " . $self->module_pathname() .
 		" line " . $element->start_line()
 	);
+}
+
+
+sub new_from_element {
+	my $class = shift();
+	return $class->new(@_);
 }
 
 
