@@ -8,16 +8,9 @@ use Moose;
 extends 'Pod::Plexus::Matter';
 
 use Pod::Plexus::Util::PodElemental qw(
-	head_paragraph
+	generic_command
 	blank_line
 	text_paragraph
-);
-
-
-has header_level => (
-	is      => 'rw',
-	isa     => 'Int',
-	default => 2,
 );
 
 
@@ -27,6 +20,25 @@ has referents => (
 	default => sub { [ ] },
 );
 
+
+has '+doc_prefix' => (
+	default => sub {
+		[
+			generic_command("over", "4\n"),
+			blank_line(),
+		]
+	},
+);
+
+
+has '+doc_suffix' => (
+	default => sub {
+		[
+			generic_command("back", "\n"),
+			blank_line(),
+		]
+	}
+);
 
 has '+doc_body' => (
 	lazy    => 1,
@@ -38,9 +50,7 @@ has '+doc_body' => (
 				my $abstract = $_->abstract() // "(no abstract defined)";
 
 				(
-					head_paragraph($self->header_level(), "\n"),
-					blank_line(),
-					text_paragraph("L<$package|$package> - $abstract\n"),
+					generic_command("item", "L<$package|$package> - $abstract\n"),
 					blank_line(),
 				);
 			}
@@ -55,8 +65,6 @@ sub BUILD {
 
 	my $element = $self->docs()->[ $self->docs_index() ];
 	my $content = $element->content();
-
-	my $header_level = ($content =~ s/^\s*(\d+)\s*//) ? $1 : 2;
 
 	(my $regexp = $content)  =~ s/\s+//g;
 

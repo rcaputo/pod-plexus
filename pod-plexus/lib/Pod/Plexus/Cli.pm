@@ -218,11 +218,7 @@ sub run {
 
 		# TODO - Write to a file, if requested.
 
-		print(
-			(("-" x 40) . "\n") x 3,
-			$rendered_pod,
-			(("-" x 40) . "\n") x 3,
-		);
+		print $rendered_pod;
 	}
 
 	# TODO - Render to files, if appropriate.
