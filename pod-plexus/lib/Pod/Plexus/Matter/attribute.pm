@@ -1,6 +1,6 @@
 package Pod::Plexus::Matter::attribute;
 
-=abstract A reference to documentation for a class attribute.
+=abstract Document a class attribute in an inheritable way.
 
 =cut
 

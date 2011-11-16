@@ -1,6 +1,6 @@
 package Pod::Plexus::Matter::include;
 
-=abstract A reference to documentation included from elsewhere.
+=abstract Include documentation from another section or boilerplate.
 
 =cut
 

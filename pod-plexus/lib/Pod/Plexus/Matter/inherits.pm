@@ -1,6 +1,6 @@
 package Pod::Plexus::Matter::inherits;
 
-=abstract Inherit a Pod::Plexus documentation section wholesale.
+=abstract Inherit a method or attribute section from somewhere else.
 
 =cut
 

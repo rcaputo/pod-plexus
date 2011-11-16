@@ -1,6 +1,6 @@
 package Pod::Plexus::Matter::abstract;
 
-=abstract Remember and render cross-references.
+=abstract Set a succinct, one-line description of the module.
 
 =cut
 

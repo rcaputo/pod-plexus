@@ -4,7 +4,7 @@ package Pod::Plexus::Matter;
 
 =head1 SUBCLASSES
 
-=toc 2 ^Pod::Plexus::Matter::
+=toc ^Pod::Plexus::Matter::
 
 =cut
 

@@ -1,6 +1,6 @@
 package Pod::Plexus::Matter::after;
 
-=abstract Inherit documentation, and add content after it.
+=abstract Inherit documentation, and append new content to the section.
 
 =cut
 

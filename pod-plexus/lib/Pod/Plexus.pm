@@ -76,4 +76,9 @@ people who would rather not use Dist::Zilla.
 Pod::Plexus leans heavily on L<PPI> and L<Moose> for code analysis.
 It uses L<Pod::Elemental> to wrangle documentation.
 
+In its default state, Pod::Plexus requires L<Pod::Weaver> or something
+like it to gather and render =method and =attribute sections.  POD can
+be rendered instead by subclassing L<Pod::Plexus::Matter::attribute>
+and L<Pod::Plexus::Matter::method>.
+
 =cut

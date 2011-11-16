@@ -1,6 +1,6 @@
 package Pod::Plexus::Matter::toc;
 
-=abstract A reference to a dynamically generated module index.
+=abstract Generate a table of contents for modules that match a regexp.
 
 =cut
 

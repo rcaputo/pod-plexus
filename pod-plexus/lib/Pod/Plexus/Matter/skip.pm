@@ -1,6 +1,6 @@
 package Pod::Plexus::Matter::skip;
 
-=abstract Handle directives that tell Pod::Plexus to skip things.
+=abstract Tell Pod::Plexus that something shouldn't be documented.
 
 =cut
 

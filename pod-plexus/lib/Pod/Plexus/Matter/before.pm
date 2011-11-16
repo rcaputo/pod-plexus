@@ -1,6 +1,6 @@
 package Pod::Plexus::Matter::before;
 
-=abstract Inherit documentation, and add content before it.
+=abstract Inherit documentation, and prepend new content before it.
 
 =cut
 

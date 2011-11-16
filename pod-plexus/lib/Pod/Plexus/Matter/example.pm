@@ -1,6 +1,6 @@
 package Pod::Plexus::Matter::example;
 
-=abstract A generic reference to a code example.
+=abstract Import code from the distribution as a documentation example.
 
 =cut
 

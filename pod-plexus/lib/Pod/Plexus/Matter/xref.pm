@@ -1,6 +1,6 @@
 package Pod::Plexus::Matter::xref;
 
-=abstract Remember and render cross-references.
+=abstract Generate a cross-reference link.
 
 =cut
 

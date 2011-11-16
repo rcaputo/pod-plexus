@@ -1,6 +1,6 @@
 package Pod::Plexus::Matter::example::method;
 
-=abstract Render a method implementation as a code example.
+=abstract Document a class method in an inheritable way.
 
 =cut
 

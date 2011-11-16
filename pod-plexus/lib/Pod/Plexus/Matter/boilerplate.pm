@@ -1,6 +1,6 @@
 package Pod::Plexus::Matter::boilerplate;
 
-=abstract A reference to a macro definition.
+=abstract Define a reusable POD subsection.
 
 =cut
 
