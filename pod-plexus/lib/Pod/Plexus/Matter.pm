@@ -17,7 +17,7 @@ use Storable qw(dclone);
 
 =attribute module
 
-[% ss.name %] holds the Pod::Plexus::Module that contains this
+[% s.name %] holds the Pod::Plexus::Module that contains this
 documentation section.
 
 =cut
@@ -124,8 +124,30 @@ sub clone_suffix {
 
 
 sub as_pod_string {
-	my $self = shift();
-	return join "", map { $_->as_pod_string() } $self->as_pod_elementals();
+	my ($self, $section) = @_;
+	$section //= $self;
+
+	my $template_obj = $self->module_distribution()->template();
+
+	my $template_input = join(
+		"",
+		map { $_->as_pod_string($section) }
+		$self->as_pod_elementals()
+	);
+
+	my %template_vars = (
+		d => $self->module_distribution(),
+		m => $self->module(),
+		s => $section,
+		r => $self,
+	);
+
+	my $template_output = "";
+	$template_obj->process(
+		\$template_input, \%template_vars, \$template_output
+	) or die $template_obj->error();
+
+	return $template_output;
 }
 
 
@@ -146,7 +168,7 @@ sub as_pod_elementals {
 
 =attribute key
 
-[% ss.name %] contains a reference's unique identifying key.  It calls
+[% s.name %] contains a reference's unique identifying key.  It calls
 calc_key() to calculate it, then caches it for future speed.
 
 =cut
@@ -164,12 +186,12 @@ has key => (
 
 =method calc_key
 
-[% ss.name %] calculates a reference's unique key from three
+[% s.name %] calculates a reference's unique key from three
 parameters: the reference's class name, the reference's module name,
 and an optional symbol within the module.  Omit the symbol to
 reference the module as a whole.
 
-[% ss.name %] may be called as a class or object method.  If the
+[% s.name %] may be called as a class or object method.  If the
 caller has the object but not all the necessary parameters, it may be
 more convenient to access the key() attribute instead.
 

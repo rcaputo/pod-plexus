@@ -71,6 +71,7 @@ sub BUILD {
 		return;
 	}
 
+	$self->name($symbol);
 	$self->referent($referent);
 	$self->doc_body($referent->clone_body());
 

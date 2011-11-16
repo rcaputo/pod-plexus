@@ -6,7 +6,7 @@ use Carp qw(confess);
 
 =attribute name
 
-[% ss.name %] contains this Pod::Plexus entity's name.
+[% s.name %] contains this Pod::Plexus entity's name.
 
 =cut
 
@@ -19,7 +19,7 @@ has name => (
 
 =attribute private
 
-[% ss.name %] is a read-only accessor that tells whether the entity is
+[% s.name %] is a read-only accessor that tells whether the entity is
 public or private.  By default, entities with names beginning with one
 or more underscores are considered private.  All others are considered
 public.
@@ -36,7 +36,7 @@ has private => (
 
 =attribute meta_entity
 
-[% ss.name %] contains the Class::MOP object representing this entity
+[% s.name %] contains the Class::MOP object representing this entity
 in Moose.  It's added by Pod::Plexus::Module during its indexing
 phase.
 
@@ -70,7 +70,7 @@ no Moose;
 
 =method new
 
-Constructs one [% mod.package %] object.  See L</PUBLIC ATTRIBUTES>
+Constructs one [% m.package %] object.  See L</PUBLIC ATTRIBUTES>
 for constructor options.
 
 =cut

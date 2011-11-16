@@ -93,7 +93,7 @@ sub _is_local {
 
 =method beautify_code
 
-[% ss.name %] beautifies the code passed to it in its only parameter.
+[% s.name %] beautifies the code passed to it in its only parameter.
 Code is expected to be a single string containing multiple lines
 separated by newlines.  A string of "beautified" multiple-line code is
 returned.

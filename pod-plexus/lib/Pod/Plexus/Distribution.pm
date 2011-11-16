@@ -8,9 +8,25 @@ use Module::Util qw(find_installed);
 use Pod::Plexus::Module;
 
 
+has template => (
+	is => 'ro',
+	isa => 'Template',
+	default => sub {
+		return Template->new(
+			{
+				INTERPOLATE => 0,
+				POST_CHOMP  => 0,
+				PRE_CHOMP   => 0,
+				TRIM        => 0,
+			}
+		);
+	},
+);
+
+
 =attribute modules_by_file
 
-[% ss.name %] references a hash of [% lib.main %]::Module objects
+[% s.name %] references a hash of [% lib.main %]::Module objects
 keyed on each module's file path.  Paths are relative to the
 distribution's root directory.
 
@@ -39,7 +55,7 @@ FILE_PATH relative to the distribution's root directory.
 
 =method has_module_by_file
 
-[% ss.name %] determines whether the distribution contains a module
+[% s.name %] determines whether the distribution contains a module
 for the given FILE_PATH.
 
 =cut
@@ -59,7 +75,7 @@ has modules_by_file => (
 
 =attribute modules_by_package
 
-[% ss.name %] holds a hash of [% lib.main %]::Module objects keyed
+[% s.name %] holds a hash of [% lib.main %]::Module objects keyed
 on their main package names.  For [% lib.main %]'s purposes, the main
 package is defined by the first C<package> statement in the module.
 
@@ -67,13 +83,13 @@ package is defined by the first C<package> statement in the module.
 
 =method get_known_module_objects
 
-[% ss.name %] returns a list of known module objects.
+[% s.name %] returns a list of known module objects.
 
 =cut
 
 =method get_known_module_names
 
-[% ss.name %] returns a list of known module package names.
+[% s.name %] returns a list of known module package names.
 
 =cut
 
@@ -126,7 +142,7 @@ sub add_file {
 
 =method add_module
 
-[% ss.name %] adds a module by its MODULE_NAME.  It looks up the full
+[% s.name %] adds a module by its MODULE_NAME.  It looks up the full
 path to the module, and then it calls add_file() to add that file.
 
 =cut
@@ -143,10 +159,10 @@ sub add_module {
 
 =method get_module
 
-[% ss.name %] returns a [% lib.main %]::Module that matches a given
+[% s.name %] returns a [% lib.main %]::Module that matches a given
 MODULE_IDENTIFIER, or undef if no module matches.  The module
 identifier may be a file's relative path in the distribution or its
-main module name.  [% ss.name %] will determine which based on
+main module name.  [% s.name %] will determine which based on
 MODULE_INDENTIFIER's syntax.
 
 =cut
@@ -166,7 +182,7 @@ sub get_module {
 
 =method index
 
-[% ss.name %] indexes the distribution.  Methods and attributes are
+[% s.name %] indexes the distribution.  Methods and attributes are
 identified and inspected.  Documantation is pulled apart and
 associated with implementation.  Some documentation is generated, when
 possible and reasonable.  Errors are thrown for undocumented things.
@@ -181,7 +197,7 @@ sub index {
 
 =method get_unresolved_referents
 
-[% ss.name %] collects and returns the unique referents across all
+[% s.name %] collects and returns the unique referents across all
 known modules.
 
 =cut

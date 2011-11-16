@@ -36,8 +36,8 @@ has distribution => (
 
 =attribute _ppi
 
-[% ss.name %] contains a PPI::Document representing parsed module
-being documented.  [% mod.package %] uses this to find source code to
+[% s.name %] contains a PPI::Document representing parsed module
+being documented.  [% m.package %] uses this to find source code to
 include in the documentation, examine the module's implementation for
 documentation clues, and so on.
 
@@ -60,7 +60,7 @@ has verbose => (
 
 =attribute package
 
-[% ss.name %] contains the module's main package name.  Its main use
+[% s.name %] contains the module's main package name.  Its main use
 is in template expansion, via the "mod.package" expression.
 
 =cut
@@ -82,7 +82,7 @@ has package => (
 
 =attribute meta_entity
 
-[% ss.name %] contains a meta-object that describes the class being
+[% s.name %] contains a meta-object that describes the class being
 documented from Class::MOP's perspective.  It allows Pod::Plexus to
 introspect the class and do many wonderful things with it, such as
 inherit documentation from parent classes.
@@ -114,7 +114,7 @@ has meta_entity => (
 
 =attribute attributes
 
-[% ss.name %] contains an hash of all identified attributes in the
+[% s.name %] contains an hash of all identified attributes in the
 class being documented.  They are keyed on attribute name, and values
 are Pod::Plexus::Code::Attribute objects.
 
@@ -136,7 +136,7 @@ has attributes => (
 
 =attribute methods
 
-[% ss.name %] contains an hash of all identified methods in the class
+[% s.name %] contains an hash of all identified methods in the class
 being documented.  They are keyed on method name, and values are
 Pod::Plexus::Code::Method objects.
 
@@ -159,7 +159,7 @@ has methods => (
 
 =method dump
 
-[% ss.name %] is a debugging helper method to print the PPI document
+[% s.name %] is a debugging helper method to print the PPI document
 for the class being documented, in PPI::Dumper format.
 
 =cut
@@ -381,7 +381,7 @@ sub validate_docs {
 
 =method get_sub
 
-[% ss.name %] returns the code for a particular named subroutine or
+[% s.name %] returns the code for a particular named subroutine or
 method in the class being documented.  This is used to render code
 examples from single subroutines.
 
@@ -406,7 +406,7 @@ sub get_sub {
 
 =method get_module
 
-[% ss.name %] returns the code portion of the file represented by this
+[% s.name %] returns the code portion of the file represented by this
 module.  This is used to render code examples by quoting entire
 modules.
 

@@ -13,7 +13,7 @@ use File::Find;
 
 =method new_with_options
 
-[% ss.name %] constructs one new [% mod.package %] object, using
+[% s.name %] constructs one new [% m.package %] object, using
 values from the command line to populate constructor parameters.
 See L</PUBLIC ATTRIBUTES> for constructor options and the command line
 switches that populate them.
@@ -42,11 +42,11 @@ switches that populate them.
 
 =attribute lib
 
-[% ss.name %] contains a list of distribution directories from which
+[% s.name %] contains a list of distribution directories from which
 modules will be collected, indexed and possibly rendered.  By default
 it contains a single directory: "./lib".
 
-[% ss.name %] is populated by one or more --[% ss.name %] command line
+[% s.name %] is populated by one or more --[% s.name %] command line
 switches.
 
 =cut
@@ -62,10 +62,10 @@ has lib => (
 
 =attribute module
 
-[% ss.name %] is an array of specific modules to render.  All eligible
+[% s.name %] is an array of specific modules to render.  All eligible
 files will be rendered if none are specified.
 
-[% ss.name %] is populated by one or more --[% ss.name %] command line
+[% s.name %] is populated by one or more --[% s.name %] command line
 switches.
 
 =cut
@@ -92,10 +92,10 @@ has verbose => (
 
 =attribute _distribution
 
-[% ss.name %] contains a Pod::Plexus::Distribution object.  This
-object is populated and driven by [% mod.package %].
+[% s.name %] contains a Pod::Plexus::Distribution object.  This
+object is populated and driven by [% m.package %].
 
-[% ss.name %] is populated by the --[% ss.name %] command line switch.
+[% s.name %] is populated by the --[% s.name %] command line switch.
 
 =example attribute _distribution
 
@@ -115,7 +115,7 @@ has _distribution => (
 
 =method is_indexable_file
 
-[% ss.name %] tests whether a file at a RELATIVE_PATH is eligible to
+[% s.name %] tests whether a file at a RELATIVE_PATH is eligible to
 be documented.  Currently only ".pm" files are eligible.
 
 =example method is_indexable_file
@@ -135,7 +135,7 @@ sub is_indexable_file {
 
 =method collect_lib_files
 
-[% ss.name %] collects files that are eligible for documenting.  It
+[% s.name %] collects files that are eligible for documenting.  It
 uses File::Find to descend into directories in the "lib" directories.
 Each file that is_indexable_file() approves is added to the
 distribution for later processing.
@@ -167,12 +167,12 @@ sub collect_lib_files {
 
 =method run
 
-[% ss.name %] runs the Pod::Plexus command-line interface.  All
-runtime parameters are taken from [% mod.package %] public attributes.
+[% s.name %] runs the Pod::Plexus command-line interface.  All
+runtime parameters are taken from [% m.package %] public attributes.
 Thanks to MooseX::Getopt, those attributes are automatically populated
 from corresponding command line arguments.
 
-[% ss.name %] collects all the modules in all the lib() directories.
+[% s.name %] collects all the modules in all the lib() directories.
 Each module is added to the Pod::Plexus::Distribution so that it's
 known by the time cross references are resolved.
 

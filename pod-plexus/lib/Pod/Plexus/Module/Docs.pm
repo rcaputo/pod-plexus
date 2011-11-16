@@ -54,9 +54,9 @@ has distribution => (
 
 =attribute _elemental
 
-[% ss.name %] contains a Pod::Elemental::Document representing the
-parsed POD from the module being documented.  [% mod.package %]
-documents modules by inspecting and revising [% ss.name %], among
+[% s.name %] contains a Pod::Elemental::Document representing the
+parsed POD from the module being documented.  [% m.package %]
+documents modules by inspecting and revising [% s.name %], among
 other things.
 
 =cut
@@ -76,7 +76,7 @@ has _elemental => (
 
 =method get_matter
 
-[% ss.name %] returns a single reference, keyed on the referent type,
+[% s.name %] returns a single reference, keyed on the referent type,
 and optional symbol name.
 
 =cut
@@ -332,7 +332,7 @@ sub validate_code {
 
 =method render_as_pod
 
-[% ss.name %] generates and returns the POD for the class being
+[% s.name %] generates and returns the POD for the class being
 documented, after all is send and done.
 
 =cut
@@ -351,17 +351,18 @@ sub render_as_pod {
 	NODE: while (@queue) {
 		my $next = shift @queue;
 
+		my $next_pod;
 		if ($next->isa('Pod::Plexus::Matter')) {
-			unshift @queue, $next->as_pod_elementals();
-			next NODE;
+			$next_pod = $next->as_pod_string();
 		}
-
-		my $next_pod = $next->as_pod_string();
+		else {
+			$next_pod = $next->as_pod_string();
+		}
 
 		# Expand $next_pod as a template.
 
 		# TODO - The PDO content is the template, and we supply the values
-		# of common variables for things like [% ss.name %].
+		# of common variables for things like [% s.name %].
 
 		$rendered_documentation .= $next_pod;
 
@@ -377,7 +378,7 @@ sub render_as_pod {
 
 =method dump
 
-[% ss.name %] is a debugging helper method to print the Pod::Elemental
+[% s.name %] is a debugging helper method to print the Pod::Elemental
 data for the class being documented, in YAML format.
 
 =cut
@@ -463,7 +464,7 @@ __END__
 
 =method index_matter_references
 
-[% ss.name %] examines each Pod::Elemental command node.  Ones that
+[% s.name %] examines each Pod::Elemental command node.  Ones that
 are listed as known reference commands, such as "=abstract" or
 "=example", are parsed and recorded by their appropriate
 Pod::Plexus::Matter classes.
@@ -541,7 +542,7 @@ sub discard_section {
 
 =method extract_plexus_commands
 
-[% ss.name %] iterates the Pod::Elemental::Element::Generic::Command
+[% s.name %] iterates the Pod::Elemental::Element::Generic::Command
 elements of a module's documentation.  Its single parameter is the
 name of a $self method to call for each command node.  Those methods
 should parse the command, enter appropriate data into the object, and
@@ -596,9 +597,9 @@ sub extract_plexus_commands {
 
 =method extract_plexus_directive_skip
 
-[% ss.name %] examines a single Pod::Elemental command node.  If it's
-a "=skip" directive, its data is entered into the [% mod.name %]
-object, and [% ss.name %] returns true.  False is returned for all
+[% s.name %] examines a single Pod::Elemental command node.  If it's
+a "=skip" directive, its data is entered into the [% m.package %]
+object, and [% s.name %] returns true.  False is returned for all
 other nodes.
 
 =include boilerplate extract_plexus_command_callback
@@ -610,10 +611,10 @@ other nodes.
 This method is a callback to extract_plexus_command().  That other method
 is a generic iterator to walk through the Pod::Elemental document in
 memory and remove nodes that have been successfully parsed.  Node
-removal is triggered by callbacks, such as [% ss.name %] returning a
+removal is triggered by callbacks, such as [% s.name %] returning a
 true value.
 
-As with all [% mode.name %] parsers, only the Pod::Elemental data in
+As with all [% m.package %] parsers, only the Pod::Elemental data in
 memory is affected.  The source on disk is untouched.
 
 =cut
@@ -883,7 +884,7 @@ sub assimilate_ancestor_attribute_documentation {
 
 =attribute skip_attributes
 
-[% ss.name %] is a hash keyed on the names of attributes supplied by
+[% s.name %] is a hash keyed on the names of attributes supplied by
 the "=skip attribute" directive.  These attributes won't be
 automatically documented, nor will Pod::Plexus complain if they aren't
 documented.
@@ -893,7 +894,7 @@ one.  Literally, the number 1.
 
 =method is_skippable_attribute
 
-[% ss.name %] tests whether a given attribute name exists in
+[% s.name %] tests whether a given attribute name exists in
 skip_attributes().
 
 =cut
@@ -919,7 +920,7 @@ sub is_skippable_attribute {
 
 =method skip_attribute
 
-[% ss.name %] is used by the "=skip attribute" directive to set the
+[% s.name %] is used by the "=skip attribute" directive to set the
 attribute name to skip.
 
 =cut
@@ -933,13 +934,13 @@ sub skip_attribute {
 
 =attribute skip_methods
 
-[% ss.name %] is a hash keyed on the names of methods supplied by the
+[% s.name %] is a hash keyed on the names of methods supplied by the
 "=skip method" directive.  These methods won't be automatically
 documented, nor will Pod::Plexus complain if they aren't documented.
 
 =method is_skippable_method
 
-[% ss.name %] tests whether the named method exists in skip_methods.
+[% s.name %] tests whether the named method exists in skip_methods.
 
 =cut
 

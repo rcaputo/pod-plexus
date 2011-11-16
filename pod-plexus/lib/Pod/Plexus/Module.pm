@@ -59,7 +59,7 @@ has verbose => (
 
 =attribute pathname
 
-[% ss.name %] contains the relative path and name of the file being
+[% s.name %] contains the relative path and name of the file being
 documented.
 
 =cut
@@ -73,7 +73,7 @@ has pathname => (
 
 =attribute distribution
 
-[% ss.name %] contains the Pod::Plexus::Distribution object that
+[% s.name %] contains the Pod::Plexus::Distribution object that
 represents the entire distribution of modules.  It allows the current
 module to access its sibling modules through the distribution
 containing them.
@@ -90,9 +90,9 @@ has distribution => (
 
 =attribute is_prepared
 
-[% ss.name %] is true if this module has been prepared to be rendered.
+[% s.name %] is true if this module has been prepared to be rendered.
 Praparation includes indexing interesting information and early
-validation checks.  [% ss.name %] doesn't necessarily indicate whether
+validation checks.  [% s.name %] doesn't necessarily indicate whether
 the preparation was successful, however.  cache_structure() uses it
 internally to guard against re-entry, but other methods may also use
 it to avoid callng cache_structure() unnecessarily.
@@ -108,7 +108,7 @@ has is_prepared => (
 
 =method cache_structure
 
-[% ss.name %] prepares the module to be rendered by performing all
+[% s.name %] prepares the module to be rendered by performing all
 prerequisite actions.  Data is collected and validated.  Intermediate
 indexes are built.  And so on.
 
