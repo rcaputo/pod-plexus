@@ -15,6 +15,9 @@ use Pod::Plexus::Util::PodElemental qw(cleanup_element_arrayref);
 use Storable qw(dclone);
 
 
+sub is_inheritable { 0 }
+
+
 =attribute module
 
 [% s.name %] holds the Pod::Plexus::Module that contains this

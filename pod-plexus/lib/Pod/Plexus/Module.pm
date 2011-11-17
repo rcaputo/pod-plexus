@@ -46,6 +46,8 @@ has code => (
 		get_sub_code       => 'get_sub',
 		get_module_code    => 'get_module',
 		get_attribute_code => 'get_attribute',
+		register_matter    => 'register_matter',
+		get_meta_class     => 'meta_entity',
 	},
 );
 
@@ -132,8 +134,6 @@ sub cache_structure {
 
 	# 1. Collect directives that affect how the module is parsed.
 	# This must be done before everything else.
-
-	# TODO - Considering removing this.  Let's see if we still need it.
 
 	return @errors if push @errors, $self->docs()->cache_plexus_directives();
 

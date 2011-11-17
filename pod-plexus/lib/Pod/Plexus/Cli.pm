@@ -212,9 +212,9 @@ sub run {
 	# This pass tries to find and inspect external referents.
 
 	MODULE: foreach my $module_name (@{$self->module()}) {
-		my $doc_object = $self->_distribution()->get_module($module_name);
+		my $module_object = $self->_distribution()->get_module($module_name);
 
-		my $rendered_pod = $doc_object->render_as_pod();
+		my $rendered_pod = $module_object->render_as_pod();
 
 		# TODO - Write to a file, if requested.
 

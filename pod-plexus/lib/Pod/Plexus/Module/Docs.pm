@@ -9,6 +9,7 @@ use Pod::Plexus::Util::PodElemental qw(
 	blank_line
 	text_paragraph
 	cut_paragraph
+	is_blank_paragraph
 );
 
 use Pod::Plexus::Matter::abstract;
@@ -17,28 +18,14 @@ use Pod::Plexus::Matter::attribute;
 use Pod::Plexus::Matter::include;
 
 
-###
-### Documentation structure.
-###
-
-#my %standard_pod_commands = (
-#	map { $_ => 1 }
-#	qw(
-#		head1 head2 head3 head4 head5 head6
-#		pod cut
-#		over back item
-#		for begin end
-#	)
-#);
-
-
 has module => (
 	is       => 'ro',
 	isa      => 'Pod::Plexus::Module',
 	required => 1,
 	weak_ref => 1,
 	handles  => {
-		package => 'package',
+		package        => 'package',
+		get_meta_class => 'get_meta_class',
 	},
 );
 
@@ -92,12 +79,15 @@ sub get_matter {
 	return $self->_get_matter($reference_key);
 }
 
+
 sub add_matter {
 	my ($self, $docs) = @_;
 	my $key = $docs->key();
 	return if $self->_has_matter($key);
 	$self->_really_add_matter($key, $docs);
+	$self->module()->register_matter($docs);
 }
+
 
 has matter => (
 	is      => 'rw',
@@ -111,103 +101,6 @@ has matter => (
 		_get_all_matter    => 'values',
 	},
 );
-
-#		# Dynamically determine the names of top_selector commands used in
-#		# this module's documentation.  Terminators include some obvious
-#		# plain-POD candidates.
-#
-#		my %top_selector_commands;
-#		my %top_selector_terminators = (
-#			head1 => 1,
-#			cut   => 1,
-#		);
-#
-#		COMMAND: foreach my $command (
-#			grep { ! exists $top_selector_commands{$_} }
-#			map  { $_->{command}                       }
-#			grep { $_->does('Pod::Elemental::Command') }
-#			@{$elemental_document->children()}
-#		) {
-#			my $doc_class = "Pod::Plexus::Matter::$command";
-#
-#			# If we can't require a module for the class, then this command
-#			# isn't recognized by Pod::Plexus.  This is a bit ugly, but it
-#			# lets distributed developers publish extensions without central
-#			# editorial/dictatorial involvement.
-#
-#			my $doc_file  = "$doc_class.pm";
-#			$doc_file =~ s/::/\//g;
-#
-#			eval { require $doc_file };
-#			next COMMAND if $@;
-#
-#			next COMMAND unless $doc_class->is_top_level();
-#
-#			$top_selector_commands{$command}    = 1;
-#			$top_selector_terminators{$command} = 1;
-#		}
-#
-#		# Nest documentation under top_selector commands.
-#		# This should simplify the handling of Pod::Plexus sections.
-#
-#		use Pod::Elemental::Transformer::Nester;
-#		my $nester = Pod::Elemental::Transformer::Nester->new(
-#			top_selector => sub {
-#				my $paragraph = shift();
-#				return unless $paragraph->does('Pod::Elemental::Command');
-#				return ($top_selector_commands{ $paragraph->command() } //= 0);
-#			},
-#			content_selectors => [
-#				sub {
-#					my $paragraph = shift();
-#					return 1 unless $paragraph->does('Pod::Elemental::Command');
-#					return !($top_selector_terminators{ $paragraph->command() } //= 0);
-#				},
-#			],
-#		);
-#
-#		$nester->transform_node($elemental_document);
-#
-#		my $doc_children = $elemental_document->children();
-#		my $i = @$doc_children;
-#		while ($i--) {
-#			my $element = $doc_children->[$i];
-#			next unless $element->isa('Pod::Elemental::Element::Nested');
-#
-#			# Remove leading and trailing blank lines from nested content.
-#
-#			my $nested = $element->children();
-#			shift @$nested while @$nested and $nested->[0]->isa('Pod::Elemental::Element::Generic::Blank');
-#			pop   @$nested while @$nested and $nested->[-1]->isa('Pod::Elemental::Element::Generic::Blank');
-#
-#			# Remove blank lines and cut commands just after the nested
-#			# content.
-#
-#			splice(@$doc_children, $i + 1, 1) while (
-#				$i < $#$doc_children and
-#				(
-#					(
-#						$doc_children->[$i + 1]->isa('Pod::Elemental::Element::Generic::Command') and
-#						$doc_children->[$i + 1]->command() eq 'cut'
-#					)
-#					or
-#					$doc_children->[$i + 1]->isa('Pod::Elemental::Element::Generic::Blank')
-#				)
-#			);
-#
-#			# Remove blank lines just before the nested content.
-#
-#			while ($i > 0 and $doc_children->[$i - 1]->isa('Pod::Elemental::Element::Generic::Blank')) {
-#				splice(@$doc_children, $i - 1, 1);
-#				--$i;
-#			}
-#		}
-#
-#		# Return the nested, cleaned up Pod::Elemental::Document.
-#
-#		return $elemental_document;
-#	},
-#);
 
 
 has verbose => (
@@ -264,7 +157,6 @@ sub cache_all_matter {
 		}
 
 		$docs->[$i] = $docs_object;
-
 		$self->add_matter($docs_object);
 	}
 
@@ -297,9 +189,101 @@ sub skips_method {
 sub flatten_methods {
 	my $self = shift();
 
-	warn "  TODO - flatten_methods()";
+	my @errors;
+	my $docs = $self->_elemental()->children();
 
-	return;
+	my $meta_class = $self->get_meta_class();
+
+	METHOD: foreach my $method ($meta_class->get_all_methods()) {
+		my $method_name = $method->name();
+
+		# Skip internal methods.
+		next METHOD if $method_name =~ /^-pod-plexus-/;
+
+		# And skip private methods, why not?
+		next METHOD if $method_name =~ /^_/;
+
+		# Skip if documented.
+		my $pod_plexus_name = "-pod-plexus-matter-method-$method_name-";
+		next METHOD if $meta_class->get_method($pod_plexus_name);
+
+		# Inherit it.
+		# TODO - Some of this code is redundant considering
+		# cache_all_matter().  Refactor.
+		my $doc_method = $meta_class->find_method_by_name($pod_plexus_name);
+		if ($doc_method) {
+
+			push @$docs, blank_line() unless (
+				@$docs and is_blank_paragraph($docs->[-1])
+			);
+
+			my $ancestor_package = $doc_method->package_name();
+
+			my $docs_index = @$docs;
+			push @$docs, (
+				generic_command("inherits", "$ancestor_package method $method_name"),
+				blank_line(),
+				cut_paragraph(),
+			);
+
+			my $docs_object = Pod::Plexus::Matter::inherits->new(
+				module     => $self->module(),
+				verbose    => $self->verbose(),
+				docs       => $docs,
+				docs_index => $docs_index,
+				element    => $docs->[$docs_index],
+			);
+
+			if ($docs_object->failed()) {
+				push @errors, @{$docs_object->errors()};
+				next METHOD;
+			}
+
+			$docs->[$docs_index] = $docs_object;
+			$self->add_matter($docs_object);
+
+			next METHOD;
+		}
+
+		# Nothing to inherit.  How about we document that it's not
+		# documented?
+
+		# But not if it's private.
+		next METHOD if $self->skips_method($method_name);
+
+		push @$docs, blank_line() unless (
+			@$docs and is_blank_paragraph($docs->[-1])
+		);
+
+		my $docs_index = @$docs;
+		push @$docs, (
+			generic_command("method", $method_name),
+			blank_line(),
+			text_paragraph("[% s.name %] is not yet documented.\n"),
+			blank_line(),
+			cut_paragraph(),
+		);
+
+		my $docs_object = Pod::Plexus::Matter::method->new(
+			module     => $self->module(),
+			verbose    => $self->verbose(),
+			docs       => $docs,
+			docs_index => $docs_index,
+			element    => $docs->[$docs_index],
+		);
+
+		if ($docs_object->failed()) {
+			push @errors, @{$docs_object->errors()};
+			next METHOD;
+		}
+
+		$docs->[$docs_index] = $docs_object;
+		$self->add_matter($docs_object);
+
+		next METHOD;
+	}
+
+	return @errors;
 }
 
 
@@ -525,117 +509,6 @@ sub index_matter_references {
 	}
 }
 
-###
-### Extract and remove data from documentation.
-###
-
-sub discard_section {
-	my ($self, $elementals, $index) = @_;
-
-	splice(
-		@$elementals, $index, 1,
-		generic_command("pod", "\n"),
-		blank_line(),
-	);
-
-}
-
-=method extract_plexus_commands
-
-[% s.name %] iterates the Pod::Elemental::Element::Generic::Command
-elements of a module's documentation.  Its single parameter is the
-name of a $self method to call for each command node.  Those methods
-should parse the command, enter appropriate data into the object, and
-return true if the command paragraph should be removed from the
-documentation.  A false return value will leave the command paragraph
-in place.
-
-=cut
-
-sub extract_plexus_commands {
-	my ($self, $errors, $method) = @_;
-
-	my $doc = $self->_elemental()->children();
-
-	my $i = @$doc;
-	NODE: while ($i--) {
-		my $node = $doc->[$i];
-
-		next NODE unless $node->isa('Pod::Elemental::Element::Generic::Command');
-
-		my $result = $self->$method($errors, $doc->[$i]);
-		next NODE unless $result;
-
-		$self->discard_section($doc, $i);
-
-		# The return value is an entity.  This means append the following
-		# text to its documentation.
-
-		my $j = $i + 2;
-		TEXT: while ($j < @$doc) {
-			unless ($doc->[$j]->isa('Pod::Elemental::Element::Generic::Command')) {
-				$result->push_documentation( splice(@$doc, $j, 1) );
-				next TEXT;
-			}
-
-			if (
-				$doc->[$j]->{command} eq 'cut' or
-				$doc->[$j]->{command} eq 'attribute' or
-				$doc->[$j]->{command} eq 'method' or
-				$doc->[$j]->{command} =~ /^head/
-			) {
-				last TEXT;
-			}
-
-			$result->push_documentation( splice(@$doc, $j, 1) );
-		}
-
-		$result->cleanup_documentation();
-	}
-}
-
-
-=method extract_plexus_directive_skip
-
-[% s.name %] examines a single Pod::Elemental command node.  If it's
-a "=skip" directive, its data is entered into the [% m.package %]
-object, and [% s.name %] returns true.  False is returned for all
-other nodes.
-
-=include boilerplate extract_plexus_command_callback
-
-=cut
-
-=boilerplate extract_plexus_command_callback
-
-This method is a callback to extract_plexus_command().  That other method
-is a generic iterator to walk through the Pod::Elemental document in
-memory and remove nodes that have been successfully parsed.  Node
-removal is triggered by callbacks, such as [% s.name %] returning a
-true value.
-
-As with all [% m.package %] parsers, only the Pod::Elemental data in
-memory is affected.  The source on disk is untouched.
-
-=cut
-
-sub extract_plexus_directive_skip {
-	my ($self, $errors, $node) = @_;
-
-	return unless $node->{command} eq 'skip';
-
-	my ($entity_type, $entity_name) = (
-		$node->{content} =~ /^\s* (attribute|method|all) \s+ (\S.*?) \s*$/x
-	);
-
-	my $skip_method = "skip_$entity_type";
-	$self->$skip_method($entity_name);
-
-	return 1;
-}
-
-
-
 
 ###
 ### Validate attribute and method docs.
@@ -853,7 +726,7 @@ sub assimilate_ancestor_attribute_documentation {
 
 		next ATTRIBUTE if $self->is_skippable_attribute($attribute_name);
 
-		my $thunk_name = "_pod_plexus_documents_attribute_$attribute_name\_";
+		my $thunk_name = "-pod-plexus-documents-attribute-$attribute_name-";
 		my $docs = eval { $this_class->$thunk_name() };
 
 		# The attribute comes from an outside source.
@@ -875,125 +748,6 @@ sub assimilate_ancestor_attribute_documentation {
 			$errors,
 		);
 	}
-}
-
-
-
-
-### Skipping attributes.
-
-=attribute skip_attributes
-
-[% s.name %] is a hash keyed on the names of attributes supplied by
-the "=skip attribute" directive.  These attributes won't be
-automatically documented, nor will Pod::Plexus complain if they aren't
-documented.
-
-Values don't matter, although the skip_attribute() method will supply
-one.  Literally, the number 1.
-
-=method is_skippable_attribute
-
-[% s.name %] tests whether a given attribute name exists in
-skip_attributes().
-
-=cut
-
-has skip_attributes => (
-	is      => 'rw',
-	isa     => 'HashRef',
-	traits  => [ 'Hash' ],
-	default => sub { { } },
-	handles => {
-		_is_skippable_attribute => 'exists',
-		_skip_attribute        => 'set',
-	}
-);
-
-
-sub is_skippable_attribute {
-	my ($self, $attribute_name) = @_;
-	return 1 if $attribute_name =~ /^_/;
-	return $self->_is_skippable_attribute($attribute_name);
-}
-
-
-=method skip_attribute
-
-[% s.name %] is used by the "=skip attribute" directive to set the
-attribute name to skip.
-
-=cut
-
-sub skip_attribute {
-	my $self = shift();
-	$self->_skip_attribute($_, 1) foreach @_;
-}
-
-### Skipping methods.
-
-=attribute skip_methods
-
-[% s.name %] is a hash keyed on the names of methods supplied by the
-"=skip method" directive.  These methods won't be automatically
-documented, nor will Pod::Plexus complain if they aren't documented.
-
-=method is_skippable_method
-
-[% s.name %] tests whether the named method exists in skip_methods.
-
-=cut
-
-has skip_methods => (
-	is      => 'rw',
-	isa     => 'HashRef',
-	traits  => [ 'Hash' ],
-	default => sub {
-		{
-			BUILDALL    => 1,
-			BUILDARGS   => 1,
-			DEMOLISHALL => 1,
-			DESTROY     => 1,
-			DOES        => 1,
-			VERSION     => 1,
-			can         => 1,
-			does        => 1,
-			dump        => 1,
-			meta        => 1,
-			new         => 1,
-		}
-	},
-	handles => {
-		_is_skippable_method => 'exists',
-		_skip_method        => 'set',
-	}
-);
-
-
-sub is_skippable_method {
-	my ($self, $method_name) = @_;
-	return 1 if $method_name =~ /^_/;
-	return $self->_is_skippable_method($method_name);
-}
-
-
-=method skip_method
-
-Values don't matter, although the skip_attribute() method will supply
-one.  Literally, the number 1.
-
-=cut
-
-sub skip_method {
-	my $self = shift();
-	$self->_skip_method($_, 1) foreach @_;
-}
-
-
-sub skip_all {
-	my $self = shift();
-	$self->skip_attribute(@_);
-	$self->skip_method(@_);
 }
 
 ###

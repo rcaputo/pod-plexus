@@ -156,7 +156,6 @@ has methods => (
 );
 
 
-
 =method dump
 
 [% s.name %] is a debugging helper method to print the PPI document
@@ -220,7 +219,7 @@ sub cache_all_attributes {
 		# Scratchpad the attribute's definition information for
 		# inheritance checking later.
 
-		my $thunk_name = "_pod_plexus_code_attribute_$attribute_name\_";
+		my $thunk_name = "-pod-plexus-code-attribute-$attribute_name-";
 		my $thunk_entity = $entity;
 		weaken $thunk_entity;
 		$meta->add_method($thunk_name, sub { return $thunk_entity });
@@ -379,6 +378,7 @@ sub validate_docs {
 	return;
 }
 
+
 =method get_sub
 
 [% s.name %] returns the code for a particular named subroutine or
@@ -454,6 +454,24 @@ sub get_attribute {
 	return unless $attributes and @$attributes;
 
 	return $attributes->[0]->content();
+}
+
+
+sub register_matter {
+	my ($self, $matter) = @_;
+
+	my $type = ref($matter);
+	$type =~ s/^Pod::Plexus::Matter:://;
+	$type =~ s/:+.*//;
+
+	weaken $matter;
+
+	$self->meta_entity()->add_method(
+		"-pod-plexus-matter-${type}-" . $matter->name() . "-",
+		sub { $matter }
+	);
+
+	undef;
 }
 
 
