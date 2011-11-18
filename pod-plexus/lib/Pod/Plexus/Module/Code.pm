@@ -219,7 +219,7 @@ sub cache_all_attributes {
 		# Scratchpad the attribute's definition information for
 		# inheritance checking later.
 
-		my $thunk_name = "-pod-plexus-code-attribute-$attribute_name-";
+		my $thunk_name = "__pod_plexus_code_attribute__$attribute_name\__";
 		my $thunk_entity = $entity;
 		weaken $thunk_entity;
 		$meta->add_method($thunk_name, sub { return $thunk_entity });
@@ -467,7 +467,7 @@ sub register_matter {
 	weaken $matter;
 
 	$self->meta_entity()->add_method(
-		"-pod-plexus-matter-${type}-" . $matter->name() . "-",
+		"__pod_plexus_matter_${type}__" . $matter->name() . "__",
 		sub { $matter }
 	);
 

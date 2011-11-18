@@ -121,43 +121,19 @@ sub cache_all_matter {
 
 	my $i = @$docs;
 	ELEMENT: while ($i--) {
-		my $element = $docs->[$i];
-		next ELEMENT unless (
-			$element->isa('Pod::Elemental::Element::Generic::Command')
-		);
-
-		my $command = $element->command();
-
-		my $doc_class = "Pod::Plexus::Matter::$command";
-		my $doc_file  = "$doc_class.pm";
-		$doc_file =~ s/::/\//g;
-
-		eval { require $doc_file };
-		if ($@) {
-			next ELEMENT if $@ =~ /^Can't locate/;
-			die $@;
-		}
+		my $element      = $docs->[$i];
+		my $matter_class = $self->_element_to_matter_class($element);
+		next ELEMENT unless $matter_class;
 
 		# The method name is a lie.  We cache all matter that isn't
 		# directives.
 
-		next ELEMENT if $doc_class->isa('Pod::Plexus::Matter::Directive');
+		next ELEMENT if $matter_class->isa('Pod::Plexus::Matter::Directive');
 
-		my $docs_object = $doc_class->new_from_element(
-			module     => $self->module(),
-			verbose    => $self->verbose(),
-			docs       => $docs,
-			docs_index => $i,
-			element    => $element,
+		push(
+			@errors,
+			$self->_create_matter_object($matter_class, $docs, $i, $element)
 		);
-
-		if ($docs_object->failed()) {
-			push @errors, @{$docs_object->errors()};
-			next ELEMENT;
-		}
-
-		$docs->[$i] = $docs_object;
-		$self->add_matter($docs_object);
 	}
 
 	return @errors;
@@ -198,51 +174,26 @@ sub flatten_methods {
 		my $method_name = $method->name();
 
 		# Skip internal methods.
-		next METHOD if $method_name =~ /^-pod-plexus-/;
+		next METHOD if $method_name =~ /^__pod_plexus_/;
 
 		# And skip private methods, why not?
 		next METHOD if $method_name =~ /^_/;
 
 		# Skip if documented.
-		my $pod_plexus_name = "-pod-plexus-matter-method-$method_name-";
+		my $pod_plexus_name = "__pod_plexus_matter_method__$method_name\__";
 		next METHOD if $meta_class->get_method($pod_plexus_name);
 
 		# Inherit it.
-		# TODO - Some of this code is redundant considering
-		# cache_all_matter().  Refactor.
 		my $doc_method = $meta_class->find_method_by_name($pod_plexus_name);
 		if ($doc_method) {
-
-			push @$docs, blank_line() unless (
-				@$docs and is_blank_paragraph($docs->[-1])
-			);
-
 			my $ancestor_package = $doc_method->package_name();
-
-			my $docs_index = @$docs;
-			push @$docs, (
-				generic_command("inherits", "$ancestor_package method $method_name"),
+			push @errors, $self->_generate_documentation(
+				generic_command(
+					"inherits", "$ancestor_package method $method_name\n"
+				),
 				blank_line(),
 				cut_paragraph(),
 			);
-
-			my $docs_object = Pod::Plexus::Matter::inherits->new(
-				module     => $self->module(),
-				verbose    => $self->verbose(),
-				docs       => $docs,
-				docs_index => $docs_index,
-				element    => $docs->[$docs_index],
-			);
-
-			if ($docs_object->failed()) {
-				push @errors, @{$docs_object->errors()};
-				next METHOD;
-			}
-
-			$docs->[$docs_index] = $docs_object;
-			$self->add_matter($docs_object);
-
-			next METHOD;
 		}
 
 		# Nothing to inherit.  How about we document that it's not
@@ -251,34 +202,13 @@ sub flatten_methods {
 		# But not if it's private.
 		next METHOD if $self->skips_method($method_name);
 
-		push @$docs, blank_line() unless (
-			@$docs and is_blank_paragraph($docs->[-1])
-		);
-
-		my $docs_index = @$docs;
-		push @$docs, (
-			generic_command("method", $method_name),
+		push @errors, $self->_generate_documentation(
+			generic_command("method", $method_name . "\n"),
 			blank_line(),
 			text_paragraph("[% s.name %] is not yet documented.\n"),
 			blank_line(),
 			cut_paragraph(),
 		);
-
-		my $docs_object = Pod::Plexus::Matter::method->new(
-			module     => $self->module(),
-			verbose    => $self->verbose(),
-			docs       => $docs,
-			docs_index => $docs_index,
-			element    => $docs->[$docs_index],
-		);
-
-		if ($docs_object->failed()) {
-			push @errors, @{$docs_object->errors()};
-			next METHOD;
-		}
-
-		$docs->[$docs_index] = $docs_object;
-		$self->add_matter($docs_object);
 
 		next METHOD;
 	}
@@ -300,6 +230,78 @@ sub document_accessors {
 	my $self = shift();
 
 	warn "  TODO - document_accessors()";
+
+	return;
+}
+
+
+sub _generate_documentation {
+	my ($self, @paragraphs) = @_;
+
+	my $docs = $self->_elemental()->children();
+
+	push @$docs, blank_line() unless @$docs and is_blank_paragraph($docs->[-1]);
+
+	my $docs_index = @$docs;
+	push @$docs, @paragraphs;
+
+	return $self->_cache_matter_section($docs, $docs_index);
+}
+
+
+sub _element_to_matter_class {
+	my ($self, $element) = @_;
+
+	return unless $element->isa('Pod::Elemental::Element::Generic::Command');
+
+	my $command = $element->command();
+
+	my $matter_class = "Pod::Plexus::Matter::$command";
+	my $doc_file  = "$matter_class.pm";
+	$doc_file =~ s/::/\//g;
+
+	eval { require $doc_file };
+	if ($@) {
+		return if $@ =~ /^Can't locate/;
+		confess "Can't cache matter section $matter_class ((($@)))";
+	}
+
+	return $matter_class;
+}
+
+
+sub _create_matter_object {
+	my ($self, $matter_class, $docs, $docs_index, $element) = @_;
+
+	my $matter_object = $matter_class->new_from_element(
+		module     => $self->module(),
+		verbose    => $self->verbose(),
+		docs       => $docs,
+		docs_index => $docs_index,
+		element    => $element,
+	);
+
+	return @{$matter_object->errors()} if $matter_object->failed();
+
+	$docs->[$docs_index] = $matter_object;
+	$self->add_matter($matter_object);
+
+	return;
+}
+
+
+sub _cache_matter_section {
+	my ($self, $docs, $docs_index) = @_;
+
+	my $element      = $docs->[$docs_index];
+	my $matter_class = $self->_element_to_matter_class($element);
+	return unless $matter_class;
+
+	my @errors = $self->_create_matter_object(
+		$matter_class, $docs, $docs_index, $element
+	);
+
+	return @errors if @errors;
 
 	return;
 }
@@ -386,52 +388,23 @@ values for the rest of the parser to use.
 sub cache_plexus_directives {
 	my $self = shift();
 
-	# TODO - This has a lot in common with cache_all_matter().
-	# Hoist commonalities into one or more helpers.
-
 	my @errors;
 	my $docs = $self->_elemental()->children();
 
 	my $i = @$docs;
 	ELEMENT: while ($i--) {
-		my $element = $docs->[$i];
-		next ELEMENT unless (
-			$element->isa('Pod::Elemental::Element::Generic::Command')
-		);
-
-		my $command = $element->command();
-
-		my $doc_class = "Pod::Plexus::Matter::$command";
-
-		my $doc_file  = "$doc_class.pm";
-		$doc_file =~ s/::/\//g;
-
-		eval { require $doc_file };
-		if ($@) {
-			next ELEMENT if $@ =~ /^Can't locate/;
-			die $@;
-		}
+		my $element      = $docs->[$i];
+		my $matter_class = $self->_element_to_matter_class($element);
+		next ELEMENT unless $matter_class;
 
 		# We only cache directives at this point.
 
-		next ELEMENT unless $doc_class->isa('Pod::Plexus::Matter::Directive');
+		next ELEMENT unless $matter_class->isa('Pod::Plexus::Matter::Directive');
 
-		my $docs_object = $doc_class->new_from_element(
-			module     => $self->module(),
-			verbose    => $self->verbose(),
-			docs       => $docs,
-			docs_index => $i,
-			element    => $element,
+		push(
+			@errors,
+			$self->_create_matter_object($matter_class, $docs, $i, $element)
 		);
-
-		if ($docs_object->failed()) {
-			push @errors, @{$docs_object->errors()};
-			next ELEMENT;
-		}
-
-		$docs->[$i] = $docs_object;
-
-		$self->add_matter($docs_object);
 	}
 
 	return @errors;
@@ -726,7 +699,7 @@ sub assimilate_ancestor_attribute_documentation {
 
 		next ATTRIBUTE if $self->is_skippable_attribute($attribute_name);
 
-		my $thunk_name = "-pod-plexus-documents-attribute-$attribute_name-";
+		my $thunk_name = "__pod_plexus_documents die die die broken -attribute-$attribute_name-";
 		my $docs = eval { $this_class->$thunk_name() };
 
 		# The attribute comes from an outside source.

@@ -122,13 +122,13 @@ messages on failure.
 sub cache_structure {
 	my $self = shift();
 
-	warn "Preparing to render ", $self->package(), "...\n";
-
 	# 0. Don't re-prepare this module.
 	# Comes first to avoid re-entry problems.
 
 	return if $self->is_prepared();
 	$self->is_prepared(1);
+
+	warn "Preparing to render ", $self->package(), "...\n";
 
 	my @errors;
 
