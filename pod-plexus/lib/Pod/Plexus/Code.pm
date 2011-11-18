@@ -54,6 +54,7 @@ sub is_documented {
 	push @$errors, "Object $self ... class needs to override validate()";
 }
 
+
 sub validate {
 	my ($self, $module, $errors) = @_;
 	push @$errors, "Object $self ... class needs to override validate()";

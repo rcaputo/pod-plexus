@@ -166,18 +166,16 @@ sub flatten_methods {
 	my $self = shift();
 
 	my @errors;
-	my $docs = $self->_elemental()->children();
-
 	my $meta_class = $self->get_meta_class();
 
-	METHOD: foreach my $method ($meta_class->get_all_methods()) {
-		my $method_name = $method->name();
+	METHOD: foreach my $meta_method ($meta_class->get_all_methods()) {
+		my $method_name = $meta_method->name();
 
 		# Skip internal methods.
 		next METHOD if $method_name =~ /^__pod_plexus_/;
 
-		# And skip private methods, why not?
-		next METHOD if $method_name =~ /^_/;
+		# Skip methods upon request.
+		next METHOD if $self->skips_method($method_name);
 
 		# Skip if documented.
 		my $pod_plexus_name = "__pod_plexus_matter_method__$method_name\__";
@@ -194,13 +192,14 @@ sub flatten_methods {
 				blank_line(),
 				cut_paragraph(),
 			);
+			next METHOD;
 		}
 
 		# Nothing to inherit.  How about we document that it's not
 		# documented?
 
 		# But not if it's private.
-		next METHOD if $self->skips_method($method_name);
+		next METHOD if $method_name =~ /^_/;
 
 		push @errors, $self->_generate_documentation(
 			generic_command("method", $method_name . "\n"),
@@ -220,7 +219,51 @@ sub flatten_methods {
 sub flatten_attributes {
 	my $self = shift();
 
-	warn "  TODO - flatten_attributes()";
+	my @errors;
+	my $meta_class = $self->get_meta_class();
+
+	ATTRIBUTE: foreach my $meta_attribute ($meta_class->get_all_attributes()) {
+		my $attribute_name = $meta_attribute->name();
+
+		# Skip if documented.  Yes, this calls get_method() here.
+		my $pod_plexus_name = "__pod_plexus_matter_attribute__$attribute_name\__";
+		next ATTRIBUTE if $meta_class->get_method($pod_plexus_name);
+
+		# Inherit it.
+		my $doc_method = $meta_class->find_method_by_name($pod_plexus_name);
+		if ($doc_method) {
+			my $ancestor_package = $doc_method->package_name();
+			push @errors, $self->_generate_documentation(
+				generic_command(
+					"inherits", "$ancestor_package attribute $attribute_name\n"
+				),
+				blank_line(),
+				cut_paragraph(),
+			);
+			next ATTRIBUTE;
+		}
+
+		# Nothing to inherit.  How about we document that it's not
+		# documented?
+
+		# But not if it's private.
+		next ATTRIBUTE if $attribute_name =~ /^_/;
+
+		# TODO - We can glean a lot about this attribute from
+		# Moose::Meta::Attribute and Class::MOP::Attribute.
+
+		push @errors, $self->_generate_documentation(
+			generic_command("attribute", $attribute_name . "\n"),
+			blank_line(),
+			text_paragraph("Attribute [% s.name %] is not yet documented.\n"),
+			blank_line(),
+			cut_paragraph(),
+		);
+
+		next ATTRIBUTE;
+	}
+
+	return @errors;
 
 	return;
 }

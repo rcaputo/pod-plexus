@@ -137,83 +137,65 @@ sub cache_structure {
 
 	return @errors if push @errors, $self->docs()->cache_plexus_directives();
 
-	# 2. Index code entities: attributes and methods.
-	# Must be done before documentation is parsed.
-	# Methods must come before attributes.
-
-#	return @errors if push @errors, (
-#		$self->code()->cache_all_methods(),
-#		$self->code()->cache_all_attributes()
-#	);
-
-	# 3. Parse, build and collect documentation references.
+	# 2. Parse, build and collect documentation references.
 
 	return @errors if push @errors, $self->docs()->cache_all_matter();
 
-	# 4. Acquire documentation for things that have been inherited and
-	# documented elsehwere.  As long as we don't already have them.
+	# 3. Inherit documentation from base classes as needed.  Generate
+	# documentation stubs for things that would otherwise go
+	# unmentioned.
+	#
+	# Attributes come first since their accessors must be treated before
+	# methods are.
 
 	return @errors if push @errors, (
+		$self->docs()->flatten_attributes(),
 		$self->docs()->flatten_methods(),
-		$self->docs()->flatten_attributes()
 	);
 
-	# 5. Document things we can intuit from Moose and/or Class::MOP.
+	# 4. Document things we can intuit from Moose and/or Class::MOP.
+	# This may actually be rolled into flatten_attributes() since the
+	# timing would be better there.
 
 	return @errors if push @errors, $self->docs()->document_accessors();
 
-	# 6. Make sure all code and documentation is accounted for.  This
-	# step may be obsolete if everything is auto-docuemented as a last
-	# resort.
+	# 5. Do any final validations.  Is everything documented?  Do all
+	# documentation sections reference actual implementation?  I'm not
+	# entirely sure this step's needed so far, but it remains as a
+	# reminder.
 
 	return @errors if push @errors, (
 		$self->docs()->validate_code(),
 		$self->code()->validate_docs()
 	);
 
-#	push @errors, $self->ensure_documentation();
-#	return @errors if @errors;
+	# We succeeded if we got this far.
 
 	return;
 
-	# ----------
-	# TODO - Gathering or grouping documentation into topics.  The idea
-	# is to render them as "=topic" so that Pod::Weaver can gather them.
+	# SOME OLDER IDEAS TO CONSIDER.
+	#
+	# Gathering and grouping documentation into topics.  Not all
+	# =methods are created equal.  For exmaple, POE's timer methods
+	# could all be grouped under "=head2 Timer Methods" with a preamble.
+	#
+	# Hierarchical grouping.  Sometimes a group needs subgroups.  POE's
+	# timer methods are a good example... there's a group that
+	# identifies timers by name, and there's another set of methods that
+	# returns and uses timer IDs.
+	#
 	# Possible syntax:
 	#
-	# TODO - Gathering topics under higher level topics.  Hierarchical
-	# documentation, if it's possible.  This would be nice to do without
-	# building an explicit outline.
+	#   =method delay EVENT [, SECONDS [, CONTINUATION_DATA] ]
+	#   SS<timers> XD<delay> X<relative timer>
 	#
-	# =method delay EVENT [, SECONDS [, CONTINUATION DATA] ]
-	# SS<timers> XD<delay> X<relative timer>
-	#
-	# Where XD<> is a "definition" cross-reference.  The index will
+	# Where XD<> is a "definition" cross-reference.  The index could
 	# highlight this entry as the definition for "delay".
 	#
-	# SS<timers> puts this method in the "timers" topic.
+	# SS<timers> puts this method under the "timers" topic (section).
 	#
 	# X<relative timers> indexes this section under the "relative
-	# timers" topic, but it doesn't _define_ that topic.
-	# ----------
-
-	# NOTE - Attributes and methods are special.  It's okay for them to
-	# be processed specially.
-
-	# Once explicit code and documentation are associated, we can see
-	# which remain undocumented and need to inherit documentation or
-	# have boilerplate docs written.
-
-	# TODO - For each undocumented attribute or method, try to find
-	# documentation up the inheritance or role chain until we reach the
-	# entity's implementation.
-
-	# TODO - Load and parse all cross referenced modules.  We need
-	# enough data to set xrefs, import inclusions, and import examples
-	# from other, possibly non-Moose distributions.
-
-	# TODO - Validate whether all cross referenced modules exist, within
-	# and outside the current distribution.
+	# timers" topic, but that topic doesn't _define_ it.
 }
 
 
