@@ -1,5 +1,9 @@
 package Pod::Plexus::Code::Attribute;
 
+=abstract A documentable class attribute.
+
+=cut
+
 use Moose;
 extends 'Pod::Plexus::Code';
 
@@ -60,9 +64,3 @@ sub validate {
 no Moose;
 
 1;
-
-__END__
-
-=abstract A documentable class attribute.
-
-=cut

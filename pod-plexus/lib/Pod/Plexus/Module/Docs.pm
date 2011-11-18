@@ -110,11 +110,26 @@ has verbose => (
 );
 
 
+=method cache_all_matter
+
+[% s.name %] examines each Pod::Elemental command node for something
+Pod::Plexus recognizes.  Every recognized Pod::Elemental command is
+replaced by Pod::Plexus::Matter subclass named after it.  For example,
+"=method" commands are replaced by Pod::Plexus::Matter::method
+objects.  These objects will properly render to Pod::Elemental
+elements and POD as needed.
+
+All other Pod::Elemental commands are ignored.
+
+=example method cache_all_matter
+
+=cut
+
 sub cache_all_matter {
 	my $self = shift();
 
-	# TODO - This has a lot in common with cache_plexus_directives().
-	# Hoist commonalities into one or more helpers.
+	# TODO - This is almost identical to cache_plexus_directives().
+	# The two methods should be refactored.
 
 	my @errors;
 	my $docs = $self->_elemental()->children();
@@ -431,6 +446,9 @@ values for the rest of the parser to use.
 sub cache_plexus_directives {
 	my $self = shift();
 
+	# TODO - This is almost identical to cache_all_matter().
+	# The two methods should be refactored.
+
 	my @errors;
 	my $docs = $self->_elemental()->children();
 
@@ -457,77 +475,8 @@ sub cache_plexus_directives {
 
 __END__
 
-
 ###
-### Collect data from the documentation, but leave markers behind.
-###
-
-=method index_matter_references
-
-[% s.name %] examines each Pod::Elemental command node.  Ones that
-are listed as known reference commands, such as "=abstract" or
-"=example", are parsed and recorded by their appropriate
-Pod::Plexus::Matter classes.
-
-All other Pod::Elemental commands are ignored.
-
-=cut
-
-sub index_matter_references {
-	my ($self, $errors, $method) = @_;
-
-	my $doc = $self->_elemental()->children();
-
-	my $i = @$doc;
-	NODE: while ($i--) {
-		my $node = $doc->[$i];
-
-		next NODE unless $node->isa('Pod::Elemental::Element::Generic::Command');
-		next NODE if exists $standard_pod_commands{$node->{command}};
-
-		my @new_errors;
-
-		my $doc_class = "Pod::Plexus::Matter::" . $node->{command};
-		my $doc_file  = "$doc_class.pm";
-		$doc_file =~ s/::/\//g;
-
-		eval { require $doc_file };
-		if ($@) {
-			push @$errors, $@;
-			next NODE;
-		}
-
-		my $reference = $doc_class->create(
-			module       => $self,
-			errors       => \@new_errors,
-			distribution => $self->distribution(),
-			node         => $node,
-		);
-
-		if (@new_errors) {
-			push @$errors, @new_errors;
-			next NODE;
-		}
-
-		# It's legal for a reference not to be created.
-		next NODE unless $reference;
-
-		# Record the reference for random access.
-		$self->_add_reference($reference);
-
-		# Splice the reference into place for sequential access.
-		splice @$doc, $i, 1, $reference;
-		# Roll up trailing documentation.
-		my $j = $i + 1;
-		while ($j < @$doc and $reference->consume_element($doc->[$j])) {
-			splice @$doc, $j, 1;
-		}
-	}
-}
-
-
-###
-### Validate attribute and method docs.
+### POSSIBLY REUSABLE CODE HERE
 ###
 
 sub document_accessors {
@@ -677,231 +626,3 @@ sub _document_accessor {
 		$method_reference,
 	);
 }
-
-
-sub assimilate_ancestor_method_documentation {
-	my ($self, $errors) = @_;
-
-	my $meta       = $self->meta_entity();
-	my $this_docs  = $self->_elemental()->children();
-	my $this_class = $self->package();
-	my %class_docs;
-
-	my $get_method_names = (
-		($meta->isa("Moose::Meta::Role"))
-		? "get_method_list"
-		: "get_all_method_names"
-	);
-
-	METHOD: foreach my $method_name ($meta->$get_method_names()) {
-
-		next METHOD if $self->is_skippable_method($method_name);
-
-		my $thunk_name = "_pod_plexus_documents_method_$method_name\_";
-		my $docs = eval { $this_class->$thunk_name() };
-
-		# The method comes from an outside source.
-
-		next METHOD unless $docs;
-
-		# The method is already documented by this class.
-
-		next METHOD if $docs->module() == $self;
-
-		# The method is documented in a superclass.
-
-		$self->_document_inherited_method(
-			$this_docs,
-			$this_class,
-			$docs->module_package(),
-			$method_name,
-			$self,
-			$errors,
-		);
-	}
-}
-
-
-sub assimilate_ancestor_attribute_documentation {
-	my ($self, $errors) = @_;
-
-	my $meta       = $self->meta_entity();
-	my $this_docs  = $self->_elemental()->children();
-	my $this_class = $self->package();
-	my %class_docs;
-
-	my @attribute_names;
-	if ($meta->isa("Moose::Meta::Role")) {
-		@attribute_names = $meta->get_attribute_list();
-	}
-	else {
-		@attribute_names = map { $_->name() } $meta->get_all_attributes();
-	}
-
-	ATTRIBUTE: foreach my $attribute_name (@attribute_names) {
-
-		next ATTRIBUTE if $self->is_skippable_attribute($attribute_name);
-
-		my $thunk_name = "__pod_plexus_documents die die die broken -attribute-$attribute_name-";
-		my $docs = eval { $this_class->$thunk_name() };
-
-		# The attribute comes from an outside source.
-
-		next ATTRIBUTE unless $docs;
-
-		# The attribute is already documented by this class.
-
-		next ATTRIBUTE if $docs->module() == $self;
-
-		# The attribue is documented in a superclass.
-
-		$self->_document_inherited_attribute(
-			$this_docs,
-			$this_class,
-			$docs->module_package(),
-			$attribute_name,
-			$self,
-			$errors,
-		);
-	}
-}
-
-###
-### Build documentation.
-###
-
-# TODO - _document_inherited_method() and
-# _document_inherited_attribute() need to be refactored.  They're a
-# copy/paste job with a lot of commonalities.
-
-sub _document_inherited_method {
-	my (
-		$self, $this_docs, $this_class, $class_name, $method_name,
-		$module, $errors,
-	) = @_;
-
-	my $method_reference = Pod::Plexus::Matter::method->new(
-		module => $self,
-		errors   => $errors,
-		distribution  => $self->distribution(),
-		name     => $method_name,
-		node     => Pod::Elemental::Element::Generic::Command->new(
-			command    => "method",
-			content    => "$method_name\n",
-			start_line => -__LINE__,
-		),
-	);
-
-	my $include_reference = Pod::Plexus::Matter::include->new(
-		errors   => $errors,
-		module => $self,
-		name     => $method_name,
-		distribution  => $self->distribution(),
-		node     => Pod::Elemental::Element::Generic::Command->new(
-			command    => "include",
-			content    => "$class_name method $method_name",
-			start_line => -__LINE__,
-		),
-	);
-
-	$self->_add_reference($method_reference);
-	$self->_add_reference($include_reference);
-
-	my @body = (
-		blank_line(),
-		$include_reference,
-		blank_line(),
-		text_paragraph(
-			"It is inherited from L<$class_name|$class_name/$method_name>.\n"
-		),
-		blank_line(),
-		cut_paragraph(),
-	);
-
-	$method_reference->push_body(@body);
-	$method_reference->push_documentation(@body);
-
-	push @$this_docs, (
-		blank_line(),
-		$method_reference,
-	);
-}
-
-
-sub _document_inherited_attribute {
-	my (
-		$self, $this_docs, $this_class, $class_name, $attribute_name,
-		$module, $errors,
-	) = @_;
-
-	unless ($self->_has_attribute($attribute_name)) {
-		my $attribute = $self->meta_entity()->find_attribute_by_name(
-			$attribute_name
-		);
-
-		unless ($attribute) {
-			push @$errors, (
-				"Class $this_class references unknown attribute $attribute_name"
-			);
-			return;
-		}
-
-		# Dummy attribute entity to satisfy validity checks.
-
-		$self->_add_attribute(
-			$attribute_name,
-			Pod::Plexus::Code::Attribute->new(
-				meta_entity => $attribute,
-				name        => $attribute_name,
-			)
-		);
-	}
-
-	my $attribute_reference = Pod::Plexus::Matter::attribute->new(
-		errors   => $errors,
-		module => $self,
-		name     => $attribute_name,
-		distribution  => $self->distribution(),
-		node     => Pod::Elemental::Element::Generic::Command->new(
-			command    => "attribute",
-			content    => "$attribute_name\n",
-			start_line => -__LINE__,
-		),
-	);
-
-	my $include_reference = Pod::Plexus::Matter::include->new(
-		errors   => $errors,
-		module => $self,
-		name     => $attribute_name,
-		distribution  => $self->distribution(),
-		node     => Pod::Elemental::Element::Generic::Command->new(
-			command    => "include",
-			content    => "$class_name attribute $attribute_name",
-			start_line => -__LINE__,
-		),
-	);
-
-	$self->_add_reference($attribute_reference);
-	$self->_add_reference($include_reference);
-
-	my @body = (
-		blank_line(),
-		$include_reference,
-		blank_line(),
-		text_paragraph(
-			"It is inherited from L<$class_name|$class_name/$attribute_name>.\n"
-		),
-		blank_line(),
-		cut_paragraph(),
-	);
-
-	$attribute_reference->push_body(@body);
-	$attribute_reference->push_documentation(@body);
-
-	push @$this_docs, (
-		blank_line(),
-		$attribute_reference,
-	);
-}
-
-1;

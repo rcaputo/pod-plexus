@@ -1,5 +1,9 @@
 package Pod::Plexus::Code::Method;
 
+=abstract A documentable method.
+
+=cut
+
 use Moose;
 extends 'Pod::Plexus::Code';
 
@@ -46,9 +50,3 @@ sub validate {
 no Moose;
 
 1;
-
-__END__
-
-=abstract A documentable method.
-
-=cut
