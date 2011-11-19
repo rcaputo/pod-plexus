@@ -4,6 +4,19 @@ package Pod::Plexus::Matter::abstract;
 
 =cut
 
+=head1 SYNOPSIS
+
+	=abstract Set a succinct, one-line description of the module.
+
+=cut
+
+=head1 DESCRIPTION
+
+[% m.name %] defines how [% d.name %] will parse "=abstract" meta-POD
+and generate the resulting POD documentation.
+
+=cut
+
 use Moose;
 extends 'Pod::Plexus::Matter';
 
@@ -15,6 +28,14 @@ use Pod::Plexus::Util::PodElemental qw(
 
 sub is_top_level { 1 }
 
+
+=attribute abstract
+
+The "[% s.name %]" attribute holds the abstract text used to build a
+module's "=head1 NAME" section.  This value is also used by other
+modules when cross referencing modules.
+
+=cut
 
 has abstract => (
 	is      => 'ro',

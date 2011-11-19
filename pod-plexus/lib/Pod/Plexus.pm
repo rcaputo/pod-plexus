@@ -70,11 +70,12 @@ L<Pod::Weaver::Plugin::PodPlexus> is an ongoing attempt to integrate
 Pod::Plexus with Pod::Weaver, if it's possible.  Help wanted!
 
 The L<podplexus> command line utility is used to speed up development
-and testing.  I'm looking for help making it a stand-alone utility for
+and testing.  Help wanted to make it a useful stand-alone tool for
 people who would rather not use Dist::Zilla.
 
 Pod::Plexus leans heavily on L<PPI> and L<Moose> for code analysis.
-It uses L<Pod::Elemental> to wrangle documentation.
+It uses L<Pod::Elemental> to wrangle documentation.  Patches to reduce
+the number and/or complexity of dependencies are very welcome.
 
 In its default state, Pod::Plexus requires L<Pod::Weaver> or something
 like it to gather and render =method and =attribute sections.  POD can

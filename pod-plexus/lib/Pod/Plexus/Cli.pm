@@ -13,40 +13,21 @@ use File::Find;
 
 =method new_with_options
 
-[% s.name %] constructs one new [% m.package %] object, using
-values from the command line to populate constructor parameters.
-See L</PUBLIC ATTRIBUTES> for constructor options and the command line
-switches that populate them.
-
-=cut
-
-
-=skip method usage
-
-=skip attribute usage
-
-=skip attribute ARGV
-
-=skip method extra_argv
-
-=skip attribute extra_argv
-
-=skip method help_flag
-
-=skip attribute help_flag
-
-=skip method process_argv
+[% s.name %] is inherited from MooseX::Getopt.  It creates one new [%
+m.package %] object from command line parameters.  See L</PUBLIC
+ATTRIBUTES> for constructor options and the command line switches that
+populate them.
 
 =cut
 
 
 =attribute lib
 
-[% s.name %] contains a list of distribution directories from which
-modules will be collected, indexed and possibly rendered.  By default
-it contains a single directory: "./lib".
+The "[% s.name %]" attribute contains a list of distribution
+directories from which modules will be collected, indexed and possibly
+rendered.  By default it contains a single directory: "./lib".
 
-[% s.name %] is populated by one or more --[% s.name %] command line
+"[% s.name %]" is populated by one or more --[% s.name %] command line
 switches.
 
 =cut
@@ -62,10 +43,10 @@ has lib => (
 
 =attribute module
 
-[% s.name %] is an array of specific modules to render.  All eligible
-files will be rendered if none are specified.
+"[% s.name %]" contains an array of specific modules to render.  All
+eligible files will be rendered if none are specified.
 
-[% s.name %] is populated by one or more --[% s.name %] command line
+"[% s.name %]" is populated by one or more --[% s.name %] command line
 switches.
 
 =cut
@@ -82,6 +63,13 @@ has module => (
 );
 
 
+=attribute verbose
+
+The "[% s.name %]" attribute (and therefore the --[% s.name %] command
+line flag) turns on additional stderr information when true.
+
+=cut
+
 has verbose => (
 	is            => 'rw',
 	isa           => 'Bool',
@@ -89,17 +77,6 @@ has verbose => (
 	documentation => 'enable a lot of stderr output',
 );
 
-
-=attribute _distribution
-
-[% s.name %] contains a Pod::Plexus::Distribution object.  This
-object is populated and driven by [% m.package %].
-
-[% s.name %] is populated by the --[% s.name %] command line switch.
-
-=example attribute _distribution
-
-=cut
 
 has _distribution => (
 	is      => 'ro',
@@ -118,7 +95,7 @@ has _distribution => (
 [% s.name %] tests whether a file at a RELATIVE_PATH is eligible to
 be documented.  Currently only ".pm" files are eligible.
 
-=example method is_indexable_file
+=example method collect_lib_files
 
 =cut
 
@@ -135,12 +112,10 @@ sub is_indexable_file {
 
 =method collect_lib_files
 
-[% s.name %] collects files that are eligible for documenting.  It
-uses File::Find to descend into directories in the "lib" directories.
-Each file that is_indexable_file() approves is added to the
-distribution for later processing.
-
-=example method collect_lib_files
+[% s.name %] collects files in the distribution that are eligible for
+documenting.  It uses File::Find to descend into directories in the
+"lib" attribute.  Each file that is_indexable_file() approves is added
+to the distribution for later processing.
 
 =cut
 
@@ -167,14 +142,18 @@ sub collect_lib_files {
 
 =method run
 
-[% s.name %] runs the Pod::Plexus command-line interface.  All
+[% s.name %] runs the Pod::Plexus command-line implementation.  All
 runtime parameters are taken from [% m.package %] public attributes.
 Thanks to MooseX::Getopt, those attributes are automatically populated
 from corresponding command line arguments.
 
-[% s.name %] collects all the modules in all the lib() directories.
+[% s.name %] collects all the modules in all the "lib" directories.
 Each module is added to the Pod::Plexus::Distribution so that it's
-known by the time cross references are resolved.
+known by the time cross references are resolved.  Each module is
+scanned by Pod::Plexus::Module, which finds and caches pertinent
+information in a Pod::Plexus::Module::Code or
+Pod::Plexus::Module::Docs object for manipulation and rendering into
+POD later.
 
 =example method run
 
@@ -218,7 +197,15 @@ sub run {
 
 		# TODO - Write to a file, if requested.
 
-		print $rendered_pod;
+		print(
+			"----------\n",
+			"----------\n",
+			"----------\n",
+			$rendered_pod,
+			"----------\n",
+			"----------\n",
+			"----------\n",
+		);
 	}
 
 	# TODO - Render to files, if appropriate.

@@ -9,6 +9,13 @@ use Pod::Plexus::Module::Code;
 use Pod::Plexus::Module::Docs;
 
 
+=attribute docs
+
+The "[% s.name %]" attribute contains a Pod::Plexus::Module::Docs
+object that represents and builds upon the module's documentation.
+
+=cut
+
 has docs => (
 	is      => 'ro',
 	isa     => 'Pod::Plexus::Module::Docs',
