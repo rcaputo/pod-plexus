@@ -1,5 +1,7 @@
 package Pod::Plexus::Matter::example;
 
+# TODO - Edit pass 0 done.
+
 =abstract Import code from the distribution as a documentation example.
 
 =cut
@@ -23,65 +25,54 @@ has referent_name => (
 
 
 has '+referent' => (
-	isa     => 'Pod::Plexus::Module',
-	lazy    => 1,
-	default => sub {
-		my $self = shift();
-
-		my $referent_name = $self->referent_name();
-		my $referent = $self->module_distribution()->get_module($referent_name);
-		return $referent if $referent;
-
-		$self->push_error(
-			"Unknown referent module ($referent_name) in =example" .
-			" at " . $self->module_pathname() .
-			" line " . $self->element()->start_line()
-		);
-
-		return;
-	}
+	isa => 'Pod::Plexus::Module',
 );
-
 
 sub is_top_level { 0 }
 
 
 sub new_from_element {
-	my ($class, %args) = @_;
+	my ($matter_class, %args) = @_;
 
 	my $element = $args{element} // confess "element required";
 	my $content = $element->content();
-	chomp $content;
 
 	if ($content =~ m/^\s* (module) \s+ (\S+) \s*$/x) {
-		my ($module_name, $type) = ($2, $1);
-		$class .= "::$type";
-		return $class->new(%args, referent_name => $module_name);
-	}
-
-	if ($content =~ m/^\s* (\S+) \s+ (attribute|method) \s+ (\S+) \s*$/x) {
-		my ($module_name, $type, $name) = ($1, $2, $3);
-		$class .= "::$type";
-		return $class->new(%args, referent_name => $module_name, name => $name);
-	}
-
-	if ($content =~ m/^\s* (attribute|method) \s+ (\S+) \s* $/x) {
-		my ($type, $name) = ($1, $2);
-		$class .= "::$type";
-		return $class->new(
+		my ($module_name, $referent_type) = ($2, $1);
+		$matter_class .= "::$referent_type";
+		return $matter_class->new(
 			%args,
-			referent_name => $args{module}->package(),
-			name          => $name,
+			referent_name => $module_name,
 		);
 	}
 
-	my $self = $class->new(%args);
-	$self->push_error(
-		"Wrong syntax: (=example $content) " .
-		" at " . $self->module_pathname() .
+	if ($content =~ m/^\s* (\S+) \s+ (attribute|method) \s+ (\S+) \s*$/x) {
+		my ($module_name, $referent_type, $referent_name) = ($1, $2, $3);
+		$matter_class .= "::$referent_type";
+		return $matter_class->new(
+			%args,
+			referent_name => $module_name,
+			name          => $referent_name,
+		);
+	}
+
+	if ($content =~ m/^\s* (attribute|method) \s+ (\S+) \s* $/x) {
+		my ($referent_type, $referent_name) = ($1, $2);
+		$matter_class .= "::$referent_type";
+		return $matter_class->new(
+			%args,
+			referent_name => $args{module}->package(),
+			name          => $referent_name,
+		);
+	}
+
+	chomp $content;
+	die [
+		"Wrong syntax" .
+		" in '=" . $element->command() . " $content'" .
+		" at " . $args{module}->pathname() .
 		" line " . $element->start_line()
-	);
-	return $self;
+	];
 }
 
 

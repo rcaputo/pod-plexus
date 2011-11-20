@@ -1,5 +1,7 @@
 package Pod::Plexus::Module::Code;
 
+# TODO - Edit pass 0 done.
+
 use Moose;
 use PPI;
 use Scalar::Util qw(weaken);
@@ -25,7 +27,14 @@ has module => (
 );
 
 
-has distribution => (
+=attribute distribution
+
+The "[% s.name %]" attribute allows [% m.package %] to access the
+distribution it's in.
+
+=cut
+
+has _UNUSED_distribution => (
 	is       => 'ro',
 	isa      => 'Pod::Plexus::Distribution',
 	weak_ref => 1,
@@ -36,10 +45,10 @@ has distribution => (
 
 =attribute _ppi
 
-[% s.name %] contains a PPI::Document representing parsed module
-being documented.  [% m.package %] uses this to find source code to
-include in the documentation, examine the module's implementation for
-documentation clues, and so on.
+"[% s.name %]" contains a PPI::Document representing a parse tree of
+the module being documented.  [% m.package %] uses this to find source
+code for inclusion in the documentation, examine the module's
+implementation for documentation clues, and so on.
 
 =cut
 
@@ -51,6 +60,10 @@ has _ppi => (
 );
 
 
+=inherits Pod::Plexus::Cli attribute verbose
+
+=cut
+
 has verbose => (
 	is      => 'rw',
 	isa     => 'Bool',
@@ -60,8 +73,14 @@ has verbose => (
 
 =attribute package
 
-[% s.name %] contains the module's main package name.  Its main use
-is in template expansion, via the "m.package" expression.
+[% m.package %]'s "[% s.name %]" attribute contains the module's first
+package name.  It's main use is in template expansion, via the
+"[Z<>% m.package %]" expression.
+
+Because of the way "[% s.name %]" works, it's probably better for
+every package to exist in its own module.  Undefined (but probably
+bad) things may occur if a module contains more than one package.
+Volunteers are welcome to fix this, whatever it is.
 
 =cut
 
@@ -80,21 +99,20 @@ has package => (
 );
 
 
-=attribute meta_entity
+=attribute meta_module
 
-[% s.name %] contains a meta-object that describes the class being
-documented from Class::MOP's perspective.  It allows Pod::Plexus to
-introspect the class and do many wonderful things with it, such as
-inherit documentation from parent classes.
+"[% s.name %]" contains a Class::MOP::Module object that describes the
+module being documented.  This allows Pod::Plexus to inspect the
+module and do many wonderful things with it, such as inherit
+documentation from parent classes and consumed roles.
 
-As of this writing however, it's beyond the author's ability to
-reliable inherit attribute and method documentation from higher up the
-class and role chain.  Hopefully someone with better Meta and MOP
-chops can step up.
+By default, "[% s.name %]" also ensures that the documented class is
+loaded and the meta-Class::MOP::Class is initialized.  These are
+prerequisites for "[% s.name %]" being valid.
 
 =cut
 
-has meta_entity => (
+has meta_module => (
 	is            => 'rw',
 	isa           => 'Class::MOP::Module',
 	lazy          => 1,
@@ -112,54 +130,11 @@ has meta_entity => (
 );
 
 
-=attribute attributes
-
-[% s.name %] contains an hash of all identified attributes in the
-class being documented.  They are keyed on attribute name, and values
-are Pod::Plexus::Code::Attribute objects.
-
-=cut
-
-has attributes => (
-	is      => 'rw',
-	isa     => 'HashRef[Pod::Plexus::Code::Attribute]',
-	traits  => [ 'Hash' ],
-	default => sub { { } },
-	handles => {
-		_add_attribute  => 'set',
-		_has_attribute  => 'exists',
-		_get_attribute  => 'get',
-		_get_attributes => 'values',
-	},
-);
-
-
-=attribute methods
-
-[% s.name %] contains an hash of all identified methods in the class
-being documented.  They are keyed on method name, and values are
-Pod::Plexus::Code::Method objects.
-
-=cut
-
-has methods => (
-	is      => 'rw',
-	isa     => 'HashRef[Pod::Plexus::Code::Method]',
-	traits  => [ 'Hash' ],
-	default => sub { { } },
-	handles => {
-		_add_method  => 'set',
-		_has_method  => 'exists',
-		_get_method  => 'get',
-		_get_methods => 'values',
-	},
-);
-
-
 =method dump
 
-[% s.name %] is a debugging helper method to print the PPI document
-for the class being documented, in PPI::Dumper format.
+[% s.name %]() is a debugging helper to print the PPI document used to
+parse this module's source code.  It's been useful for developing
+parsers like the ones in get_method_source().
 
 =cut
 
@@ -172,20 +147,198 @@ sub dump {
 }
 
 
-=method cache_attributes
+=boilerplate example_uses_it
 
-Find and register all attributes known by Class::MOP to exist.
+"=example" uses this to hoist code into the documentation.
 
 =cut
 
-sub cache_all_attributes {
+
+=method get_method_source
+
+[% s.name %](METHOD_NAME) returns the source code that implements a
+method in this module.
+
+=include boilerplate example_uses_it
+
+=cut
+
+sub get_method_source {
+	my ($self, $method_name) = @_;
+
+	my $subs = $self->_ppi()->find(
+		sub {
+			return 0 unless $_[1]->isa('PPI::Statement::Sub');
+			return 0 unless defined $_[1]->name();
+			return 0 unless $_[1]->name() eq $method_name;
+			return 1;
+		}
+	);
+
+	return unless $subs and @$subs;
+	return $subs->[0]->content();
+}
+
+
+=method get_module_source
+
+[% s.name %](MODULE_PACKAGE) returns the source code for an entire
+module.  Use with care, as this can be quite long---often much longer
+than is appropriate for a documentation illustration.
+
+=include boilerplate example_uses_it
+
+=cut
+
+sub get_module {
+	my $self = shift();
+
+	my $out = $self->_ppi()->clone();
+	$out->prune('PPI::Statement::End');
+	$out->prune('PPI::Statement::Data');
+	$out->prune('PPI::Token::Pod');
+
+	return $out->serialize();
+}
+
+
+=method get_attribute_source
+
+[% s.name %](ATTRIBUTE_NAME) returns the source code that defines an
+attribute in this module.
+
+=include boilerplate example_uses_it
+
+=cut
+
+sub get_attribute_source {
+	my ($self, $attribute_name) = @_;
+
+	my $attributes = $self->_ppi()->find(
+		sub {
+			return 0 unless $_[1]->isa('PPI::Statement');
+
+			my @elements = $_[1]->elements();
+
+			return 0 unless @elements > 3;
+
+			return 0 unless (
+				$elements[0]->isa('PPI::Token::Word') and
+				$elements[0]->literal() eq 'has'
+			);
+
+			return 0 unless $elements[1]->isa('PPI::Token::Whitespace');
+
+			return 0 unless (
+				$elements[2]->isa('PPI::Token::Word') and
+				$elements[2]->literal() eq $attribute_name
+			);
+
+			return 1;
+		}
+	);
+
+	return unless $attributes and @$attributes;
+
+	return $attributes->[0]->content();
+}
+
+
+=method add_matter_accessor
+
+[% s.name %](ACCESSOR_NAME, MATTER_OBJECT) adds an accessor to a
+module so that Perl's inheritance can be used to find the
+documentation associated with a particular piece of code.
+
+In the case of Moose roles, [% s.name %]() also applies the new
+accessor to all of the role's consumers.
+
+=cut
+
+sub add_matter_accessor {
+	my ($self, $cache_name, $matter) = @_;
+
+	my $meta = $self->meta_module();
+
+	weaken $matter;
+	my $cache_body = sub { return $matter };
+
+	$meta->add_method($cache_name, $cache_body);
+
+	if ($meta->can('consumers')) {
+		my @consumers = $meta->consumers();
+		CONSUMER: while (@consumers) {
+			my $next_class = shift @consumers;
+
+			my $next_meta  = $next_class->meta();
+			next CONSUMER if $next_meta->has_method($cache_name);
+
+			$next_meta->add_method($cache_name, $cache_body);
+
+			push @consumers, $next_meta->consumers() if $next_meta->can('consumers');
+		}
+	}
+
+	return;
+}
+
+
+=method find_matter
+
+[% s.name %](CACHE_NAME) finds the documentation matter described by
+CACHE_NAME within a module's code.  It relies upon
+add_matter_accessor() having first been called to associate the
+CACHE_name with the module.
+
+=cut
+
+sub find_matter {
+	my ($self, $cache_name) = @_;
+	my $class_name = $self->meta_module()->name();
+	return unless $class_name->can($cache_name);
+	return $class_name->$cache_name();
+}
+
+
+# Unused.
+has _UNUSED_attributes => (
+	is      => 'rw',
+	isa     => 'HashRef[Pod::Plexus::Code::Attribute]',
+	traits  => [ 'Hash' ],
+	default => sub { { } },
+	handles => {
+		_UNUSED_add_attribute  => 'set',
+		_UNUSED_has_attribute  => 'exists',
+		_UNUSED_get_attribute  => 'get',
+		_UNUSED_get_attributes => 'values',
+	},
+);
+
+
+# Unused.
+has _UNUSED_methods => (
+	is      => 'rw',
+	isa     => 'HashRef[Pod::Plexus::Code::Method]',
+	traits  => [ 'Hash' ],
+	default => sub { { } },
+	handles => {
+		_UNUSED_add_method  => 'set',
+		_UNUSED_has_method  => 'exists',
+		_UNUSED_get_method  => 'get',
+		_UNUSED_get_methods => 'values',
+	},
+);
+
+
+# Unused.
+sub _UNUSED_cache_all_attributes {
 	my ($self, $errors) = @_;
 
 	$self->verbose() and warn(
 		"  caching ", $self->package(), " code attributes...\n"
 	);
 
-	my $meta = $self->meta_entity();
+	my $meta = $self->meta_module();
 
 	# get_attribute_list() returns the name of all attributes defined in
 	# this class.
@@ -219,7 +372,7 @@ sub cache_all_attributes {
 		# Scratchpad the attribute's definition information for
 		# inheritance checking later.
 
-		my $thunk_name = Pod::Plexus::Code->calc_cache_name(
+		my $thunk_name = Pod::Plexus::Matter->calc_cache_name(
 			'attribute', $attribute_name
 		);
 
@@ -270,14 +423,8 @@ sub cache_all_attributes {
 }
 
 
-=method cache_all_methods
-
-Find and register all methods known by Class::MOP to exist in the
-class being documented.
-
-=cut
-
-sub cache_all_methods {
+# Unused.
+sub _UNUSED_cache_all_methods {
 	my ($self, $errors) = @_;
 
 	$self->verbose() and warn(
@@ -306,7 +453,7 @@ sub cache_all_methods {
 	# different kinds of module.  Meanwhile, I'm going to get all
 	# polymorphic here.
 
-	my $meta = $self->meta_entity();
+	my $meta = $self->meta_module();
 
 	my @methods = (
 		$meta->can('get_all_methods')
@@ -324,7 +471,8 @@ sub cache_all_methods {
 }
 
 
-sub cache_one_method {
+# Unused.
+sub _UNUSED_cache_one_method {
 	my ($self, $errors, $method) = @_;
 
 	# TODO
@@ -385,125 +533,5 @@ sub cache_one_method {
 
 	return $entity;
 }
-
-
-sub validate_docs {
-	my $self = shift();
-
-	warn "  TODO - validate_docs()";
-
-	return;
-}
-
-
-=method get_sub
-
-[% s.name %] returns the code for a particular named subroutine or
-method in the class being documented.  This is used to render code
-examples from single subroutines.
-
-=cut
-
-sub get_sub {
-	my ($self, $sub_name) = @_;
-
-	my $subs = $self->_ppi()->find(
-		sub {
-			return 0 unless $_[1]->isa('PPI::Statement::Sub');
-			return 0 unless defined $_[1]->name();
-			return 0 unless $_[1]->name() eq $sub_name;
-			return 1;
-		}
-	);
-
-	return unless $subs and @$subs;
-	return $subs->[0]->content();
-}
-
-
-=method get_module
-
-[% s.name %] returns the code portion of the file represented by this
-module.  This is used to render code examples by quoting entire
-modules.
-
-=cut
-
-sub get_module {
-	my $self = shift();
-
-	my $out = $self->_ppi()->clone();
-	$out->prune('PPI::Statement::End');
-	$out->prune('PPI::Statement::Data');
-	$out->prune('PPI::Token::Pod');
-
-	return $out->serialize();
-}
-
-
-sub get_attribute {
-	my ($self, $attribute_name) = @_;
-
-	my $attributes = $self->_ppi()->find(
-		sub {
-			return 0 unless $_[1]->isa('PPI::Statement');
-
-			my @elements = $_[1]->elements();
-
-			return 0 unless @elements > 3;
-
-			return 0 unless (
-				$elements[0]->isa('PPI::Token::Word') and
-				$elements[0]->literal() eq 'has'
-			);
-
-			return 0 unless $elements[1]->isa('PPI::Token::Whitespace');
-
-			return 0 unless (
-				$elements[2]->isa('PPI::Token::Word') and
-				$elements[2]->literal() eq $attribute_name
-			);
-
-			return 1;
-		}
-	);
-
-	return unless $attributes and @$attributes;
-
-	return $attributes->[0]->content();
-}
-
-
-sub register_matter {
-	my ($self, $cache_name, $matter) = @_;
-
-	my $meta = $self->meta_entity();
-
-	weaken $matter;
-	my $cache_body = sub { return $matter };
-
-	$meta->add_method($cache_name, $cache_body);
-
-	if ($meta->can('consumers')) {
-		my @consumers = $meta->consumers();
-		while (@consumers) {
-			my $next_class = shift @consumers;
-			my $next_meta  = $next_class->meta();
-			$next_meta->add_method($cache_name, $cache_body);
-			push @consumers, $next_meta->consumers() if $next_meta->can('consumers');
-		}
-	}
-
-	return;
-}
-
-
-sub find_matter {
-	my ($self, $cache_name) = @_;
-	my $class = $self->meta_entity()->name();
-	return unless $class->can($cache_name);
-	return $class->$cache_name();
-}
-
 
 1;

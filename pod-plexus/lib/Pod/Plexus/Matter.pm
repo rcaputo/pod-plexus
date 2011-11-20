@@ -1,5 +1,7 @@
 package Pod::Plexus::Matter;
 
+# TODO - Edit pass 0 done.
+
 =abstract A generic segment of documentation matter.
 
 =cut
@@ -71,6 +73,13 @@ has name => (
 	is      => 'rw',
 	isa     => 'Str',
 	default => "",
+);
+
+
+has element => (
+	is        => 'ro',
+	isa       => 'Pod::Elemental::Paragraph',
+	required  => 1,
 );
 
 
@@ -240,13 +249,13 @@ about modifications from a distance.
 
 sub clone_body {
 	my $self = shift;
+
 	local $SIG{__DIE__} = sub { confess "@_" };
-	#return dclone $self->doc_body();
 
 	my @new_body;
 	foreach my $sub_matter (@{$self->doc_body()}) {
 		if ($sub_matter->isa('Pod::Plexus::Matter')) {
-			my $new_matter = bless { %$sub_matter }, ref($sub_matter);
+			my $new_matter = $sub_matter->meta()->clone_object($sub_matter);
 			$new_matter->doc_body( $new_matter->clone_body() );
 			push @new_body, $new_matter;
 			next;
@@ -288,11 +297,11 @@ sub as_pod_string {
 	);
 
 	my %template_vars = (
-		d => $self->module_distribution(),
-		m => $self->module(),
+		d => $section->module_distribution(),
+		m => $section->module(),
 		s => $section,
 		r => $self,
-		c => $self->module()->package(),
+		c => $section->module()->package(),
 	);
 
 	my $template_output = "";
@@ -360,7 +369,6 @@ sub calc_cache_name {
 
 	return "__pod_plexus_matter__$type\__$symbol\__";
 }
-
 
 has errors => (
 	is      => 'ro',

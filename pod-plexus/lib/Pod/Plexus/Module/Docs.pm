@@ -1,5 +1,7 @@
 package Pod::Plexus::Module::Docs;
 
+# TODO - Edit pass 0 done.
+
 use Moose;
 
 use Pod::Elemental;
@@ -24,8 +26,8 @@ has module => (
 	required => 1,
 	weak_ref => 1,
 	handles  => {
-		package        => 'package',
-		get_meta_class => 'get_meta_class',
+		package         => 'package',
+		get_meta_module => 'get_meta_module',
 	},
 );
 
@@ -86,11 +88,13 @@ sub find_matter {
 
 
 sub add_matter {
-	my ($self, $docs) = @_;
-	my $cache_name = $docs->cache_name();
+	my ($self, $matter_object) = @_;
+
+	my $cache_name = $matter_object->cache_name();
 	return if $self->_has_matter($cache_name);
-	$self->_really_add_matter($cache_name, $docs);
-	$self->module()->register_matter($cache_name, $docs);
+
+	$self->_really_add_matter($cache_name, $matter_object);
+	$self->module()->add_matter_accessor($cache_name, $matter_object);
 }
 
 
@@ -186,7 +190,7 @@ sub flatten_methods {
 	my $self = shift();
 
 	my @errors;
-	my $meta_class = $self->get_meta_class();
+	my $meta_class = $self->get_meta_module();
 
 	my @methods;
 	if ($meta_class->can('get_all_methods')) {
@@ -253,7 +257,7 @@ sub flatten_attributes {
 	my $self = shift();
 
 	my @errors;
-	my $meta_class = $self->get_meta_class();
+	my $meta_class = $self->get_meta_module();
 
 	my @attributes;
 	if ($meta_class->can('get_all_attributes')) {
@@ -362,15 +366,20 @@ sub _element_to_matter_class {
 sub _create_matter_object {
 	my ($self, $matter_class, $docs, $docs_index, $element) = @_;
 
-	my $matter_object = $matter_class->new_from_element(
-		module     => $self->module(),
-		verbose    => $self->verbose(),
-		docs       => $docs,
-		docs_index => $docs_index,
-		element    => $element,
-	);
+	my $matter_object = eval {
+		$matter_class->new_from_element(
+			module     => $self->module(),
+			verbose    => $self->verbose(),
+			docs       => $docs,
+			docs_index => $docs_index,
+			element    => $element,
+		)
+	};
 
-	return @{$matter_object->errors()} if $matter_object->failed();
+	if ($@) {
+		die $@ unless ref($@) eq 'ARRAY';
+		return @{$@};
+	}
 
 	$docs->[$docs_index] = $matter_object;
 	$self->add_matter($matter_object);

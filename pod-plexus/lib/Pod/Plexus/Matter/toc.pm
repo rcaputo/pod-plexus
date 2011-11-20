@@ -1,5 +1,7 @@
 package Pod::Plexus::Matter::toc;
 
+# TODO - Edit pass 0 done.
+
 =abstract Generate a table of contents for modules that match a regexp.
 
 =cut
@@ -66,23 +68,23 @@ sub BUILD {
 
 	my $element = $self->docs()->[ $self->docs_index() ];
 	my $content = $element->content();
+	chomp $content;
 
 	(my $regexp = $content)  =~ s/\s+//g;
 
 	unless (length $regexp) {
-		$self->push_error(
-			"=" . $element->command() . " command needs a regexp" .
-			" at " . $self->module_path() .
-			" line " . $self->node()->start_line()
-		);
-		return;
+		die [
+			"'=" . $element->command() . "' command needs a regexp" .
+			" at " . $self->module_pathname() .
+			" line " . $element->start_line()
+		];
 	}
 
 	my @referents = (
 		map {
 			my $referent = $self->module_distribution()->get_module($_);
 			my @errors = $referent->cache_structure();
-			$self->push_error(@errors) if @errors;
+			die \@errors if @errors;
 			$referent;
 		}
 		sort
@@ -91,12 +93,11 @@ sub BUILD {
 	);
 
 	unless (@referents) {
-		$self->push_error(
-			"=toc ", $element->content(), " ... doesn't match anything" .
-			" at " . $self->module_path() .
+		die [
+			"'=" . $element->command() . " $content' doesn't match anything" .
+			" at " . $self->module_pathname() .
 			" line " . $element->start_line()
-		);
-		return;
+		];
 	}
 
 	$self->referents(\@referents);

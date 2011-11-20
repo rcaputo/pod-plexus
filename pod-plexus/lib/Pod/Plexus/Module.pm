@@ -1,5 +1,7 @@
 package Pod::Plexus::Module;
 
+# TODO - Edit pass 0 done.
+
 =abstract Represent and render a single module in a distribution.
 
 =cut
@@ -49,13 +51,13 @@ has code => (
 		);
 	},
 	handles => {
-		package            => 'package',
-		get_sub_code       => 'get_sub',
-		get_module_code    => 'get_module',
-		get_attribute_code => 'get_attribute',
-		register_matter    => 'register_matter',
-		get_meta_class     => 'meta_entity',
-		find_matter        => 'find_matter',
+		package              => 'package',
+		get_method_source    => 'get_method_source',
+		get_module_source    => 'get_module_source',
+		get_attribute_source => 'get_attribute_source',
+		add_matter_accessor  => 'add_matter_accessor',
+		get_meta_module      => 'meta_module',
+		find_matter          => 'find_matter',
 	},
 );
 
@@ -136,9 +138,33 @@ sub cache_structure {
 	return if $self->is_prepared();
 	$self->is_prepared(1);
 
-	warn "Preparing to render ", $self->package(), "...\n";
+	warn "Caching structure for ", $self->package(), "...\n";
 
 	my @errors;
+
+	# 0. Cache all modules this one depends on.
+
+	my $meta_module = $self->get_meta_module();
+
+	if ($meta_module->can('linearized_isa')) {
+		foreach my $dependency_class_name ($meta_module->linearized_isa()) {
+			my $dependency_module = $self->distribution()->get_module(
+				$dependency_class_name
+			);
+			next unless $dependency_module;
+			$dependency_module->cache_structure();
+		}
+	}
+
+	if ($meta_module->can('calculate_all_roles')) {
+		foreach my $dependency_role_name ($meta_module->calculate_all_roles()) {
+			my $dependency_module = $self->distribution()->get_module(
+				$dependency_role_name
+			);
+			next unless $dependency_module;
+			$dependency_module->cache_structure();
+		}
+	}
 
 	# 1. Collect directives that affect how the module is parsed.
 	# This must be done before everything else.
@@ -172,10 +198,10 @@ sub cache_structure {
 	# entirely sure this step's needed so far, but it remains as a
 	# reminder.
 
-	return @errors if push @errors, (
-		$self->docs()->validate_code(),
-		$self->code()->validate_docs()
-	);
+	#return @errors if push @errors, (
+	#	$self->docs()->validate_code(),
+	#	$self->code()->validate_docs()
+	#);
 
 	# We succeeded if we got this far.
 

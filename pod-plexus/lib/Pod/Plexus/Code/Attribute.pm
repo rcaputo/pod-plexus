@@ -1,5 +1,7 @@
 package Pod::Plexus::Code::Attribute;
 
+# TODO - Edit pass 0 done.
+
 =abstract A documentable class attribute.
 
 =cut

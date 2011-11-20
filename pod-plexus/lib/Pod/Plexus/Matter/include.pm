@@ -1,5 +1,7 @@
 package Pod::Plexus::Matter::include;
 
+# TODO - Edit pass 0 done.
+
 =abstract Include documentation from another section or boilerplate.
 
 =cut
@@ -20,63 +22,37 @@ sub BUILD {
 
 	my $element = $self->docs()->[ $self->docs_index() ];
 	my $content = $element->content();
-	chomp $content;
 
-	my ($module, $type, $symbol);
+	my ($module_name, $referent_type, $referent_name);
 
 	if (
 		$content =~ m{
 			^\s* (\S+) \s+ (attribute|boilerplate|method) \s+ (\S+) \s*$
 		}x
 	) {
-		($module, $type, $symbol) = ($1, "Pod::Plexus::Matter::$2", $3);
+		($module_name, $referent_type, $referent_name) = (
+			$1, "Pod::Plexus::Matter::$2", $3
+		);
 	}
 	elsif ($content =~ m/^\s* (attribute|boilerplate|method) \s+ (\S+) \s*$/x) {
-		($module, $type, $symbol) = (
+		($module_name, $referent_type, $referent_name) = (
 			$self->module_package(), "Pod::Plexus::Matter::$1", $2
 		);
 	}
 	else {
-		$self->push_error(
-			"Wrong syntax: (=include $content) " .
+		die [
+			"Wrong syntax" .
+			" in '=" . $element->command() . " $content'" .
 			" at " . $self->module_pathname() .
 			" line " . $element->start_line()
-		);
-		return;
+		];
 	}
 
-	my $referent_module = $self->module_distribution()->get_module($module);
-	unless ($referent_module) {
-		$self->push_error(
-			"Unknown referent module: (=include $content) " .
-			" at " . $self->module_pathname() .
-			" line " . $element->start_line()
-		);
-		return;
-	}
+	my $referent = $self->get_referent_matter(
+		$module_name, $referent_type, $referent_name
+	);
 
-	my @errors = $referent_module->cache_structure();
-	if (@errors) {
-		$self->push_error(@errors);
-		return;
-	}
-
-	my $cache_name = Pod::Plexus::Matter->calc_cache_name($type, $symbol);
-	my $referent   = $referent_module->find_matter($cache_name);
-
-	confess "no referent ($module $type $symbol) ($cache_name)" unless $referent;
-
-	unless ($referent) {
-		$self->push_error(
-			"Can't find referent in " . $referent_module->docs() .
-			": (=include $content) " .
-			" at " . $self->module_pathname() .
-			" line " . $element->start_line()
-		);
-		return;
-	}
-
-	$self->name($symbol);
+	$self->name($referent_name);
 	$self->referent($referent);
 	$self->doc_body($referent->clone_body());
 

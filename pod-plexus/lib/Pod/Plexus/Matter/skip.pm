@@ -1,5 +1,7 @@
 package Pod::Plexus::Matter::skip;
 
+# TODO - Edit pass 0 done.
+
 =abstract Tell Pod::Plexus that something shouldn't be documented.
 
 =cut
@@ -34,14 +36,12 @@ sub new_from_element {
 		return $class->new(%args, name => $name);
 	}
 
-	my $self = $class->new(%args);
-	$self->push_error(
-		"Wrong syntax: (=skip $content) " .
-		" at " . $self->module_pathname() .
+	die [
+		"Wrong syntax" .
+		" in '=" . $element->command() . " $content'" .
+		" at " . $args{module}->pathname() .
 		" line " . $element->start_line()
-	);
-
-	return $self;
+	];
 }
 
 

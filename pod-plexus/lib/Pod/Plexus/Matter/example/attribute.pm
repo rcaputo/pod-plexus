@@ -1,5 +1,7 @@
 package Pod::Plexus::Matter::example::attribute;
 
+# TODO - Edit pass 0 done.
+
 =abstract Render an attribute implementation as a code example.
 
 =cut
@@ -11,8 +13,11 @@ extends 'Pod::Plexus::Matter::example';
 sub BUILD {
 	my $self = shift();
 
+	my $referent = $self->get_referent_module($self->referent_name());
+	$self->referent($referent);
+
 	my $attribute_name = $self->name();
-	my $code = $self->referent()->get_attribute_code($attribute_name);
+	my $code = $referent->get_attribute_source($attribute_name);
 
 	my $link;
 	if ($self->_is_local()) {

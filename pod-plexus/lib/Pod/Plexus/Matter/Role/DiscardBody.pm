@@ -1,8 +1,10 @@
 package Pod::Plexus::Matter::Role::DiscardBody;
 
+# TODO - Edit pass 0 done.
+
 use Moose::Role;
 
-requires qw(extract_my_body docs docs_index push_error module_pathname);
+requires qw(extract_my_body docs docs_index module_pathname);
 excludes qw(handle_body);
 
 
@@ -24,11 +26,11 @@ sub handle_body {
 	my $element = $self->docs()->[ $self->docs_index() ];
 	my $command = $element->command();
 
-	$self->push_error(
+	die [
 		"=$command section must be empty" .
 		" at " . $self->module_pathname() .
 		" line " . $element->start_line()
-	);
+	];
 }
 
 

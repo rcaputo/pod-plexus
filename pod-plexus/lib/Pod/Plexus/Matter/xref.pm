@@ -1,11 +1,13 @@
 package Pod::Plexus::Matter::xref;
 
+# TODO - Edit pass 0 done.
+
 =abstract Generate a cross-reference link.
 
 =cut
 
 use Moose;
-extends 'Pod::Plexus::Matter';
+extends 'Pod::Plexus::Matter::Reference';
 
 use Pod::Plexus::Util::PodElemental qw(
 	generic_command
@@ -25,43 +27,32 @@ sub BUILD {
 	my $content = $element->content();
 	chomp $content;
 
-	my ($module, $type, $symbol);
+	my ($module_name, $type, $symbol);
 
 	if ($content =~ m/^\s* (module) \s+ (\S+) \s*$/x) {
-		($module, $type, $symbol) = ($2, $1, undef);
+		($module_name, $type, $symbol) = ($2, $1, undef);
 	}
 	elsif ($content =~ m/^\s* (\S+) \s+ (attribute|method) \s+ (\S+) \s*$/x) {
-		($module, $type, $symbol) = ($1, $2, $3);
+		($module_name, $type, $symbol) = ($1, $2, $3);
 	}
 	elsif ($content =~ m/^\s* (attribute|method) \s+ (\S+) \s* $/x) {
-		($module, $type, $symbol) = (
+		($module_name, $type, $symbol) = (
 			$self->module_package(), $1, $2
 		);
 	}
 	else {
-		$self->push_error(
-			"Wrong syntax: (=xref $content) " .
+		die [
+			"Wrong syntax" .
+			" in '=" . $element->command() . " $content'" .
 			" at " . $self->module_pathname() .
 			" line " . $element->start_line()
-		);
-		return;
+		];
 	}
 
-	my $referent_module = $self->module_distribution()->get_module($module);
-	unless ($referent_module) {
-		$self->push_error(
-			"Unknown referent module: (=example $content) " .
-			" at " . $self->module_pathname() .
-			" line " . $element->start_line()
-		);
-		return;
-	}
+	my $referent_module = $self->get_referent_module($module_name);
 
 	my @errors = $referent_module->cache_structure();
-	if (@errors) {
-		$self->push_error(@errors);
-		return;
-	}
+	die \@errors if @errors;
 
 	# However this differs from Pod::Plexus::Matter::example in that it
 	# refers to a documentation entity.
@@ -72,7 +63,7 @@ sub BUILD {
 	);
 
 	if ($type eq 'attribute') {
-		if ($module eq $self->module_package()) {
+		if ($module_name eq $self->module_package()) {
 			$self->push_body(
 				text_paragraph(
 					"Attribute L<$symbol|/$symbol> in this class.\n"
@@ -83,14 +74,15 @@ sub BUILD {
 
 		$self->push_body(
 			text_paragraph(
-				"L<$module|$module> attribute L<$symbol()|$module/$symbol>.\n"
+				"L<$module_name|$module_name> " .
+				"attribute L<$symbol()|$module_name/$symbol>.\n"
 			)
 		);
 		return;
 	}
 
 	if ($type eq 'method') {
-		if ($module eq $self->module_package()) {
+		if ($module_name eq $self->module_package()) {
 			$self->push_body(
 				text_paragraph(
 					"Method L<$symbol|/$symbol> in this class.\n"
@@ -101,7 +93,8 @@ sub BUILD {
 
 		$self->push_body(
 			text_paragraph(
-				"L<$module|$module> method L<$symbol()|$module/$symbol>.\n"
+				"L<$module_name|$module_name> " .
+				"method L<$symbol()|$module_name/$symbol>.\n"
 			)
 		);
 		return;
@@ -110,7 +103,7 @@ sub BUILD {
 	if ($type eq 'module') {
 		$self->push_body(
 			text_paragraph(
-				"L<$module|$module> - " . $referent_module->abstract() . "\n"
+				"L<$module_name|$module_name> - " . $referent_module->abstract() . "\n"
 			)
 		);
 		return;

@@ -1,5 +1,7 @@
 package Pod::Plexus::Matter::Code;
 
+# TODO - Edit pass 0 done.
+
 =abstract A reference to documentation for an attribute or method entity.
 
 =cut
@@ -25,14 +27,13 @@ has name => (
 
 		return $1 if $element->content() =~ /^\s* (\S+) \s*$/x;
 
-		my $error = (
-			"Wrong syntax: =" . $element->command() . " " . $element->content() .
-			" at " . $self->module_path() .
+		chomp(my $content = $element->content());
+		die [
+			"Wrong syntax" .
+			" in '=" . $element->command() . " $content'" .
+			" at " . $self->module_pathname() .
 			" line " . $element->start_line()
-		);
-
-		$self->push_error($error);
-		return '(failed)';
+		];
 	},
 );
 

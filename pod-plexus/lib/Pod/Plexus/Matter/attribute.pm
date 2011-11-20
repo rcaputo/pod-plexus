@@ -1,5 +1,7 @@
 package Pod::Plexus::Matter::attribute;
 
+# TODO - Edit pass 0 done.
+
 =abstract Document a class attribute in an inheritable way.
 
 =cut

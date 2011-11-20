@@ -33,6 +33,8 @@ The first --[% s.name %] command line switch replaces the default
 library directory.  Subsequent --[% s.name %] switches add to the
 directory list.
 
+=example attribute lib
+
 =cut
 
 has lib => (
@@ -66,11 +68,18 @@ has module => (
 );
 
 
+=boilerplate verbose
+
+The "[% s.name %]" attribute causes [% m.package %] to log additional
+runtime information to STDERR.
+
+=cut
+
 =attribute verbose
 
-The "[% s.name %]" attribute (and therefore the --[% s.name %] command
-line flag) causes Pod::Plexus to log additional runtime information to
-STDERR.
+=include boilerplate verbose
+
+"[% s.name %]" is set by the --[% s.name %] command line flag.
 
 =cut
 
