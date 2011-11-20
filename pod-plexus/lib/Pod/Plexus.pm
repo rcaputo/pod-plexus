@@ -1,5 +1,7 @@
 package Pod::Plexus;
 
+# TODO - Edit pass 1 done.
+
 =abstract Reduces POD maintenance by adding documenation by reference.
 
 =cut
@@ -26,20 +28,21 @@ mass; web; network.  [< New Latin I<plexus> < Latin I<plexus>, a braid
 Documentation is a drag.  It adds significant friction to development,
 since it must be edited to reflect changes in the code.  As tedious as
 code is to test, documentation is many times worse to validate.  A
-human with a deep understanding of the project must read everything
-and evaluate whether it holds true.
+human with a deep understanding of the code must read everything and
+evaluate whether it holds true.
 
-Pod::Plexus reduces documentation's drag.  It adds documentation by
-reference, reducing the amount of work and duplication needed to
-document code thoroughly.
+Relatively few people relish this task, which is why so much open
+source documentation sucks.  People usually fine something else to do,
+and the documentation suffers.
 
-For example, Pod::Plexus adds inheritance to POD.  Subclasses that
-borrow code from their bases can also borrow the corresponding
-documentation.
+Pod::Plexus reduces documentation's drag.  It adds "documentation by
+reference", reducing the amount of work needed to document things
+thoroughly.  Documentation by reference reduces the number of places
+where edits must be made, making maintenance a bit easier.
 
-Pod::Plexus provides a boilerplate feature.  Common paragraphs may be
-defined once and reused multiple times.  Editing a boilerplate fixes
-every place it's used.
+For example, Pod::Plexus adds inheritance to POD.  Documentation can
+be written once in base classes and roles.  Subclasses and consumers
+can include it in their own documentation.
 
 Pod::Plexus allows documentation to use real code for examples.  Fixes
 applied to implementation automatically update the illustrations.
@@ -54,7 +57,14 @@ Tables of contents can be generated in a single line.  Base classes
 can automatically include links to all the subclasses that accompany
 it in the distribution.
 
+Documentation is a bit more like code, so it should be a little more
+enjoyable to write. :)
+
 =head1 NEW POD COMMANDS
+
+Pod::Plexus commands are implemented in their own classes.  This
+modular approach is intended to simplify writing and releasing new
+commands.
 
 Please see the following modules for documentation of specific
 commands.
