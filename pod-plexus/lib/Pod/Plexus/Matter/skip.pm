@@ -45,12 +45,6 @@ sub new_from_element {
 }
 
 
-sub BUILD {
-	my $self = shift();
-	$self->discard_my_section();
-}
-
-
 no Moose;
 
 1;

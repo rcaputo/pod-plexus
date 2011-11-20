@@ -16,14 +16,7 @@ sub BUILD {
 	my $referent = $self->referent();
 	$self->doc_prefix($referent->clone_prefix());
 	$self->doc_suffix($referent->clone_suffix());
-	$self->handle_body();
 };
-
-
-sub handle_body {
-	my $self = shift();
-	$self->discard_my_section();
-}
 
 
 no Moose;

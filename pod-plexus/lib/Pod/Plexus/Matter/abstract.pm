@@ -6,14 +6,31 @@ package Pod::Plexus::Matter::abstract;
 
 =head1 SYNOPSIS
 
+	package Pod::Plexus::Matter::abstract;
+
 	=abstract Set a succinct, one-line description of the module.
+
+	=cut
+
+Renders as
+
+	=head1 NAME
+
+	Pod::Plexus::Matter::abstract - Set a succinct, one-line ....
+
+	=cut
 
 =cut
 
 =head1 DESCRIPTION
 
-[% m.name %] defines how [% d.name %] will parse "=abstract" meta-POD
-and generate the resulting POD documentation.
+[% m.package %] defines how [% d.name %] will parse "=abstract"
+meta-POD and generate the resulting POD documentation.  Abstracts are
+rewritten as "=head1 NAME" sections.
+
+=include Pod::Plexus::Matter boilerplate section_body_handler
+
+=include Pod::Plexus::Matter boilerplate please_report_questions
 
 =cut
 
@@ -21,8 +38,11 @@ use Moose;
 extends 'Pod::Plexus::Matter';
 
 
+sub section_body_handler { 'has_no_body' }
+
+
 use Pod::Plexus::Util::PodElemental qw(
-	blank_line head_paragraph cut_paragraph
+	blank_line head_paragraph cut_paragraph text_paragraph
 );
 
 
@@ -53,31 +73,56 @@ has abstract => (
 );
 
 
+=attribute doc_prefix
+
+The "[% s.name %]" attribute defines how to begin the POD for
+abstracts.
+
+=example attribute +doc_prefix
+
+=cut
+
 has '+doc_prefix' => (
 	default => sub {
-		my $self = shift();
+		return [ head_paragraph(1, "NAME\n"), blank_line() ];
+	}
+);
+
+
+=attribute doc_body
+
+"[% s.name %]" defines the abstract section's main POD.  It follows
+the common style of "Package::Name - A succinct description."
+
+=example attribute +doc_body
+
+=cut
+
+has '+doc_body' => (
+	lazy => 1,
+	default => sub {
+		my $self = shift;
 		return [
-			head_paragraph(
-				1,
-				"NAME " . $self->module_package() . " - " . $self->abstract() . "\n"
+			text_paragraph(
+				$self->module_package() . " - " . $self->abstract() . "\n"
 			),
-			blank_line()
 		];
 	},
 );
 
+
+=attribute doc_suffix
+
+"[%s.name %]" documents a "=cut" paragraph to close the abstract's POD
+section.
+
+=cut
 
 has '+doc_suffix' => (
 	default => sub {
 		return [ blank_line(), cut_paragraph() ];
 	},
 );
-
-
-sub BUILD {
-	my $self = shift();
-	$self->discard_my_section();
-}
 
 
 no Moose;

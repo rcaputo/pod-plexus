@@ -13,6 +13,7 @@ use Pod::Plexus::Matter::method;
 
 sub is_top_level { 0 }
 
+sub section_body_handler { 'has_no_body' }
 
 sub BUILD {
 	my $self = shift();
@@ -25,12 +26,12 @@ sub BUILD {
 
 	if (
 		$content =~ m{
-			^\s* (\S*) \s+ (attribute|boilerplate|method) \s+ (\S.*?) \s*$
+			^\s* (\S+) \s+ (attribute|boilerplate|method) \s+ (\S+) \s*$
 		}x
 	) {
 		($module, $type, $symbol) = ($1, "Pod::Plexus::Matter::$2", $3);
 	}
-	elsif ($content =~ m/^\s* (attribute|boilerplate|method) \s+ (\S.*?) \s*$/x) {
+	elsif ($content =~ m/^\s* (attribute|boilerplate|method) \s+ (\S+) \s*$/x) {
 		($module, $type, $symbol) = (
 			$self->module_package(), "Pod::Plexus::Matter::$1", $2
 		);

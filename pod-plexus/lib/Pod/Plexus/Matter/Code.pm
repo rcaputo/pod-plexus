@@ -14,6 +14,9 @@ use Pod::Plexus::Util::PodElemental qw(blank_line cut_paragraph);
 sub is_inheritable { 1 }
 
 
+sub section_body_handler { 'absorb_my_body' }
+
+
 has name => (
 	is      => 'ro',
 	isa     => 'Str',
@@ -39,17 +42,12 @@ has name => (
 # TODO - This tends to be common.
 # How about abstracting it?
 # Defining it as the default value in the base class?
+
 has '+doc_suffix' => (
 	default => sub {
 		return [ blank_line(), cut_paragraph() ];
 	},
 );
-
-
-sub BUILD {
-	my $self = shift();
-	$self->push_body( $self->extract_my_section() );
-}
 
 
 no Moose;

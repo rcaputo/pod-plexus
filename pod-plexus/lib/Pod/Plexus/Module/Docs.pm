@@ -397,7 +397,7 @@ sub render_as_pod {
 
 		my $next_pod;
 		if ($next->isa('Pod::Plexus::Matter')) {
-			$next_pod = $next->as_pod_string();
+			$next_pod = $next->as_pod_string($next);
 		}
 		else {
 			$next_pod = $next->as_pod_string();

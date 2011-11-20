@@ -4,6 +4,7 @@ use Moose;
 
 use Carp qw(confess);
 
+
 =attribute name
 
 [% s.name %] contains this Pod::Plexus entity's name.

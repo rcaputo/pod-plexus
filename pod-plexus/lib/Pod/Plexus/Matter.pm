@@ -13,8 +13,52 @@ package Pod::Plexus::Matter;
 use Moose;
 use Carp qw(croak);
 
-use Pod::Plexus::Util::PodElemental qw(cleanup_element_arrayref);
+use Pod::Plexus::Util::PodElemental qw(cleanup_element_arrayref blank_line);
 use Storable qw(dclone);
+
+
+=boilerplate please_report_questions
+
+The rest of this documentation covers internal implementation details
+that casual users shouldn't need to know.  Please report any usage
+questions as bugs.  If readers find themselves looking into the code
+to understand usage, then the documentation is broken.
+
+=cut
+
+
+sub section_body_handler { 'discard_my_body' }
+
+
+=boilerplate section_body_handler
+
+[% SET
+	command = c.match('::([a-z]+)').0
+	handler = c.call('section_body_handler')
+%]
+
+[% SWITCH handler %]
+[% CASE 'discard_my_body' %]
+The [% command %] section must not contain POD content.
+[% CASE 'absorb_my_body' %]
+The [% command %] section body will be extracted and used to document
+the resulting POD section.
+[% CASE 'append_my_body' %]
+The [% command %] section body will be extracted and appended to the
+resulting POD section.
+[% CASE 'prepend_my_body' %]
+The [% command %] section body will be extracted and prepended to the
+resulting POD section.
+[% CASE 'has_no_body' %]
+The [% command %] command doesn't define a section, so there's no
+section body to extract or discard.  Lines following "=[% command %]"
+belong to the section that contains the [% command %] command.
+[% CASE DEFAULT %]
+The [% command %] command has a strange section handler:
+"[% handler %]".
+[% END %]
+
+=cut
 
 
 =method is_inheritable
@@ -96,9 +140,9 @@ has docs => (
 =attribute docs_index
 
 "[% s.name %]" contains this Pod::Plexus::Matter object's index inside
-the "docs" attribute.  It's used to splice a new [% m.name %] object
-into the documentation where the corresponding Pod::Plexus command
-appeared.
+the "docs" attribute.  It's used to splice a new [% m.package %]
+object into the documentation where the corresponding Pod::Plexus
+command appeared.
 
 =cut
 
@@ -109,7 +153,7 @@ has docs_index => (
 );
 
 
-=boilerplate doc_attribute
+=boilerplate doc_attributes
 
 Each Pod::Plexus::Matter object represents up to three pieces of
 documentation: (1) An optional documentation prefix, which is often a
@@ -122,7 +166,7 @@ suffix, which is often just "=cut".
 
 =attribute doc_prefix
 
-=include boilerplate doc_attribute
+=include boilerplate doc_attributes
 
 "[% s.name %]" contains the POD section prefix.  Subclasses often
 override it to format their data into POD.
@@ -150,7 +194,7 @@ has doc_prefix => (
 Pod::Plexus::Matter.
 
 Pod::Plexus::Matter includes a couple helper methods to deal with
-section bodies.  See extract_my_section() and discard_my_section() for
+section bodies.  See extract_my_body() and discard_my_body() for
 standard ways to deal with text in a Pod::Plexus documentation
 section.
 
@@ -230,7 +274,23 @@ about modifications from a distance.
 
 sub clone_body {
 	my $self = shift;
-	return dclone $self->doc_body();
+	local $SIG{__DIE__} = sub { confess "@_" };
+	#return dclone $self->doc_body();
+
+	my @new_body;
+	foreach my $sub_matter (@{$self->doc_body()}) {
+		if ($sub_matter->isa('Pod::Plexus::Matter')) {
+			my $new_matter = bless { %$sub_matter }, ref($sub_matter);
+			$new_matter->doc_body( $new_matter->clone_body() );
+			push @new_body, $new_matter;
+			next;
+		}
+
+		push @new_body, dclone($sub_matter);
+		next;
+	}
+
+	return \@new_body;
 }
 
 
@@ -252,7 +312,6 @@ sub clone_suffix {
 
 sub as_pod_string {
 	my ($self, $section) = @_;
-	$section //= $self;
 
 	my $template_obj = $self->module_distribution()->template();
 
@@ -267,6 +326,7 @@ sub as_pod_string {
 		m => $self->module(),
 		s => $section,
 		r => $self,
+		c => $self->module()->package(),
 	);
 
 	my $template_output = "";
@@ -343,7 +403,7 @@ has errors => (
 );
 
 
-sub extract_my_section {
+sub extract_my_body {
 	my $self = shift();
 
 	my $docs = $self->docs();
@@ -383,9 +443,9 @@ sub extract_my_section {
 }
 
 
-sub discard_my_section {
+sub discard_my_body {
 	my $self = shift();
-	my @section = $self->extract_my_section();
+	my @section = $self->extract_my_body();
 	return unless @section;
 
 	my $element = $self->docs()->[ $self->docs_index() ];
@@ -399,9 +459,39 @@ sub discard_my_section {
 }
 
 
+sub has_no_body {
+	# Does nothing.
+}
+
+
+sub absorb_my_body {
+	my $self = shift();
+	$self->push_body( $self->extract_my_body() );
+}
+
+
+sub append_my_body {
+	my $self = shift();
+	$self->push_body( blank_line(), $self->extract_my_body() );
+}
+
+
+sub prepend_my_body {
+	my $self = shift();
+	$self->unshift_body( $self->extract_my_body(), blank_line() );
+}
+
+
 sub new_from_element {
 	my $class = shift();
 	return $class->new(@_);
+}
+
+
+sub BUILD {
+	my $self = shift();
+	my $body_method = $self->section_body_handler();
+	$self->$body_method();
 }
 
 

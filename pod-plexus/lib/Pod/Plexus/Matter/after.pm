@@ -9,10 +9,8 @@ extends 'Pod::Plexus::Matter::inherits';
 
 use Pod::Plexus::Util::PodElemental qw(blank_line);
 
-sub handle_body {
-	my $self = shift();
-	$self->push_body( blank_line(), $self->extract_my_section() );
-};
+
+sub section_body_handler { 'append_my_body' }
 
 
 no Moose;

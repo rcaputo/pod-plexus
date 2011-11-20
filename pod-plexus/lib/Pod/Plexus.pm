@@ -69,9 +69,11 @@ Dist::Zilla.
 L<Pod::Weaver::Plugin::PodPlexus> is an ongoing attempt to integrate
 Pod::Plexus with Pod::Weaver, if it's possible.  Help wanted!
 
-The L<podplexus> command line utility is used to speed up development
-and testing.  Help wanted to make it a useful stand-alone tool for
-people who would rather not use Dist::Zilla.
+The L<podplexus> command line utility comes with this distribution.
+It's used to speed up development and testing, but it's not ready for
+general usage at the time of this writing.  Help wanted to make it a
+useful stand-alone tool for people who would rather not use
+Dist::Zilla.
 
 Pod::Plexus leans heavily on L<PPI> and L<Moose> for code analysis.
 It uses L<Pod::Elemental> to wrangle documentation.  Patches to reduce
