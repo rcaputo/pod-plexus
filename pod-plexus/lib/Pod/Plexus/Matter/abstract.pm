@@ -28,7 +28,7 @@ Renders as
 meta-POD and generate the resulting POD documentation.  Abstracts are
 rewritten as "=head1 NAME" sections.
 
-=include Pod::Plexus::Matter boilerplate section_body_handler
+=include boilerplate section_body_handler
 
 =include Pod::Plexus::Matter boilerplate please_report_questions
 
@@ -36,9 +36,7 @@ rewritten as "=head1 NAME" sections.
 
 use Moose;
 extends 'Pod::Plexus::Matter';
-
-
-sub section_body_handler { 'has_no_body' }
+with 'Pod::Plexus::Matter::Role::HasNoBody';
 
 
 use Pod::Plexus::Util::PodElemental qw(
@@ -78,7 +76,7 @@ has abstract => (
 The "[% s.name %]" attribute defines how to begin the POD for
 abstracts.
 
-=example attribute +doc_prefix
+=example attribute doc_prefix
 
 =cut
 
@@ -94,7 +92,7 @@ has '+doc_prefix' => (
 "[% s.name %]" defines the abstract section's main POD.  It follows
 the common style of "Package::Name - A succinct description."
 
-=example attribute +doc_body
+=example attribute doc_body
 
 =cut
 

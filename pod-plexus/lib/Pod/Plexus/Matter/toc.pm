@@ -6,6 +6,7 @@ package Pod::Plexus::Matter::toc;
 
 use Moose;
 extends 'Pod::Plexus::Matter';
+with 'Pod::Plexus::Matter::Role::PrependToBody';
 
 use Pod::Plexus::Util::PodElemental qw(
 	generic_command

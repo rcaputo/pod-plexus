@@ -6,12 +6,9 @@ package Pod::Plexus::Matter::before;
 
 use Moose;
 extends 'Pod::Plexus::Matter::inherits';
+with 'Pod::Plexus::Matter::Role::PrependToBody';
 
 use Pod::Plexus::Util::PodElemental qw(blank_line);
-
-
-sub section_body_handler { 'prepend_my_body' }
-
 
 no Moose;
 

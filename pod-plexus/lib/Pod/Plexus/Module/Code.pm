@@ -61,7 +61,7 @@ has verbose => (
 =attribute package
 
 [% s.name %] contains the module's main package name.  Its main use
-is in template expansion, via the "mod.package" expression.
+is in template expansion, via the "m.package" expression.
 
 =cut
 
@@ -219,10 +219,26 @@ sub cache_all_attributes {
 		# Scratchpad the attribute's definition information for
 		# inheritance checking later.
 
-		my $thunk_name = "__pod_plexus_code_attribute__$attribute_name\__";
+		my $thunk_name = Pod::Plexus::Code->calc_cache_name(
+			'attribute', $attribute_name
+		);
+
 		my $thunk_entity = $entity;
 		weaken $thunk_entity;
-		$meta->add_method($thunk_name, sub { return $thunk_entity });
+		my $thunk_body = sub { return $thunk_entity };
+
+		$meta->add_method($thunk_name, $thunk_body);
+
+		if ($meta->can('consumers')) {
+			my @consumers = $meta->consumers();
+			while (@consumers) {
+				my $next_class = shift @consumers;
+				$next_class->meta()->add_method($thunk_name, $thunk_body);
+				push @consumers, $next_class->meta()->consumers() if (
+					$next_class->meta()->can('consumers')
+				);
+			}
+		}
 
 		# Add associated methods.
 
@@ -238,6 +254,7 @@ sub cache_all_attributes {
 		if ($attribute->has_read_method()) {
 			my $reader_name = $attribute->get_read_method();
 			my $reader_body = $meta->get_method($reader_name);
+
 			$self->cache_one_method($errors, $reader_body);
 
 			if ($attribute->has_write_method()) {
@@ -458,20 +475,34 @@ sub get_attribute {
 
 
 sub register_matter {
-	my ($self, $matter) = @_;
+	my ($self, $cache_name, $matter) = @_;
 
-	my $type = ref($matter);
-	$type =~ s/^Pod::Plexus::Matter:://;
-	$type =~ s/:+.*//;
+	my $meta = $self->meta_entity();
 
 	weaken $matter;
+	my $cache_body = sub { return $matter };
 
-	$self->meta_entity()->add_method(
-		"__pod_plexus_matter_${type}__" . $matter->name() . "__",
-		sub { $matter }
-	);
+	$meta->add_method($cache_name, $cache_body);
 
-	undef;
+	if ($meta->can('consumers')) {
+		my @consumers = $meta->consumers();
+		while (@consumers) {
+			my $next_class = shift @consumers;
+			my $next_meta  = $next_class->meta();
+			$next_meta->add_method($cache_name, $cache_body);
+			push @consumers, $next_meta->consumers() if $next_meta->can('consumers');
+		}
+	}
+
+	return;
+}
+
+
+sub find_matter {
+	my ($self, $cache_name) = @_;
+	my $class = $self->meta_entity()->name();
+	return unless $class->can($cache_name);
+	return $class->$cache_name();
 }
 
 

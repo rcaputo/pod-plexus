@@ -27,40 +27,6 @@ to understand usage, then the documentation is broken.
 =cut
 
 
-sub section_body_handler { 'discard_my_body' }
-
-
-=boilerplate section_body_handler
-
-[% SET
-	command = c.match('::([a-z]+)').0
-	handler = c.call('section_body_handler')
-%]
-
-[% SWITCH handler %]
-[% CASE 'discard_my_body' %]
-The [% command %] section must not contain POD content.
-[% CASE 'absorb_my_body' %]
-The [% command %] section body will be extracted and used to document
-the resulting POD section.
-[% CASE 'append_my_body' %]
-The [% command %] section body will be extracted and appended to the
-resulting POD section.
-[% CASE 'prepend_my_body' %]
-The [% command %] section body will be extracted and prepended to the
-resulting POD section.
-[% CASE 'has_no_body' %]
-The [% command %] command doesn't define a section, so there's no
-section body to extract or discard.  Lines following "=[% command %]"
-belong to the section that contains the [% command %] command.
-[% CASE DEFAULT %]
-The [% command %] command has a strange section handler:
-"[% handler %]".
-[% END %]
-
-=cut
-
-
 =method is_inheritable
 
 The [% s.name %] flag tells Pod::Plexus::Module::Docs whether a piece
@@ -353,25 +319,25 @@ sub as_pod_elementals {
 }
 
 
-=attribute key
+=attribute cache_name
 
 [% s.name %] contains a reference's unique identifying key.  It calls
-calc_key() to calculate it, then caches it for future speed.
+calc_cache_name() to calculate it, then caches it for future speed.
 
 =cut
 
-has key => (
+has cache_name => (
 	is      => 'ro',
 	isa     => 'Str',
 	lazy    => 1,
 	default => sub {
 		my $self = shift();
-		return $self->calc_key(ref($self), $self->name());
+		return $self->calc_cache_name(ref($self), $self->name());
 	},
 );
 
 
-=method calc_key
+=method calc_cache_name
 
 [% s.name %] calculates a reference's unique key from three
 parameters: the reference's class name, the reference's module name,
@@ -384,10 +350,15 @@ more convenient to access the key() attribute instead.
 
 =cut
 
-sub calc_key {
+sub calc_cache_name {
 	(undef, my ($type, $symbol)) = @_;
+
 	$type =~ s/^Pod::Plexus::Matter:://;
-	return join("\t", $type, ($symbol // ""));
+	$type =~ s/::/__/g;
+
+	$symbol //= "";
+
+	return "__pod_plexus_matter__$type\__$symbol\__";
 }
 
 
@@ -443,45 +414,6 @@ sub extract_my_body {
 }
 
 
-sub discard_my_body {
-	my $self = shift();
-	my @section = $self->extract_my_body();
-	return unless @section;
-
-	my $element = $self->docs()->[ $self->docs_index() ];
-	my $command = $element->command();
-
-	$self->push_error(
-		"=$command section must be empty" .
-		" at " . $self->module_pathname() .
-		" line " . $element->start_line()
-	);
-}
-
-
-sub has_no_body {
-	# Does nothing.
-}
-
-
-sub absorb_my_body {
-	my $self = shift();
-	$self->push_body( $self->extract_my_body() );
-}
-
-
-sub append_my_body {
-	my $self = shift();
-	$self->push_body( blank_line(), $self->extract_my_body() );
-}
-
-
-sub prepend_my_body {
-	my $self = shift();
-	$self->unshift_body( $self->extract_my_body(), blank_line() );
-}
-
-
 sub new_from_element {
 	my $class = shift();
 	return $class->new(@_);
@@ -490,8 +422,7 @@ sub new_from_element {
 
 sub BUILD {
 	my $self = shift();
-	my $body_method = $self->section_body_handler();
-	$self->$body_method();
+	$self->handle_body();
 }
 
 

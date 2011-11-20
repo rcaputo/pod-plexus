@@ -8,10 +8,17 @@ use Module::Util qw(find_installed);
 use Pod::Plexus::Module;
 use Template::Stash;
 
+
 $Template::Stash::SCALAR_OPS->{call} = sub {
 	my ($class, $method, @parameters) = @_;
 	return $class->$method(@parameters);
 };
+
+$Template::Stash::SCALAR_OPS->{does} = sub {
+	my ($class, $method) = @_;
+	return $class->does($method);
+};
+
 
 has template => (
 	is => 'ro',
@@ -32,7 +39,7 @@ has template => (
 
 =attribute modules_by_file
 
-[% s.name %] references a hash of [% d.package %]::Module objects
+[% s.name %] references a hash of Pod::Plexus::Module objects
 keyed on each module's file path.  Paths are relative to the
 distribution's root directory.
 
@@ -54,7 +61,7 @@ method, which handles cross references between files and modules.
 
 =method _get_module_by_file
 
-Retrieve a [% d.package %]::Module from the distribution by its
+Retrieve a Pod::Plexus::Module from the distribution by its
 FILE_PATH relative to the distribution's root directory.
 
 =cut
@@ -81,8 +88,8 @@ has modules_by_file => (
 
 =attribute modules_by_package
 
-[% s.name %] holds a hash of [% d.package %]::Module objects keyed
-on their main package names.  For [% d.package %]'s purposes, the main
+[% s.name %] holds a hash of Pod::Plexus::Module objects keyed
+on their main package names.  For Pod::Plexus's purposes, the main
 package is defined by the first C<package> statement in the module.
 
 =cut
@@ -123,7 +130,7 @@ has verbose => (
 
 =method add_file
 
-Add a file to the distribution.  A [% d.package %]::Module is built
+Add a file to the distribution.  A Pod::Plexus::Module is built
 from the contents of the file at the relative FILE_PATH and added to
 the distribution.  The get_module() accessor will retrieve the module
 object by either its relative FILE_PATH or its main package name.
@@ -165,7 +172,7 @@ sub add_module {
 
 =method get_module
 
-[% s.name %] returns a [% d.package %]::Module that matches a given
+[% s.name %] returns a Pod::Plexus::Module that matches a given
 MODULE_IDENTIFIER, or undef if no module matches.  The module
 identifier may be a file's relative path in the distribution or its
 main module name.  [% s.name %] will determine which based on
@@ -236,6 +243,6 @@ no Moose;
 
 1;
 
-=abstract Represent a distribution containing zero or more [% d.package %] modules.
+=abstract Represent a distribution containing zero or more Pod::Pleuxs modules.
 
 =cut

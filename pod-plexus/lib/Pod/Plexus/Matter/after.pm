@@ -6,12 +6,7 @@ package Pod::Plexus::Matter::after;
 
 use Moose;
 extends 'Pod::Plexus::Matter::inherits';
-
-use Pod::Plexus::Util::PodElemental qw(blank_line);
-
-
-sub section_body_handler { 'append_my_body' }
-
+with 'Pod::Plexus::Matter::Role::AppendToBody';
 
 no Moose;
 

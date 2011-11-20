@@ -6,6 +6,7 @@ package Pod::Plexus::Matter::include;
 
 use Moose;
 extends 'Pod::Plexus::Matter::Reference';
+with 'Pod::Plexus::Matter::Role::HasNoBody';
 
 use Pod::Plexus::Matter::attribute;
 use Pod::Plexus::Matter::method;
@@ -13,7 +14,6 @@ use Pod::Plexus::Matter::method;
 
 sub is_top_level { 0 }
 
-sub section_body_handler { 'has_no_body' }
 
 sub BUILD {
 	my $self = shift();
@@ -61,7 +61,11 @@ sub BUILD {
 		return;
 	}
 
-	my $referent = $referent_module->get_docs_matter($type, $symbol);
+	my $cache_name = Pod::Plexus::Matter->calc_cache_name($type, $symbol);
+	my $referent   = $referent_module->find_matter($cache_name);
+
+	confess "no referent ($module $type $symbol) ($cache_name)" unless $referent;
+
 	unless ($referent) {
 		$self->push_error(
 			"Can't find referent in " . $referent_module->docs() .

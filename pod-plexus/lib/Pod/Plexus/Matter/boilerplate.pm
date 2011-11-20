@@ -11,7 +11,7 @@ meta-POD.  Boilerplates are sections of documentation that exist only
 to be included elsewhere---usually several times over.  They don't
 render to POD where they are defined.
 
-=include Pod::Plexus::Matter boilerplate section_body_handler
+=include boilerplate section_body_handler
 
 =include Pod::Plexus::Matter boilerplate please_report_questions
 
@@ -19,11 +19,13 @@ render to POD where they are defined.
 
 use Moose;
 extends 'Pod::Plexus::Matter::Directive';
+with 'Pod::Plexus::Matter::Role::AbsorbedBody';
 
 
 sub is_top_level { 1 }
 
-sub section_body_handler { 'absorb_my_body' }
+
+sub is_inheritable { 1 }
 
 
 has name => (

@@ -6,15 +6,13 @@ package Pod::Plexus::Matter::Code;
 
 use Moose;
 extends 'Pod::Plexus::Matter';
+with 'Pod::Plexus::Matter::Role::AbsorbedBody';
 
 
 use Pod::Plexus::Util::PodElemental qw(blank_line cut_paragraph);
 
 
 sub is_inheritable { 1 }
-
-
-sub section_body_handler { 'absorb_my_body' }
 
 
 has name => (

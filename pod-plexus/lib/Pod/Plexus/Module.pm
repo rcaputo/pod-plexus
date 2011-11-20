@@ -55,6 +55,7 @@ has code => (
 		get_attribute_code => 'get_attribute',
 		register_matter    => 'register_matter',
 		get_meta_class     => 'meta_entity',
+		find_matter        => 'find_matter',
 	},
 );
 

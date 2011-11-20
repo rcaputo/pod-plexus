@@ -7,11 +7,13 @@ package Pod::Plexus::Code::Attribute;
 use Moose;
 extends 'Pod::Plexus::Code';
 
+
 =before Pod::Plexus::Code attribute meta_entity
 
 Some stuff that goes before it.
 
 =cut
+
 
 =after Pod::Plexus::Code attribute meta_entity
 
@@ -19,9 +21,11 @@ Some stuff that goes after it.
 
 =cut
 
+
 =inherits Pod::Plexus::Code attribute meta_entity
 
 =cut
+
 
 use Moose::Util::TypeConstraints qw(class_type);
 

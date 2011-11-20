@@ -6,6 +6,7 @@ package Pod::Plexus::Matter::Reference;
 
 use Moose;
 extends 'Pod::Plexus::Matter';
+with 'Pod::Plexus::Matter::Role::HasNoBody';
 
 
 has referent => (

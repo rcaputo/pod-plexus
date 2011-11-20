@@ -63,7 +63,7 @@ has _elemental => (
 
 =method get_matter
 
-[% s.name %] returns a single reference, keyed on the referent type,
+[% s.name %] returns a single reference, found by the referent type,
 and optional symbol name.
 
 =cut
@@ -71,21 +71,26 @@ and optional symbol name.
 sub get_matter {
 	my ($self, $type, $symbol) = @_;
 
-	my $reference_key = Pod::Plexus::Matter->calc_key(
-		$type, $symbol
-	);
+	my $cache_name = Pod::Plexus::Matter->calc_cache_name($type, $symbol);
 
-	return unless $self->_has_matter($reference_key);
-	return $self->_get_matter($reference_key);
+	return unless $self->_has_matter($cache_name);
+	return $self->_get_matter($cache_name);
+}
+
+
+sub find_matter {
+	my ($self, $type, $symbol) = @_;
+	my $cache_name = Pod::Plexus::Matter->calc_cache_name($type, $symbol);
+	return $self->module()->find_matter($cache_name);
 }
 
 
 sub add_matter {
 	my ($self, $docs) = @_;
-	my $key = $docs->key();
-	return if $self->_has_matter($key);
-	$self->_really_add_matter($key, $docs);
-	$self->module()->register_matter($docs);
+	my $cache_name = $docs->cache_name();
+	return if $self->_has_matter($cache_name);
+	$self->_really_add_matter($cache_name, $docs);
+	$self->module()->register_matter($cache_name, $docs);
 }
 
 
@@ -183,7 +188,18 @@ sub flatten_methods {
 	my @errors;
 	my $meta_class = $self->get_meta_class();
 
-	METHOD: foreach my $meta_method ($meta_class->get_all_methods()) {
+	my @methods;
+	if ($meta_class->can('get_all_methods')) {
+		@methods = $meta_class->get_all_methods();
+	}
+	else {
+		@methods = (
+			map { $meta_class->get_method($_) }
+			$meta_class->get_method_list()
+		);
+	}
+
+	METHOD: foreach my $meta_method (@methods) {
 		my $method_name = $meta_method->name();
 
 		# Skip internal methods.
@@ -193,7 +209,9 @@ sub flatten_methods {
 		next METHOD if $self->skips_method($method_name);
 
 		# Skip if documented.
-		my $pod_plexus_name = "__pod_plexus_matter_method__$method_name\__";
+		my $pod_plexus_name = Pod::Plexus::Matter->calc_cache_name(
+			'method', $method_name
+		);
 		next METHOD if $meta_class->get_method($pod_plexus_name);
 
 		# Inherit it.
@@ -237,11 +255,24 @@ sub flatten_attributes {
 	my @errors;
 	my $meta_class = $self->get_meta_class();
 
-	ATTRIBUTE: foreach my $meta_attribute ($meta_class->get_all_attributes()) {
+	my @attributes;
+	if ($meta_class->can('get_all_attributes')) {
+		@attributes = $meta_class->get_all_attributes();
+	}
+	else {
+		@attributes = (
+			map { $meta_class->get_attribute($_) }
+			$meta_class->get_attribute_list()
+		);
+	}
+
+	ATTRIBUTE: foreach my $meta_attribute (@attributes) {
 		my $attribute_name = $meta_attribute->name();
 
 		# Skip if documented.  Yes, this calls get_method() here.
-		my $pod_plexus_name = "__pod_plexus_matter_attribute__$attribute_name\__";
+		my $pod_plexus_name = Pod::Plexus::Matter->calc_cache_name(
+			'attribute', $attribute_name
+		);
 		next ATTRIBUTE if $meta_class->get_method($pod_plexus_name);
 
 		# Inherit it.
