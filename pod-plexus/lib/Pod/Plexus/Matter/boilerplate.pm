@@ -27,9 +27,6 @@ with 'Pod::Plexus::Matter::Role::AbsorbedBody';
 sub is_top_level { 1 }
 
 
-sub is_inheritable { 1 }
-
-
 has name => (
 	is      => 'ro',
 	isa     => 'Str',

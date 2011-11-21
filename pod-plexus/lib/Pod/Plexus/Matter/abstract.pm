@@ -30,7 +30,7 @@ Renders as:
 
 [% m.package %] defines how Pod::Plexus will parse "=abstract"
 meta-POD and generate the resulting POD documentation.  Abstracts are
-rewritten as "=head1 NAME" sections.
+rewritten in the POD standard style.  See the L</SYNOPSIS>.
 
 =include boilerplate section_body_handler
 

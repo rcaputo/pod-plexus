@@ -14,9 +14,6 @@ with 'Pod::Plexus::Matter::Role::AbsorbedBody';
 use Pod::Plexus::Util::PodElemental qw(blank_line cut_paragraph);
 
 
-sub is_inheritable { 1 }
-
-
 has name => (
 	is      => 'ro',
 	isa     => 'Str',

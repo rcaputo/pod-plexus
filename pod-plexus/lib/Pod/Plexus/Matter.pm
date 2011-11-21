@@ -1,6 +1,6 @@
 package Pod::Plexus::Matter;
 
-# TODO - Edit pass 0 done.
+# TODO - Edit pass 1 done.
 
 =abstract A generic segment of documentation matter.
 
@@ -29,21 +29,29 @@ to understand usage, then the documentation is broken.
 =cut
 
 
-=method is_inheritable
+=method is_top_level
 
-The [% s.name %] flag tells Pod::Plexus::Module::Docs whether a piece
-of documentation matter may be inherited through "=inherits",
-"=before" and "=after".  It is false by default.
+[% s.name %]() returns true if [% m.package %] implements a top-level
+documentation container.  All POD and Pod::Plexus documentation after
+this Pod::Plexus command will be grouped into a single section.  The
+section is terminated by "=cut" or some other top-level command.
+
+[% s.name %]() applies to all objects of the class, so it is
+implemented as a class method.
 
 =cut
 
-sub is_inheritable { 0 }
+sub is_top_level {
+	my $self = shift();
+	croak "$self must override is_top_level()";
+}
 
 
 =attribute module
 
 "[% s.name %]" holds the Pod::Plexus::Module that contains this
-documentation matter.
+documentation matter.  It allows documentation matter to inspect
+aspects of the module it's documenting.
 
 =cut
 
@@ -64,8 +72,8 @@ has module => (
 =attribute name
 
 Most documentation matter has a name.  The "[% s.name %]" attribute
-contains that name for referencing and documentation expansion
-purposes.
+contains the name of the thing being documented, such as an attribute
+or method name.
 
 =cut
 
@@ -75,6 +83,16 @@ has name => (
 	default => "",
 );
 
+
+=attribute element
+
+The "[% s.name %]" attribute contains the L<Pod::Elemental::Paragraph>
+object that describes the [% m.package %] being created.  Pod::Plexus
+parsers may use it to access the command() and content() that caused
+their creation, as well as the command's source line number for error
+reporting.
+
+=cut
 
 has element => (
 	is        => 'ro',
@@ -96,11 +114,10 @@ has verbose => (
 
 =attribute docs
 
-The current Pod::Plexus::Matter object exists within its module's
-documentation.  The "[% s.name %]" attribute holds the documentation
-for the entire module.  Subclasses use it and "[% s.name %]_index" to
-parse their documentation and replace themselves with
-Pod::Plexus::Matter objects.
+"[% s.name %]" includes the list of Pod::Elemental paragraphs that
+make up the entire documentation of [% m.package %].  It's used in
+conjunction with "[% s.name %]_index" to locate and handle a
+Pod::Plexus command's text content.
 
 =cut
 
@@ -114,10 +131,14 @@ has docs => (
 
 =attribute docs_index
 
-"[% s.name %]" contains this Pod::Plexus::Matter object's index inside
-the "docs" attribute.  It's used to splice a new [% m.package %]
-object into the documentation where the corresponding Pod::Plexus
-command appeared.
+This [% m.package %] object was created from a
+Pod::Elemental::Paragraph object held in "docs".  "[% s.name %]"
+contains the index within "docs" where that Pod::Elemental::Paragraph
+is stored.
+
+"docs" and "[% s.name %]" together help [% m.package %] learn more
+about itself, including the raw text used to configure itself and the
+source line to report in case of error.
 
 =cut
 
@@ -131,20 +152,35 @@ has docs_index => (
 =boilerplate doc_attributes
 
 Each Pod::Plexus::Matter object represents up to three pieces of
-documentation: (1) An optional documentation prefix, which is often a
-"=head" or "=item" command of some sort.  (2) The documentation body,
-which is the section's main prose.  (3) An optional documentation
-suffix, which is often just "=cut".
+documentation:
+
+=over 4
+
+=item 1.
+
+An optional documentation prefix, which is often a Pod::Elemental
+"=head" or "=item" command of some sort followed by a blank line.
+
+=item 2.
+
+The documentation body, which is the section's main prose.
+
+=item 3.
+
+An optional documentation suffix, which is often just "=cut".
+
+=back
 
 =cut
 
 
 =attribute doc_prefix
 
-=include boilerplate doc_attributes
+"[% s.name %]" contains the documentation that begins a Pod::Plexus
+section.  Subclasses often customize the POD they generate by
+overriding the default value or setting it from BUILD.
 
-"[% s.name %]" contains the POD section prefix.  Subclasses often
-override it to format their data into POD.
+=include boilerplate doc_attributes
 
 =cut
 
@@ -163,15 +199,15 @@ has doc_prefix => (
 
 =attribute doc_body
 
-=include boilerplate doc_attributes
-
 "[% s.name %]" contains the main body of documentation for a piece of
 Pod::Plexus::Matter.
 
-Pod::Plexus::Matter includes a couple helper methods to deal with
-section bodies.  See extract_my_body() and discard_my_body() for
-standard ways to deal with text in a Pod::Plexus documentation
-section.
+Pod::Plexus provides some roles that help set "[% s.name %]" in
+standard ways.
+
+=toc ^Pod::Plexus::Matter::Role::
+
+=include boilerplate doc_attributes
 
 =cut
 
@@ -191,12 +227,15 @@ has doc_body => (
 
 =attribute doc_suffix
 
-=include boilerplate doc_attributes
-
 "[% s.name %]" ends the documentation represented by a
-Pod::Plexus::Matter object.  It's mostly either "=cut" for matter that
-represents entire POD sections.  It's often empty for matter
-representing inclusions that aren't entire sections on their own.
+Pod::Plexus::Matter object.  It's often either "=cut" for matter that
+represents entire POD sections, or empty for matter that is included
+in other sections.
+
+Subclasses usually customize it by overriding its default value or
+setting it from BUILD.
+
+=include boilerplate doc_attributes
 
 =cut
 
@@ -215,8 +254,9 @@ has doc_suffix => (
 
 =boilerplate cloning_docs
 
-Pod::Plexus is "documentation by reference".  Dereferencing is
-implemented by cloning bits of the objects representing documentation.
+Pod::Plexus is "documentation by reference".  Cloning is done by copy,
+not by reference, so that each Pod::Plexus::Matter object can edit its
+content without affecting those from which the content was inherited.
 
 =cut
 
@@ -224,8 +264,10 @@ implemented by cloning bits of the objects representing documentation.
 =method clone_prefix
 
 [% s.name %]() is a helper method to clone a Pod::Plexus::Matter
-object's "doc_prefix" attribute, so that inheritors don't need to
-worry about modifications from a distance.
+object's "doc_prefix" attribute.
+
+It returns an array reference suitable for setting into another
+Pod::Plexus::Matter object's "doc_prefix" attribute.
 
 =include boilerplate cloning_docs
 
@@ -240,8 +282,10 @@ sub clone_prefix {
 =method clone_body
 
 [% s.name %]() is a helper method to clone a Pod::Plexus::Matter
-object's "doc_body" attribute, so that inheritors don't need to worry
-about modifications from a distance.
+object's "doc_body" attribute.
+
+It returns an array reference suitable for setting into another
+Pod::Plexus::Matter object's "doc_body" attribute.
 
 =include boilerplate cloning_docs
 
@@ -272,8 +316,10 @@ sub clone_body {
 =method clone_suffix
 
 [% s.name %]() is a helper method to clone a Pod::Plexus::Matter
-object's "doc_suffix" attribute, so that inheritors don't need to
-worry about modifications from a distance.
+object's "doc_suffix" attribute.
+
+It returns an array reference suitable for setting into another
+Pod::Plexus::Matter object's "doc_suffix" attribute.
 
 =include boilerplate cloning_docs
 
@@ -284,6 +330,16 @@ sub clone_suffix {
 	return dclone $self->doc_suffix();
 }
 
+
+=method as_pod_string
+
+[% s.name %]() returns a string of multi-line POD represented by a
+Pod::Plexus::Matter object and any of its contents.
+
+Documentation references are dereferenced here.  Template variables
+are expanded here.
+
+=cut
 
 sub as_pod_string {
 	my ($self, $section) = @_;
@@ -313,6 +369,17 @@ sub as_pod_string {
 }
 
 
+=method as_pod_elementals
+
+[% s.name %]() returns a list of Pod::Elemental paragraphs represented
+by a Pod::Plexus::Matter object and any of its contents.
+
+Documentation references are dereferenced here, but template variables
+are not expanded yet.  They won't be expanded until as_pod_string() is
+called on each element.
+
+=cut
+
 sub as_pod_elementals {
 	my $self = shift();
 
@@ -330,8 +397,8 @@ sub as_pod_elementals {
 
 =attribute cache_name
 
-[% s.name %] contains a reference's unique identifying key.  It calls
-calc_cache_name() to calculate it, then caches it for future speed.
+"[% s.name %]" contains a reference's uniquely identifying cache name.
+Its default value is created by calc_[% s.name %]().
 
 =cut
 
@@ -348,14 +415,14 @@ has cache_name => (
 
 =method calc_cache_name
 
-[% s.name %] calculates a reference's unique key from three
-parameters: the reference's class name, the reference's module name,
-and an optional symbol within the module.  Omit the symbol to
-reference the module as a whole.
+[% s.name %]() calculates a Pod::Plexus::Matter object's uniquely
+identifying cache name from two parameters: the type of matter being
+documented, and the matter's name.  This isn't unique, however, until
+it's combined with a module's namespace.
 
-[% s.name %] may be called as a class or object method.  If the
-caller has the object but not all the necessary parameters, it may be
-more convenient to access the key() attribute instead.
+[% s.name %] may be called as a class or object method.  If the caller
+has the object but not all the necessary parameters, it may be more
+convenient to access the "cache_name" attribute instead.
 
 =cut
 
@@ -370,17 +437,22 @@ sub calc_cache_name {
 	return "__pod_plexus_matter__$type\__$symbol\__";
 }
 
-has errors => (
-	is      => 'ro',
-	isa     => 'ArrayRef[Str]',
-	traits  => [ 'Array' ],
-	default => sub { [ ] },
-	handles => {
-		failed     => 'count',
-		push_error => 'push',
-	},
-);
 
+=method extract_my_body
+
+[% s.name %]() extracts the body text of a Pod::Plexus::Matter
+section.  It uses "docs" and "docs_index" to find the text body within
+the module's Pod::Elemental document.  The contents of that text body
+are spliced out of the document and returned.  It's up to different
+Pod::Plexus::Matter subclasses to do something appropriate with the
+content.
+
+Pod::Plexus provides some roles that handle text content in standard
+ways.  Most of these use [% s.name %]() to do the bulk of their work.
+
+=toc ^Pod::Plexus::Matter::Role::
+
+=cut
 
 sub extract_my_body {
 	my $self = shift();
@@ -422,11 +494,33 @@ sub extract_my_body {
 }
 
 
+=boilerplate new_from_element
+
+[% m.package %] uses the default implementation, which simply creates
+a new object.  Some other Pod::Plexus::Matter classes customize it to
+create different classes depending on Pod::Plexus parameters.
+
+=cut
+
+
+=method new_from_element
+
+[% s.name %]() creates a new Pod::Plexus::Matter object from the
+values found in a Pod::Elemental::Generic::Command.
+
+=include boilerplate new_from_element
+
+=cut
+
 sub new_from_element {
 	my $class = shift();
 	return $class->new(@_);
 }
 
+
+=skip method BUILD
+
+=cut
 
 sub BUILD {
 	my $self = shift();

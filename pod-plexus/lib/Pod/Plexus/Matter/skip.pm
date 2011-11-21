@@ -8,6 +8,7 @@ package Pod::Plexus::Matter::skip;
 
 use Moose;
 extends 'Pod::Plexus::Matter::Directive';
+with 'Pod::Plexus::Matter::Role::HasNoBody';
 
 use Pod::Plexus::Matter::skip::attribute;
 use Pod::Plexus::Matter::skip::method;

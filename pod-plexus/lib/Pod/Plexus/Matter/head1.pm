@@ -1,5 +1,11 @@
 package Pod::Plexus::Matter::head1;
 
+# TODO - Edit pass 0 done.
+
+=abstract Add Pod::Plexus semantics to plain POD head1 sections.
+
+=cut
+
 use Moose;
 extends 'Pod::Plexus::Matter::Pod';
 with 'Pod::Plexus::Matter::Role::AbsorbedBody';
@@ -20,7 +26,7 @@ has '+doc_suffix' => (
 
 
 sub BUILD {
-	my ($self, %args) = @_;
+	my ($self, $args) = @_;
 	my $content = $self->element()->content();
 
 	$self->doc_prefix(
