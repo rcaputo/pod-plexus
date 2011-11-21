@@ -8,7 +8,7 @@ package Pod::Plexus::Matter::boilerplate;
 
 =head1 DESCRIPTION
 
-[% m.package %] defines how [% d.name %] will parse "=boilerplate"
+[% m.package %] defines how Pod::Plexus will parse "=boilerplate"
 meta-POD.  Boilerplates are sections of documentation that exist only
 to be included elsewhere---usually several times over.  They don't
 render to POD where they are defined.

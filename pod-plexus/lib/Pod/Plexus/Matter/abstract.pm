@@ -8,13 +8,15 @@ package Pod::Plexus::Matter::abstract;
 
 =head1 SYNOPSIS
 
+Pod::Plexus:
+
 	package Pod::Plexus::Matter::abstract;
 
-	=abstract Set a succinct, one-line description of the module.
+	=abstract Set a succinct, one-line ....
 
 	=cut
 
-Renders as
+Renders as:
 
 	=head1 NAME
 
@@ -26,7 +28,7 @@ Renders as
 
 =head1 DESCRIPTION
 
-[% m.package %] defines how [% d.name %] will parse "=abstract"
+[% m.package %] defines how Pod::Plexus will parse "=abstract"
 meta-POD and generate the resulting POD documentation.  Abstracts are
 rewritten as "=head1 NAME" sections.
 

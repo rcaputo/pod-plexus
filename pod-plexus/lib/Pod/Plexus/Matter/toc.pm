@@ -17,6 +17,9 @@ use Pod::Plexus::Util::PodElemental qw(
 );
 
 
+sub is_top_level { 0 }
+
+
 has referents => (
 	is      => 'rw',
 	isa     => 'ArrayRef[Pod::Plexus::Module]',
