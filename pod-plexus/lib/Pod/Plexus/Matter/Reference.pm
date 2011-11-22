@@ -1,6 +1,6 @@
 package Pod::Plexus::Matter::Reference;
 
-# TODO - Edit pass 0 done.
+# TODO - Edit pass 1 done.
 
 =abstract An abstract section that references something else.
 
@@ -11,12 +11,29 @@ extends 'Pod::Plexus::Matter';
 with 'Pod::Plexus::Matter::Role::HasNoBody';
 
 
+=attribute referent
+
+"[% s.name %]" contains a reference to the Pod::Plexus::Matter object
+referred to by this [% m.package %] object.  Subclasses use it to
+inspect and possibly clone the documentation being referenced.
+
+=cut
+
 has referent => (
 	is       => 'rw',
 	isa      => 'Pod::Plexus::Matter',
 	weak_ref => 1,
 );
 
+
+=method get_referent_module
+
+[% s.name %](PACKAGE_NAME) returns a Pod::Plexus::Module object that
+represents the supplied PACKAGE_NAME.  Subclasses use it to inspect
+the module for information such as its abstract, or to acquire code or
+documentation from it
+
+=cut
 
 sub get_referent_module {
 	my ($self, $module_name) = @_;
@@ -34,6 +51,17 @@ sub get_referent_module {
 	];
 }
 
+
+=method get_referent_matter
+
+[% s.name %](PACKAGE_NAME, REFERENT_TYPE, REFERENT_NAME) returns a
+Pod::Plexus::matter object representing the documentation specified by
+a PACKAGE_NAME, a REFERENT_TYPE and a REFERENT_NAME.
+
+Pod::Plexus::Matter::include uses this to find documentation that it
+will include.
+
+=cut
 
 sub get_referent_matter {
 	my ($self, $module_name, $referent_type, $referent_name) = @_;

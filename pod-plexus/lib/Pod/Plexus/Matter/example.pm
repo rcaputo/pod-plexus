@@ -9,14 +9,9 @@ package Pod::Plexus::Matter::example;
 use Moose;
 extends 'Pod::Plexus::Matter::Reference';
 
-=todo Not trivially subclassable.
-
-[% m.package %] is too dependent upon knowing the names of its
-subclasses.  Other developers can't quickly extend it by adding new
-classes into their library.  They must coordinate with the core
-distribution, which is a bit too tightly coupled.
-
-=cut
+# TODO - Too tightly coupled to subclasses here.  It shouldn't be
+# necessary to enumerate them here.  Nor should it be necessary to
+# enumerate their names in the new_from_element() parser.
 
 use Pod::Plexus::Matter::example::module;
 use Pod::Plexus::Matter::example::attribute;
@@ -27,6 +22,14 @@ use Pod::Plexus::Util::PodElemental qw(text_paragraph blank_line);
 
 use Carp qw(confess);
 
+
+=attribute referent_name
+
+"[% s.name %]" contains the name of the subroutine, method, attribute
+or other code entity being included as an example.  Subclasses may use
+the value of "[% s.name %]" to find its source code.
+
+=cut
 
 has referent_name => (
 	is  => 'ro',

@@ -23,10 +23,16 @@ and prepended to any documentation previously provided elsewhere.
 =cut
 
 
-sub handle_body {
+after doc_body => sub {
 	my $self = shift();
 	$self->unshift_body( $self->extract_my_body(), blank_line() );
-}
+};
 
+
+sub handle_body {
+	# Does nothing.
+	# Satisfies "excludes".
+	# Gives Pod::Plexus::Matter::BUILD something to call.
+}
 
 1;

@@ -8,7 +8,6 @@ package Pod::Plexus::Matter::Role::HasNoBody;
 
 use Moose::Role;
 
-requires qw(push_body extract_my_body);
 excludes qw(handle_body);
 
 

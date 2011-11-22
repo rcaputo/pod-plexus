@@ -6,6 +6,51 @@ package Pod::Plexus::Matter::include;
 
 =cut
 
+=head1 SYNOPSIS
+
+To include an attribute's documentation from another package:
+
+	=include Pod::Plexus::Cli attribute verbose
+
+To include an attribute's documentation from this package, or from a
+base class or role's package:
+
+	=include attribute verbose
+
+To include a method's documentation from another package:
+
+	=include Pod::Plexus::Cli method run
+
+To include a method's documentation from this package, or from a base
+class or role's package:
+
+	=include method run
+
+To expand a boilerplate defined in another package:
+
+	=include Pod::Plexus::Matter boilerplate please_report_questions
+
+To expand a boilerplate defined from the current package, for from a
+base class or role's package:
+
+	=include boilerplate section_body_handler
+
+=cut
+
+=head1 DESCRIPTION
+
+[% m.package %] includes the text of a section that was defined
+elsewhere.  Sections can be method documentation, attribute
+documentation, boilerplates or other things in the future.
+
+Including documentation is similar to inheriting it (via "=inherits",
+"=before" or "=after").  Included documentation doesn't come with the
+original prefix and suffix.  It's only the contents of "doc_body".
+
+=include boilerplate please_report_questions
+
+=cut
+
 use Moose;
 extends 'Pod::Plexus::Matter::Reference';
 with 'Pod::Plexus::Matter::Role::HasNoBody';
@@ -13,6 +58,13 @@ with 'Pod::Plexus::Matter::Role::HasNoBody';
 use Pod::Plexus::Matter::attribute;
 use Pod::Plexus::Matter::method;
 
+
+=after method is_top_level
+
+[% m.package %] is not a top-level container.  [% s.name %]() is
+false.
+
+=cut
 
 sub is_top_level { 0 }
 
