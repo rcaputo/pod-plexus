@@ -2,6 +2,10 @@ package Pod::Plexus::Matter::Role::PrependToBody;
 
 # TODO - Edit pass 0 done.
 
+=abstract Prepend any text following a Pod::Plexus command before the resulting object's content.
+
+=cut
+
 use Moose::Role;
 
 requires qw(unshift_body extract_my_body);

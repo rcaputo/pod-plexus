@@ -101,6 +101,17 @@ has element => (
 );
 
 
+=inherits Pod::Plexus::Cli attribute blame
+
+=cut
+
+has blame => (
+	is       => 'ro',
+	isa      => 'Bool',
+	required => 1,
+);
+
+
 =inherits Pod::Plexus::Cli attribute verbose
 
 =cut
@@ -345,10 +356,11 @@ sub as_pod_string {
 	my ($self, $section) = @_;
 
 	my $template_obj = $self->module_distribution()->template();
+	my $blame_prefix = $self->blame() ? "$self " : "";
 
 	my $template_input = join(
 		"",
-		map { $_->as_pod_string($section) }
+		map { $_ = $_->as_pod_string($section); s/^/$blame_prefix/mg; $_ }
 		$self->as_pod_elementals()
 	);
 

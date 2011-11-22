@@ -2,6 +2,10 @@ package Pod::Plexus::Matter::Role::HasNoBody;
 
 # TODO - Edit pass 0 done.
 
+=abstract Ignore any text following a Pod::Plexus command.
+
+=cut
+
 use Moose::Role;
 
 requires qw(push_body extract_my_body);

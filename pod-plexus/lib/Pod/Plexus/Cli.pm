@@ -15,8 +15,8 @@ use File::Find;
 
 =method new_with_options
 
-[% s.name %]() is inherited from MooseX::Getopt.  It creates one new [%
-m.package %] object from command line parameters.  See L</PUBLIC
+[% s.name %]() is inherited from MooseX::Getopt.  It creates one new
+[% m.package %] object from command line parameters.  See L</PUBLIC
 ATTRIBUTES> for constructor options and the command line switches that
 populate them.
 
@@ -68,6 +68,31 @@ has module => (
 );
 
 
+=boilerplate blame
+
+The "[% s.name %]" attribute causes [% m.package %] to insert into the
+resulting documentation information about how the POD was put
+together.  It can be very difficult to determine the source of broken
+POD otherwise.
+
+=cut
+
+=attribute blame
+
+=include boilerplate blame
+
+"[% s.name %]" is set by the --[% s.name %] command line flag.
+
+=cut
+
+has blame => (
+	is            => 'rw',
+	isa           => 'Bool',
+	default       => 0,
+	documentation => 'annotate Pod::Plexus output with its source',
+);
+
+
 =boilerplate verbose
 
 The "[% s.name %]" attribute causes [% m.package %] to log additional
@@ -98,6 +123,7 @@ has _distribution => (
 		my $self = shift();
 		Pod::Plexus::Distribution->new(
 			verbose => $self->verbose(),
+			blame   => $self->blame(),
 		);
 	},
 );

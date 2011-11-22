@@ -2,6 +2,10 @@ package Pod::Plexus::Matter::Role::DiscardBody;
 
 # TODO - Edit pass 0 done.
 
+=abstract Throw away any text following a Pod::Plexus command.
+
+=cut
+
 use Moose::Role;
 
 requires qw(extract_my_body docs docs_index module_pathname);

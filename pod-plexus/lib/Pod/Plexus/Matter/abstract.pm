@@ -40,7 +40,7 @@ rewritten in the POD standard style.  See the L</SYNOPSIS>.
 
 use Moose;
 extends 'Pod::Plexus::Matter';
-with 'Pod::Plexus::Matter::Role::HasNoBody';
+with 'Pod::Plexus::Matter::Role::DiscardBody';
 
 
 use Pod::Plexus::Util::PodElemental qw(

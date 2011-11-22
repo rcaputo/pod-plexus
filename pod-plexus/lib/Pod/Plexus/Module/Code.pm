@@ -2,6 +2,10 @@ package Pod::Plexus::Module::Code;
 
 # TODO - Edit pass 0 done.
 
+=abstract Represent and process the code portion of a Perl module.
+
+=cut
+
 use Moose;
 use PPI;
 use Scalar::Util qw(weaken);

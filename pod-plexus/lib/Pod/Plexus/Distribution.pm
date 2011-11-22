@@ -123,6 +123,13 @@ has modules_by_package => (
 );
 
 
+has blame => (
+	is      => 'rw',
+	isa     => 'Bool',
+	default => 0,
+);
+
+
 has verbose => (
 	is      => 'rw',
 	isa     => 'Bool',
@@ -146,6 +153,7 @@ sub add_file {
 		pathname     => $file_path,
 		distribution => $self,
 		verbose      => $self->verbose(),
+		blame        => $self->blame(),
 	);
 
 	$self->_add_module_by_file($file_path => $module);

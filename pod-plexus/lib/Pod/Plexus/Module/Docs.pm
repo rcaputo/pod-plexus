@@ -2,6 +2,10 @@ package Pod::Plexus::Module::Docs;
 
 # TODO - Edit pass 0 done.
 
+=abstract Represent and process the documentation portion of a Perl module.
+
+=cut
+
 use Moose;
 
 use Pod::Elemental;
@@ -109,6 +113,13 @@ has matter => (
 		_get_matter        => 'get',
 		_get_all_matter    => 'values',
 	},
+);
+
+
+has blame => (
+	is       => 'rw',
+	isa      => 'Bool',
+	required => 1,
 );
 
 
@@ -370,6 +381,7 @@ sub _create_matter_object {
 		$matter_class->new_from_element(
 			module     => $self->module(),
 			verbose    => $self->verbose(),
+			blame      => $self->blame(),
 			docs       => $docs,
 			docs_index => $docs_index,
 			element    => $element,

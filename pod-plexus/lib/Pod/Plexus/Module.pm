@@ -27,6 +27,7 @@ has docs => (
 		Pod::Plexus::Module::Docs->new(
 			module  => $self,
 			verbose => $self->verbose(),
+			blame   => $self->blame(),
 		);
 	},
 	handles => {
@@ -48,6 +49,7 @@ has code => (
 		Pod::Plexus::Module::Code->new(
 			module  => $self,
 			verbose => $self->verbose(),
+			blame   => $self->blame(),
 		);
 	},
 	handles => {
@@ -59,6 +61,13 @@ has code => (
 		get_meta_module      => 'meta_module',
 		find_matter          => 'find_matter',
 	},
+);
+
+
+has blame => (
+	is      => 'rw',
+	isa     => 'Bool',
+	default => 0,
 );
 
 

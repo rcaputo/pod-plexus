@@ -2,6 +2,10 @@ package Pod::Plexus::Util::PodElemental;
 
 # TODO - Edit pass 0 done.
 
+=abstract Helper functions for generating and handling Pod::Elemental objects.
+
+=cut
+
 use warnings;
 use strict;
 

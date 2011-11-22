@@ -2,6 +2,10 @@ package Pod::Plexus::Matter::Role::AbsorbedBody;
 
 # TODO - Edit pass 0 done.
 
+=abstract Absorb any text after a Pod::Plexus command into the resulting object.
+
+=cut
+
 use Moose::Role;
 
 requires qw(push_body extract_my_body);

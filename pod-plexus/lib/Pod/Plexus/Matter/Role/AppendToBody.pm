@@ -2,6 +2,10 @@ package Pod::Plexus::Matter::Role::AppendToBody;
 
 # TODO - Edit pass 0 done.
 
+=abstract Append any text following a Pod::Plexus command to the resulting object's content.
+
+=cut
+
 use Moose::Role;
 
 requires qw(push_body extract_my_body);
