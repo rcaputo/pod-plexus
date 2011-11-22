@@ -9,9 +9,19 @@ package Pod::Plexus::Matter::example;
 use Moose;
 extends 'Pod::Plexus::Matter::Reference';
 
+=todo Not trivially subclassable.
+
+[% m.package %] is too dependent upon knowing the names of its
+subclasses.  Other developers can't quickly extend it by adding new
+classes into their library.  They must coordinate with the core
+distribution, which is a bit too tightly coupled.
+
+=cut
+
 use Pod::Plexus::Matter::example::module;
 use Pod::Plexus::Matter::example::attribute;
 use Pod::Plexus::Matter::example::method;
+use Pod::Plexus::Matter::example::function;
 
 use Pod::Plexus::Util::PodElemental qw(text_paragraph blank_line);
 
@@ -46,7 +56,9 @@ sub new_from_element {
 		);
 	}
 
-	if ($content =~ m/^\s* (\S+) \s+ (attribute|method) \s+ (\S+) \s*$/x) {
+	if (
+		$content =~ m/^\s* (\S+) \s+ (attribute|method|function) \s+ (\S+) \s*$/x
+	) {
 		my ($module_name, $referent_type, $referent_name) = ($1, $2, $3);
 		$matter_class .= "::$referent_type";
 		return $matter_class->new(
@@ -56,7 +68,7 @@ sub new_from_element {
 		);
 	}
 
-	if ($content =~ m/^\s* (attribute|method) \s+ (\S+) \s* $/x) {
+	if ($content =~ m/^\s* (attribute|method|function) \s+ (\S+) \s* $/x) {
 		my ($referent_type, $referent_name) = ($1, $2);
 		$matter_class .= "::$referent_type";
 		return $matter_class->new(
