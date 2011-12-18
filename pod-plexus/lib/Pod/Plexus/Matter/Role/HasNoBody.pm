@@ -1,8 +1,7 @@
 package Pod::Plexus::Matter::Role::HasNoBody;
+# TODO - Edit pass 1 done.
 
-# TODO - Edit pass 0 done.
-
-=abstract Ignore any text following a Pod::Plexus command.
+=abstract Ignore any section text following a Pod::Plexus command.
 
 =cut
 
@@ -14,7 +13,7 @@ excludes qw(handle_body);
 =boilerplate section_body_handler
 
 [% SET command = c.match('::([a-z]+)').0 %]
-The [% command %] command is not a POD container.  It has no
+The "=[% command %]" command is not a POD container.  It has no
 associated POD content.
 
 =cut

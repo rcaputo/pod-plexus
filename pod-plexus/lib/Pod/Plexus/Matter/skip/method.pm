@@ -1,13 +1,13 @@
 package Pod::Plexus::Matter::skip::method;
+# TODO - Edit pass 1 done.
 
-# TODO - Edit pass 0 done.
+use Moose;
+extends 'Pod::Plexus::Matter::skip';
+
 
 =abstract Represent the need to skip a method in a module.
 
 =cut
-
-use Moose;
-extends 'Pod::Plexus::Matter::skip';
 
 
 # It actually does nothing except represent a particular type of skip.

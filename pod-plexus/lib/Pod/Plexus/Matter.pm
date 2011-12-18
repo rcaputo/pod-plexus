@@ -1,22 +1,22 @@
 package Pod::Plexus::Matter;
-
 # TODO - Edit pass 1 done.
-
-=abstract A generic segment of documentation matter.
-
-=cut
-
-=head1 SUBCLASSES
-
-=toc ^Pod::Plexus::Matter::
-
-=cut
 
 use Moose;
 use Carp qw(croak);
 
 use Pod::Plexus::Util::PodElemental qw(cleanup_element_arrayref blank_line);
 use Storable qw(dclone);
+
+=abstract A generic segment of documentation matter.
+
+=cut
+
+
+=head1 SUBCLASSES
+
+=toc ^Pod::Plexus::Matter::
+
+=cut
 
 
 =boilerplate please_report_questions
@@ -34,17 +34,23 @@ to understand usage, then the documentation is broken.
 [% s.name %]() returns true if [% m.package %] implements a top-level
 documentation container.  All POD and Pod::Plexus documentation after
 this Pod::Plexus command will be grouped into a single section.  The
-section is terminated by "=cut" or some other top-level command.
+section is terminated by "=cut" or the start of another top-level
+command.
 
 [% s.name %]() applies to all objects of the class, so it is
 implemented as a class method.
 
+[% IF m.package != 'Pod::Plexus::Matter' %]
+[% IF m.package.call('is_top_level') %]
+[% m.package %] objects represent top-level documentation matter.
+[% ELSE %]
+[% m.package %] objects are not top-level documentation matter.
+[% END %]
+[% END %]
+
 =cut
 
-sub is_top_level {
-	my $self = shift();
-	croak "$self must override is_top_level()";
-}
+sub is_top_level { 0 }
 
 
 =attribute module
@@ -508,19 +514,13 @@ sub extract_my_body {
 
 =boilerplate new_from_element
 
+[% s.name %]() is a hook to allow command handlers to create
+subclasses based on the Pod::Plexus command syntax.  For example,
+[% m.package %]::skip->[% s.name %] creates different objects
+depending whether an attribute or a method is being skipped.
+
 [% m.package %] uses the default implementation, which simply creates
-a new object.  Some other Pod::Plexus::Matter classes customize it to
-create different classes depending on Pod::Plexus parameters.
-
-=cut
-
-
-=method new_from_element
-
-[% s.name %]() creates a new Pod::Plexus::Matter object from the
-values found in a Pod::Elemental::Generic::Command.
-
-=include boilerplate new_from_element
+a new [% m.package %] object.
 
 =cut
 

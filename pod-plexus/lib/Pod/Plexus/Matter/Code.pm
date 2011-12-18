@@ -1,17 +1,16 @@
 package Pod::Plexus::Matter::Code;
-
-# TODO - Edit pass 0 done.
-
-=abstract A reference to documentation for an attribute or method entity.
-
-=cut
+# TODO - Edit pass 1 done.
 
 use Moose;
 extends 'Pod::Plexus::Matter';
 with 'Pod::Plexus::Matter::Role::AbsorbedBody';
 
-
 use Pod::Plexus::Util::PodElemental qw(blank_line cut_paragraph);
+
+
+=abstract A reference to documentation for an attribute or method entity.
+
+=cut
 
 
 has name => (
@@ -35,9 +34,11 @@ has name => (
 );
 
 
-# TODO - This tends to be common.
-# How about abstracting it?
-# Defining it as the default value in the base class?
+=after attribute doc_suffix
+
+The POD suffix for [% m.package %] is blank.
+
+=cut
 
 has '+doc_suffix' => (
 	default => sub {

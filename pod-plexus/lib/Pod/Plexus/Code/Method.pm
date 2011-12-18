@@ -1,13 +1,14 @@
 package Pod::Plexus::Code::Method;
+# TODO - Edit pass 1 done.
 
-# TODO - Edit pass 0 done.
+use Moose;
+extends 'Pod::Plexus::Code';
+
 
 =abstract A documentable method.
 
 =cut
 
-use Moose;
-extends 'Pod::Plexus::Code';
 
 =attribute meta_entity
 
@@ -20,7 +21,9 @@ has '+meta_entity' => (
 );
 
 
-sub is_documented {
+# TODO - is_documented() is part of the final error checking pass.
+
+sub _UNUSED_is_documented {
 	my ($self, $module) = @_;
 
 	my $package_name = $module->package();
@@ -36,7 +39,9 @@ sub is_documented {
 }
 
 
-sub validate {
+# TODO - validate() is part of the final error checking pass.
+
+sub _UNUSED_validate {
 	my ($self, $module, $errors) = @_;
 
 	return if $self->is_documented($module);

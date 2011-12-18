@@ -1,14 +1,14 @@
 package Pod::Plexus::Matter::Reference;
-
 # TODO - Edit pass 1 done.
-
-=abstract An abstract section that references something else.
-
-=cut
 
 use Moose;
 extends 'Pod::Plexus::Matter';
 with 'Pod::Plexus::Matter::Role::HasNoBody';
+
+
+=abstract An abstract section that references something else.
+
+=cut
 
 
 =attribute referent
@@ -16,6 +16,9 @@ with 'Pod::Plexus::Matter::Role::HasNoBody';
 "[% s.name %]" contains a reference to the Pod::Plexus::Matter object
 referred to by this [% m.package %] object.  Subclasses use it to
 inspect and possibly clone the documentation being referenced.
+
+The type of object stored in "[% s.name %]" depends upon what is being
+referenced.
 
 =cut
 
@@ -67,6 +70,7 @@ sub get_referent_matter {
 	my ($self, $module_name, $referent_type, $referent_name) = @_;
 
 	my $referent_module = $self->get_referent_module($module_name);
+	$referent_module->cache_structure();
 
 	my $cache_name = Pod::Plexus::Matter->calc_cache_name(
 		$referent_type, $referent_name

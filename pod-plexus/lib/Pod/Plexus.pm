@@ -95,3 +95,13 @@ be rendered instead by subclassing L<Pod::Plexus::Matter::attribute>
 and L<Pod::Plexus::Matter::method>.
 
 =cut
+
+=boilerplate new
+
+[% s.name %]() constructs one [% m.package %] object.
+Because [% s.name %]() uses Moose, the caller can supply constructor
+parameters named after this class' public attributes.
+See L</PUBLIC ATTRIBUTES> for a list of configurable construction
+options.
+
+=cut

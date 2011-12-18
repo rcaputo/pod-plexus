@@ -1,10 +1,5 @@
 package Pod::Plexus::Matter::example;
-
 # TODO - Edit pass 0 done.
-
-=abstract Import code from the distribution as a documentation example.
-
-=cut
 
 use Moose;
 extends 'Pod::Plexus::Matter::Reference';
@@ -23,11 +18,17 @@ use Pod::Plexus::Util::PodElemental qw(text_paragraph blank_line);
 use Carp qw(confess);
 
 
+=abstract Import code from the distribution as a documentation example.
+
+=cut
+
+
 =attribute referent_name
 
 "[% s.name %]" contains the name of the subroutine, method, attribute
-or other code entity being included as an example.  Subclasses may use
-the value of "[% s.name %]" to find its source code.
+or other code entity being included as a documentation example.
+Subclasses may use the value of "[% s.name %]" to find its source
+code.
 
 =cut
 
@@ -40,6 +41,7 @@ has referent_name => (
 has '+referent' => (
 	isa => 'Pod::Plexus::Module',
 );
+
 
 sub is_top_level { 0 }
 

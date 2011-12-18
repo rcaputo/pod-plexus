@@ -1,6 +1,5 @@
 package Pod::Plexus::Distribution;
-
-# TODO - Edit pass 0 done.
+# TODO - Edit pass 1 done.
 
 use Moose;
 use Template;
@@ -9,6 +8,11 @@ use Module::Util qw(find_installed);
 
 use Pod::Plexus::Module;
 use Template::Stash;
+
+
+=abstract Represent a distribution containing zero or more Pod::Pleuxs modules.
+
+=cut
 
 
 $Template::Stash::SCALAR_OPS->{call} = sub {
@@ -21,6 +25,14 @@ $Template::Stash::SCALAR_OPS->{does} = sub {
 	return $class->does($method);
 };
 
+
+=attribute template
+
+"[% s.name %]" contains a template object that will be used to expand
+variables and perhaps other things within the documentation.  It's a
+Text::Template object by default.
+
+=cut
 
 has template => (
 	is => 'ro',
@@ -41,15 +53,14 @@ has template => (
 
 =attribute modules_by_file
 
-[% s.name %] references a hash of Pod::Plexus::Module objects
-keyed on each module's file path.  Paths are relative to the
-distribution's root directory.
+"[% s.name %]" maps relative module paths to their corresponding
+Pod::Plexus::Module objects.  Paths are relative to the distribution's
+root directory.
 
-Modules use this attribute to find other module by their relative
-paths.
+Modules use this attribute to find siblings by their relative paths.
 
-Dealing with multiple modules in a single file is a challenge that
-hasn't yet been met.
+This implementation restricts each module to hold a single class.
+Multiple classes per module may be supported in the future.
 
 =cut
 
@@ -123,12 +134,20 @@ has modules_by_package => (
 );
 
 
+=inherits Pod::Plexus::Cli attribute blame
+
+=cut
+
 has blame => (
 	is      => 'rw',
 	isa     => 'Bool',
 	default => 0,
 );
 
+
+=inherits Pod::Plexus::Cli attribute verbose
+
+=cut
 
 has verbose => (
 	is      => 'rw',
@@ -139,10 +158,12 @@ has verbose => (
 
 =method add_file
 
-Add a file to the distribution.  A Pod::Plexus::Module is built
-from the contents of the file at the relative FILE_PATH and added to
-the distribution.  The get_module() accessor will retrieve the module
-object by either its relative FILE_PATH or its main package name.
+[% s.name $](MODULE_PATH) adds a file to the distribution.  A
+Pod::Plexus::Module is built from the contents of the file at the
+relative MODULE_PATH and added to the distribution.
+
+The get_module() accessor will retrieve the module object by either
+its relative MODULE_PATH or its main package name.
 
 =cut
 
@@ -182,11 +203,9 @@ sub add_module {
 
 =method get_module
 
-[% s.name %] returns a Pod::Plexus::Module that matches a given
-MODULE_IDENTIFIER, or undef if no module matches.  The module
-identifier may be a file's relative path in the distribution or its
-main module name.  [% s.name %] will determine which based on
-MODULE_INDENTIFIER's syntax.
+[% s.name %](RELATIVE_PATH) or [% s.name %](MAIN_PACKAGE) returns a
+Pod::Plexus::Module object that matches a given RELATIVE_PATH or
+MAIN_PACKAGE name.  It returns undef if the module is unknoqn.
 
 =cut
 
@@ -203,56 +222,6 @@ sub get_module {
 }
 
 
-=method index
-
-[% s.name %] indexes the distribution.  Methods and attributes are
-identified and inspected.  Documantation is pulled apart and
-associated with implementation.  Some documentation is generated, when
-possible and reasonable.  Errors are thrown for undocumented things.
-
-=cut
-
-sub index {
-	my $self = shift();
-	$_->index() foreach $self->get_known_module_objects();
-}
-
-
-=method get_unresolved_referents
-
-[% s.name %] collects and returns the unique referents across all
-known modules.
-
-=cut
-
-sub get_unresolved_referents {
-	my $self = shift();
-
-	my %referents;
-
-	MODULE: foreach my $module ($self->get_known_module_objects()) {
-		my @referents = $module->get_referents();
-		REFERENT: while (@referents) {
-			my $referent = shift @referents;
-
-			if (ref($referent) eq 'Regexp') {
-				push @referents, (grep /$referent/, $self->get_known_module_names());
-				next REFERENT;
-			}
-
-			next REFERENT if $self->_has_module($referent);
-			$referents{$referent} = 1;
-		}
-	}
-
-	return keys %referents;
-}
-
-
 no Moose;
 
 1;
-
-=abstract Represent a distribution containing zero or more Pod::Pleuxs modules.
-
-=cut

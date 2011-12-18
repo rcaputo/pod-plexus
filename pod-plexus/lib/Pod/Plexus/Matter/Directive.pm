@@ -1,6 +1,5 @@
 package Pod::Plexus::Matter::Directive;
-
-# TODO - Edit pass 0 done.
+# TODO - Edit pass 1 done.
 
 =abstract A base class for Pod::Plexus parser and renderer directives.
 
@@ -13,7 +12,13 @@ extends 'Pod::Plexus::Matter';
 sub is_top_level { 1 }
 
 
-# Doesn't render.
+=after as_pod_elementals
+
+Pod::Plexus directives don't render as POD, so [% s.name %]() always
+returns an empty list.
+
+=cut
+
 sub as_pod_elementals {
 	return;
 }

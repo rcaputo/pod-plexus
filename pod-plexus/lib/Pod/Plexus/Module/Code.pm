@@ -1,58 +1,35 @@
 package Pod::Plexus::Module::Code;
-
-# TODO - Edit pass 0 done.
-
-=abstract Represent and process the code portion of a Perl module.
-
-=cut
+# TODO - Edit pass 1 done.
 
 use Moose;
+extends 'Pod::Plexus::Module::Subset';
+
 use PPI;
 use Scalar::Util qw(weaken);
 
 use PPI::Lexer;
 $PPI::Lexer::STATEMENT_CLASSES{with} = 'PPI::Statement::Include';
 
-
 use Pod::Plexus::Code::Method;
 use Pod::Plexus::Code::Attribute;
 
 
-has module => (
-	is       => 'ro',
-	isa      => 'Pod::Plexus::Module',
-	required => 1,
-	weak_ref => 1,
-	handles  => [
-		qw(
-			pathname
-		),
-	],
-);
-
-
-=attribute distribution
-
-The "[% s.name %]" attribute allows [% m.package %] to access the
-distribution it's in.
+=abstract Represent and process the code portion of a Perl module.
 
 =cut
 
-has _UNUSED_distribution => (
-	is       => 'ro',
-	isa      => 'Pod::Plexus::Distribution',
-	weak_ref => 1,
-	lazy     => 1,
-	default  => sub { shift()->module()->distribution() },
+
+has '+module' => (
+	handles => [ qw( pathname ) ],
 );
 
 
 =attribute _ppi
 
-"[% s.name %]" contains a PPI::Document representing a parse tree of
-the module being documented.  [% m.package %] uses this to find source
-code for inclusion in the documentation, examine the module's
-implementation for documentation clues, and so on.
+"[% s.name %]" contains a PPI::Document representing the module being
+documented.  [% m.package %] uses this to find source code for
+inclusion in the documentation, examine the module's implementation
+for documentation cues, and so on.
 
 =cut
 
@@ -64,27 +41,21 @@ has _ppi => (
 );
 
 
-=inherits Pod::Plexus::Cli attribute verbose
-
-=cut
-
-has verbose => (
-	is      => 'rw',
-	isa     => 'Bool',
-	default => 0,
-);
-
-
 =attribute package
 
 [% m.package %]'s "[% s.name %]" attribute contains the module's first
-package name.  It's main use is in template expansion, via the
-"[Z<>% m.package %]" expression.
+(and hopefully main) package name.  It's main use is in template
+expansion, via the "[Z<>% m.package %]" expression.
+
+Note that "[Z<>% m %]" references the [% m.package %] object for the
+module being documented.  All the modules and methods implemented here
+are also available in the documentation itself.
 
 Because of the way "[% s.name %]" works, it's probably better for
-every package to exist in its own module.  Undefined (but probably
-bad) things may occur if a module contains more than one package.
-Volunteers are welcome to fix this, whatever it is.
+every package to exist in its own module.  Undefined things may occur
+if a module contains more than one package.
+
+Contributions are welcome to improve this situation.
 
 =cut
 
@@ -136,9 +107,9 @@ has meta_module => (
 
 =method dump
 
-[% s.name %]() is a debugging helper to print the PPI document used to
-parse this module's source code.  It's been useful for developing
-parsers like the ones in get_method_source().
+[% s.name %]() prints the PPI document resulting from the parsed
+module's source.  It's been useful for developing parsers like the
+ones in get_method_source().
 
 =cut
 
@@ -249,12 +220,15 @@ sub get_attribute_source {
 
 =method add_matter_accessor
 
-[% s.name %](ACCESSOR_NAME, MATTER_OBJECT) adds an accessor to a
-module so that Perl's inheritance can be used to find the
-documentation associated with a particular piece of code.
+[% s.name %](ACCESSOR_NAME, MATTER_OBJECT) makes a documentation
+MATTER_OBJECT accessible as a class method named ACCESSOR_NAME.
 
-In the case of Moose roles, [% s.name %]() also applies the new
-accessor to all of the role's consumers.
+Pod::Plexus cheats a bit.  Rather than duplicate the inheritance tree
+for a distribution, it injects accessors into classes and roles so
+that Perl's inheritance does the work.
+
+In the case of Moose roles, [% s.name %]() retroactively applies the
+new accessor to all of the role's consumers.
 
 =cut
 
@@ -289,9 +263,9 @@ sub add_matter_accessor {
 =method find_matter
 
 [% s.name %](CACHE_NAME) finds the documentation matter described by
-CACHE_NAME within a module's code.  It relies upon
-add_matter_accessor() having first been called to associate the
-CACHE_name with the module.
+CACHE_NAME within the module's code.  It assumes that
+add_matter_accessor() was first called to associate the CACHE_NAME
+with the module.
 
 =cut
 
@@ -303,7 +277,6 @@ sub find_matter {
 }
 
 
-# Unused.
 has _UNUSED_attributes => (
 	is      => 'rw',
 	isa     => 'HashRef[Pod::Plexus::Code::Attribute]',
@@ -318,7 +291,6 @@ has _UNUSED_attributes => (
 );
 
 
-# Unused.
 has _UNUSED_methods => (
 	is      => 'rw',
 	isa     => 'HashRef[Pod::Plexus::Code::Method]',
@@ -333,7 +305,6 @@ has _UNUSED_methods => (
 );
 
 
-# Unused.
 sub _UNUSED_cache_all_attributes {
 	my ($self, $errors) = @_;
 
@@ -426,7 +397,6 @@ sub _UNUSED_cache_all_attributes {
 }
 
 
-# Unused.
 sub _UNUSED_cache_all_methods {
 	my ($self, $errors) = @_;
 
@@ -474,7 +444,6 @@ sub _UNUSED_cache_all_methods {
 }
 
 
-# Unused.
 sub _UNUSED_cache_one_method {
 	my ($self, $errors, $method) = @_;
 

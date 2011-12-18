@@ -1,10 +1,5 @@
 package Pod::Plexus::Matter::Role::DiscardBody;
-
-# TODO - Edit pass 0 done.
-
-=abstract Throw away any text following a Pod::Plexus command.
-
-=cut
+# TODO - Edit pass 1 done.
 
 use Moose::Role;
 
@@ -12,11 +7,16 @@ requires qw(extract_my_body docs docs_index module_pathname);
 excludes qw(handle_body);
 
 
+=abstract Throw away any text following a Pod::Plexus command.
+
+=cut
+
+
 =boilerplate section_body_handler
 
 [% SET command = c.match('::([a-z]+)').0 %]
-The [% command %] section must not contain POD content.  An error will
-be thrown if any content is present.
+The "=[% command %]" section must not contain POD content.  An error
+will be thrown if any content is present.
 
 =cut
 

@@ -1,12 +1,8 @@
 package Pod::Plexus::Module::Docs;
-
-# TODO - Edit pass 0 done.
-
-=abstract Represent and process the documentation portion of a Perl module.
-
-=cut
+# TODO - Edit pass 1 done.
 
 use Moose;
+extends 'Pod::Plexus::Module::Subset';
 
 use Pod::Elemental;
 
@@ -24,11 +20,12 @@ use Pod::Plexus::Matter::attribute;
 use Pod::Plexus::Matter::include;
 
 
-has module => (
-	is       => 'ro',
-	isa      => 'Pod::Plexus::Module',
-	required => 1,
-	weak_ref => 1,
+=abstract Represent and process the documentation portion of a Perl module.
+
+=cut
+
+
+has '+module' => (
 	handles  => {
 		package         => 'package',
 		get_meta_module => 'get_meta_module',
@@ -36,21 +33,12 @@ has module => (
 );
 
 
-has distribution => (
-	is       => 'ro',
-	isa      => 'Pod::Plexus::Distribution',
-	weak_ref => 1,
-	lazy     => 1,
-	default  => sub { shift()->module()->distribution() },
-);
-
-
 =attribute _elemental
 
 [% s.name %] contains a Pod::Elemental::Document representing the
 parsed POD from the module being documented.  [% m.package %]
-documents modules by inspecting and revising [% s.name %], among
-other things.
+documents modules by inspecting and revising [% s.name %], among other
+things.
 
 =cut
 
@@ -69,8 +57,10 @@ has _elemental => (
 
 =method get_matter
 
-[% s.name %] returns a single reference, found by the referent type,
-and optional symbol name.
+[% s.name %](MATTER_TYPE, SYMBOL_NAME) returns a single documentation
+matter object, found by the MATTER_TYPE and an optional SYMBOL_NAME.
+The docmentation matter must be explicitly written in the module in
+question.  Use find_matter() To find inherited documentation as well.
 
 =cut
 
@@ -84,12 +74,30 @@ sub get_matter {
 }
 
 
+=method find_matter
+
+[% s.name %](MATTER_TYPE, SYMBOL_NAME) returns a single documentation
+matter object, found by the MATTER_TYPE and optional SYMBOL_NAME.
+[% s.name %]() will walk a module's inheritance tree to find
+documentation, unlike get_matter().
+
+=cut
+
 sub find_matter {
 	my ($self, $type, $symbol) = @_;
 	my $cache_name = Pod::Plexus::Matter->calc_cache_name($type, $symbol);
 	return $self->module()->find_matter($cache_name);
 }
 
+
+=method add_matter
+
+[% s.name %](MATTER_OBJECT) inserts a MATTER_OBJECT into the
+documentation for an object.  This is used to register explicitly
+written documentation, as well as to inject inherited and generated
+documentation at runtime.
+
+=cut
 
 sub add_matter {
 	my ($self, $matter_object) = @_;
@@ -101,6 +109,13 @@ sub add_matter {
 	$self->module()->add_matter_accessor($cache_name, $matter_object);
 }
 
+
+=attribute matter
+
+"[% s.name %]" contains a hash table of Pod::Plexus::Matter objects
+that have been added to the module using add_matter().
+
+=cut
 
 has matter => (
 	is      => 'rw',
@@ -116,14 +131,11 @@ has matter => (
 );
 
 
+=inherits Pod::Plexus::Cli attribute blame
+
+=cut
+
 has blame => (
-	is       => 'rw',
-	isa      => 'Bool',
-	required => 1,
-);
-
-
-has verbose => (
 	is       => 'rw',
 	isa      => 'Bool',
 	required => 1,
@@ -132,14 +144,14 @@ has verbose => (
 
 =method cache_all_matter
 
-[% s.name %] examines each Pod::Elemental command node for something
-Pod::Plexus recognizes.  Every recognized Pod::Elemental command is
-replaced by Pod::Plexus::Matter subclass named after it.  For example,
-"=method" commands are replaced by Pod::Plexus::Matter::method
-objects.  These objects will properly render to Pod::Elemental
-elements and POD as needed.
+[% s.name %] scans a module's documentation for recognizable
+Pod::Elemental command nodes.  Every supported Pod::Elemental command
+is replaced by a Pod::Plexus::Matter subclass named for it.  For
+example, "=method" commands become Pod::Plexus::Matter::method
+objects.  They will be rendered as POD as needed.
 
-All other Pod::Elemental commands are ignored.
+All other Pod::Elemental commands are left alone in the Pod::Elemental
+document.
 
 =example method cache_all_matter
 
@@ -175,6 +187,13 @@ sub cache_all_matter {
 }
 
 
+=method abstract
+
+[% s.name %]() returns the module's abstract, defined by the
+"=abstract" command.
+
+=cut
+
 sub abstract {
 	my $self = shift();
 	my $abstract = $self->get_matter('abstract');
@@ -183,6 +202,14 @@ sub abstract {
 }
 
 
+=method skips_attribute
+
+[% s.name %](ATTRIBUTE_NAME) returns a Boolean value indicating
+whether an attribute should not be processed.  These attributes are
+defined with "=skip attribute ATTRIBUTE_NAME" commands.
+
+=cut
+
 sub skips_attribute {
 	my ($self, $name) = @_;
 	my $skip = $self->get_matter('skip::attribute');
@@ -190,12 +217,29 @@ sub skips_attribute {
 }
 
 
+=method skips_method
+
+[% s.name %](METHOD_NAME) returns a Boolean value indicating whether a
+method should not be processed.  These methods are defined with "=skip
+method METHOD_NAME" commands.
+
+=cut
+
 sub skips_method {
 	my ($self, $name) = @_;
 	my $skip = $self->get_matter('skip::method');
 	return defined $skip;
 }
 
+
+=method flatten_methods
+
+[% s.name %]() is the mechanism where inherited method documentation
+is flattened into a subclass' documentation.  Boilerplate
+documentation for undocumented, public, un-skipped methods is
+generated here, too.
+
+=cut
 
 sub flatten_methods {
 	my $self = shift();
@@ -264,6 +308,15 @@ sub flatten_methods {
 }
 
 
+=method flatten_attributes
+
+[% s.name %]() is the mechanism where inherited attribute
+documentation is flattened into a subclass's documentation.
+Boilerplate documentation for undocumented, public, un-skipped
+attributes is generated here, too.
+
+=cut
+
 sub flatten_attributes {
 	my $self = shift();
 
@@ -325,15 +378,6 @@ sub flatten_attributes {
 	}
 
 	return @errors;
-
-	return;
-}
-
-
-sub document_accessors {
-	my $self = shift();
-
-	warn "  TODO - document_accessors()";
 
 	return;
 }
@@ -417,10 +461,18 @@ sub _cache_matter_section {
 }
 
 
+=method validate_code
+
+[% s.name %]() is a stub method for the future.  It's the point where
+Pod::Plexus verifies that all documentation corresponds to something
+significant in the distribution.
+
+=cut
+
 sub validate_code {
 	my $self = shift();
 
-	warn "  TODO - validate_code()";
+	warn "  TODO - validate_code()" if $self->verbose();
 
 	return;
 }
@@ -428,8 +480,8 @@ sub validate_code {
 
 =method render_as_pod
 
-[% s.name %] generates and returns the POD for the class being
-documented, after all is send and done.
+[% s.name %]() generates and returns a single string containing the
+entire POD for the class being documented.
 
 =cut
 
@@ -474,8 +526,8 @@ sub render_as_pod {
 
 =method dump
 
-[% s.name %] is a debugging helper method to print the Pod::Elemental
-data for the class being documented, in YAML format.
+[% s.name %]() is a debugging helper method to print the
+Pod::Elemental data for the class being documented, in YAML format.
 
 =cut
 
@@ -489,9 +541,12 @@ sub dump {
 
 =method cache_plexus_directives
 
-Find Pod::Plexus parser directives in a module's documentation,
-extract them from the documentation to be rendered, and cache their
-values for the rest of the parser to use.
+[% s.name %]() finds Pod::Plexus parser directives in a module's
+documentation, extracts them from the documentation (so they aren't
+rendered), and caches their values for the rest of the parser to use.
+
+[% s.name %]() must come before cache_all_matter() so that it can
+affect the main parse phase.
 
 =cut
 

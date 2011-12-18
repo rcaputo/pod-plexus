@@ -1,15 +1,35 @@
 package Pod::Plexus::Code;
-
-# TODO - Edit pass 0 done.
+# TODO - Edit pass 1 done.
 
 use Moose;
-
 use Carp qw(confess);
+
+
+=abstract A base class to represent a code method or attribute in Pod::Plexus.
+
+=cut
+
+
+=method new
+
+=include Pod::Plexus boilerplate new
+
+=cut
 
 
 =attribute name
 
-[% s.name %] contains this Pod::Plexus entity's name.
+[% SWITCH m.package %]
+[% CASE 'Pod::Plexus::Code::Method' %]
+[% SET entity_type='method' %]
+[% CASE 'Pod::Plexus::Code::Attribute' %]
+[% SET entity_type='attribute' %]
+[% CASE DEFAULT %]
+[% SET entity_type='attribute or method' %]
+[% END %]
+
+"[% s.name %]" contains the name of the [% entity_type %] this object
+represents.
 
 =cut
 
@@ -22,10 +42,10 @@ has name => (
 
 =attribute private
 
-[% s.name %] is a read-only accessor that tells whether the entity is
-public or private.  By default, entities with names beginning with one
-or more underscores are considered private.  All others are considered
-public.
+"[% s.name %]" indicates whether the code entity is private.  The
+default implementation interprets a leading underscore as an
+indication of privacy.  So method foo() is considered public, but
+method _foo() is considered private.
 
 =cut
 
@@ -39,26 +59,26 @@ has private => (
 
 =attribute meta_entity
 
-[% s.name %] contains the Class::MOP object representing this entity
-in Moose.  It's added by Pod::Plexus::Module during its indexing
-phase.
+[% s.name %] contains the L<Class::MOP> object representing this
+entity in Moose.  It's set by Pod::Plexus::Module while caching the
+class's code structure.  Pod::Plexus uses it to inspect the entity and
+write default documentation for it.
 
 =cut
 
 has meta_entity => (
 	is       => 'ro',
 	isa      => 'Undef',
-	#required => 1,
 );
 
 
-sub is_documented {
+sub _UNUSED_is_documented {
 	my ($self, $module, $errors) = @_;
 	push @$errors, "Object $self ... class needs to override validate()";
 }
 
 
-sub validate {
+sub _UNUSED_validate {
 	my ($self, $module, $errors) = @_;
 	push @$errors, "Object $self ... class needs to override validate()";
 }
@@ -66,8 +86,9 @@ sub validate {
 
 =attribute cache_name
 
-[% s.name %] contains a reference's unique identifying key.  It calls
-calc_cache_name() to calculate it, then caches it for future speed.
+"[% s.name %]" contains the code entity's unique cache name.  It's
+calculated by calc_cache_name() and saved in the attribute for quicker
+access later.
 
 =cut
 
@@ -84,14 +105,12 @@ has cache_name => (
 
 =method calc_cache_name
 
-[% s.name %] calculates a reference's unique key from three
-parameters: the reference's class name, the reference's module name,
-and an optional symbol within the module.  Omit the symbol to
-reference the module as a whole.
+[% s.name %]() calculates a code entity's unique cache from two
+parameters: the entity's type and its name in the class' symbol table.
 
 [% s.name %] may be called as a class or object method.  If the
 caller has the object but not all the necessary parameters, it may be
-more convenient to access the key() attribute instead.
+more convenient to access the "cache"name" attribute instead.
 
 =cut
 
@@ -111,14 +130,3 @@ sub calc_cache_name {
 no Moose;
 
 1;
-
-=abstract A code attribute or method entity.
-
-=cut
-
-=method new
-
-Constructs one [% m.package %] object.  See L</PUBLIC ATTRIBUTES>
-for constructor options.
-
-=cut

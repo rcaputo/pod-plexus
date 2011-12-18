@@ -1,6 +1,6 @@
 package Pod::Plexus::Matter::abstract;
 
-# TODO - Edit pass 0 done.
+# TODO - Edit pass 1 done.
 
 =abstract Set a succinct, one-line description of the module.
 
@@ -10,9 +10,9 @@ package Pod::Plexus::Matter::abstract;
 
 Pod::Plexus:
 
-	package Pod::Plexus::Matter::abstract;
+	package Reflex;
 
-	=abstract Set a succinct, one-line ....
+	=abstract Class library for flexible, reactive programming.
 
 	=cut
 
@@ -20,7 +20,7 @@ Renders as:
 
 	=head1 NAME
 
-	Pod::Plexus::Matter::abstract - Set a succinct, one-line ....
+	Reflex - Class library for flexible, reactive programming.
 
 	=cut
 
@@ -77,8 +77,8 @@ has abstract => (
 
 =attribute doc_prefix
 
-The "[% s.name %]" attribute defines how to begin the POD for
-abstracts.
+The "[% s.name %]" attribute contains the POD to begin the module's
+abstract.  By default it contains "=head1 NAME\n\n".
 
 =example attribute doc_prefix
 
@@ -115,8 +115,8 @@ has '+doc_body' => (
 
 =attribute doc_suffix
 
-"[%s.name %]" documents a "=cut" paragraph to close the abstract's POD
-section.
+"[%s.name %]" documents a "=cut" paragraph to close the abstract's
+formatted POD section.
 
 =cut
 

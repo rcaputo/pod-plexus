@@ -1,5 +1,7 @@
 package Pod::Plexus::Module::Subset;
 
+# TODO - Edit pass 1 done.
+
 use Moose;
 
 =abstract Common features of Pod::Plexus::Module subsets (Code and Docs).

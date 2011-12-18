@@ -1,14 +1,14 @@
 package Pod::Plexus::Module;
-
-# TODO - Edit pass 0 done.
-
-=abstract Represent and render a single module in a distribution.
-
-=cut
+# TODO - Edit pass 1 done.
 
 use Moose;
 use Pod::Plexus::Module::Code;
 use Pod::Plexus::Module::Docs;
+
+
+=abstract Represent and render a single module in a distribution.
+
+=cut
 
 
 =attribute docs
@@ -40,6 +40,13 @@ has docs => (
 );
 
 
+=attribute docs
+
+The "[% s.name %]" attribute contains a Pod::Plexus::Module::Code
+object that represents the module's code.
+
+=cut
+
 has code => (
 	is      => 'ro',
 	isa     => 'Pod::Plexus::Module::Code',
@@ -64,12 +71,43 @@ has code => (
 );
 
 
+=boilerplate set_by_application
+
+"[% s.name %]" is set by an application or plugin configuration.  For
+example, Pod::Plexus::Cli sets it via the "--blame" command line
+switch.
+
+=cut
+
+
+=attribute blame
+
+The "[% s.name %]" attribute controls whether tracing information is
+inserted into the resulting documentation.  The information tells
+which objects generated each section of the documentation.  It's
+useful for finding out the sources of strange output.
+
+=include boilerplate set_by_application
+
+=cut
+
 has blame => (
 	is      => 'rw',
 	isa     => 'Bool',
 	default => 0,
 );
 
+
+=attribute verbose
+
+The "[% s.name %]" attribute controls whether tracing information is
+written to the console's standard error channel.  The information
+generally explains what's going on at any given time.  It's useful for
+determining the location of warnings or runtime errors.
+
+=include boilerplate set_by_application
+
+=cut
 
 has verbose => (
 	is      => 'rw',
@@ -80,8 +118,8 @@ has verbose => (
 
 =attribute pathname
 
-[% s.name %] contains the relative path and name of the file being
-documented.
+"[% s.name %]" contains the relative path and name of the Module
+currently being documented.
 
 =cut
 
@@ -94,10 +132,10 @@ has pathname => (
 
 =attribute distribution
 
-[% s.name %] contains the Pod::Plexus::Distribution object that
-represents the entire distribution of modules.  It allows the current
-module to access its sibling modules through the distribution
-containing them.
+"[% s.name %]" holds the Pod::Plexus::Distribution object that
+represents the distribution containing modules being documented.  It
+allows the current module to access its sibling modules through the
+distribution containing them.
 
 =cut
 
@@ -109,18 +147,17 @@ has distribution => (
 );
 
 
-=attribute is_prepared
+=attribute is_cached
 
-[% s.name %] is true if this module has been prepared to be rendered.
-Praparation includes indexing interesting information and early
-validation checks.  [% s.name %] doesn't necessarily indicate whether
-the preparation was successful, however.  cache_structure() uses it
-internally to guard against re-entry, but other methods may also use
-it to avoid callng cache_structure() unnecessarily.
+"[% s.name %]" is true if this module's structure is currently being
+cached or already has been.  "[% s.name %]" doesn't necessarily
+indicate whether caching was successful.  The cache_structure() method
+uses it to guard against re-entry, which would be redundant work at
+best.
 
 =cut
 
-has is_prepared => (
+has is_cached => (
 	is      => 'rw',
 	isa     => 'Bool',
 	default => 0,
@@ -129,12 +166,13 @@ has is_prepared => (
 
 =method cache_structure
 
-[% s.name %] prepares the module to be rendered by performing all
-prerequisite actions.  Data is collected and validated.  Intermediate
-indexes are built.  And so on.
+[% s.name %]() analyzes and remembers a module's code and
+documentation structure, and it.  The cached structure is used later
+to find inherited documentation, generate new documentation, and
+validate that the user-supplied documentation is correct.
 
-Returns nothing on success.  Returns a list of human-friend.y error
-messages on failure.
+Returns nothing on success, or a list of human-friendly error messages
+when something failed.
 
 =cut
 
@@ -144,8 +182,8 @@ sub cache_structure {
 	# 0. Don't re-prepare this module.
 	# Comes first to avoid re-entry problems.
 
-	return if $self->is_prepared();
-	$self->is_prepared(1);
+	return if $self->is_cached();
+	$self->is_cached(1);
 
 	warn "Caching structure for ", $self->package(), "...\n";
 
@@ -195,12 +233,6 @@ sub cache_structure {
 		$self->docs()->flatten_attributes(),
 		$self->docs()->flatten_methods(),
 	);
-
-	# 4. Document things we can intuit from Moose and/or Class::MOP.
-	# This may actually be rolled into flatten_attributes() since the
-	# timing would be better there.
-
-	return @errors if push @errors, $self->docs()->document_accessors();
 
 	# 5. Do any final validations.  Is everything documented?  Do all
 	# documentation sections reference actual implementation?  I'm not

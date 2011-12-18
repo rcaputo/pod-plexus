@@ -1,5 +1,4 @@
 package Pod::Plexus::Matter::xref;
-
 # TODO - Edit pass 1 done.
 
 =abstract Generate a cross-reference link to another part of a distribution.

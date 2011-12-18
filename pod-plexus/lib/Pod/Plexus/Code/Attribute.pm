@@ -1,33 +1,8 @@
 package Pod::Plexus::Code::Attribute;
-
-# TODO - Edit pass 0 done.
-
-=abstract A documentable class attribute.
-
-=cut
+# TODO - Edit pass 1 done.
 
 use Moose;
 extends 'Pod::Plexus::Code';
-
-
-=before Pod::Plexus::Code attribute meta_entity
-
-Some stuff that goes before it.
-
-=cut
-
-
-=after Pod::Plexus::Code attribute meta_entity
-
-Some stuff that goes after it.
-
-=cut
-
-
-=inherits Pod::Plexus::Code attribute meta_entity
-
-=cut
-
 
 use Moose::Util::TypeConstraints qw(class_type);
 
@@ -35,12 +10,19 @@ class_type('Class::MOP::Attribute');
 class_type('Moose::Meta::Role::Attribute');
 
 
+=abstract A documentable class attribute.
+
+=cut
+
+
 has '+meta_entity' => (
 	isa => 'Class::MOP::Attribute | Moose::Meta::Role::Attribute',
 );
 
 
-sub is_documented {
+# TODO - is_documented() is part of the final error checking pass.
+
+sub _UNUSED_is_documented {
 	my ($self, $module) = @_;
 
 	my $package_name   = $module->package();
@@ -54,7 +36,9 @@ sub is_documented {
 }
 
 
-sub validate {
+# TODO - validate() is part of the final error checking pass.
+
+sub _UNUSED_validate {
 	my ($self, $module, $errors) = @_;
 
 	return if $self->is_documented($module);

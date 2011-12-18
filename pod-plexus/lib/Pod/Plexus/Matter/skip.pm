@@ -1,10 +1,5 @@
 package Pod::Plexus::Matter::skip;
-
-# TODO - Edit pass 0 done.
-
-=abstract Tell Pod::Plexus that something shouldn't be documented.
-
-=cut
+# TODO - Edit pass 1 done.
 
 use Moose;
 extends 'Pod::Plexus::Matter::Directive';
@@ -16,12 +11,18 @@ use Pod::Plexus::Matter::skip::method;
 use Carp qw(croak);
 
 
-has type => (
-	is      => 'rw',
-	isa     => 'Str',
-	default => '',
-);
+=abstract Tell Pod::Plexus that something shouldn't be documented.
 
+=cut
+
+
+=boilerplate new_from_element
+
+[% s.name %]() creates a new [% m.package %]::attribute or
+[% m.package %]::method object depending on Pod::Elemental command
+syntax.
+
+=cut
 
 sub new_from_element {
 	my ($class, %args) = @_;
