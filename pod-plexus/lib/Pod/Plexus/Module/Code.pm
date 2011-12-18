@@ -222,20 +222,19 @@ sub get_attribute_source {
 		sub {
 			return 0 unless $_[1]->isa('PPI::Statement');
 
-			my @elements = $_[1]->elements();
+			my @children = $_[1]->children();
 
-			return 0 unless @elements > 3;
+			return 0 unless @children > 3;
 
 			return 0 unless (
-				$elements[0]->isa('PPI::Token::Word') and
-				$elements[0]->literal() eq 'has'
+				$children[0]->isa('PPI::Token::Word') and
+				$children[0]->literal() eq 'has'
 			);
 
-			return 0 unless $elements[1]->isa('PPI::Token::Whitespace');
+			return 0 unless $children[1]->isa('PPI::Token::Whitespace');
 
 			return 0 unless (
-				$elements[2]->isa('PPI::Token::Word') and
-				$elements[2]->literal() eq $attribute_name
+				$children[2]->content() =~ /^(['"]?)\+?$attribute_name\1$/
 			);
 
 			return 1;
