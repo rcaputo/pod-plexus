@@ -29,6 +29,12 @@ sub BUILD {
 	my ($self, $args) = @_;
 	my $content = $self->element()->content();
 
+	my $name = $content;
+	$name =~ s/^\s+//;
+	$name =~ s/\s+$//;
+	$name =~ s/\s+/_/g;
+	$self->name($name);
+
 	$self->doc_prefix(
 		[
 			head_paragraph(1, $content),
