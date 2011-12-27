@@ -79,14 +79,14 @@ sub BUILD {
 
 	if (
 		$content =~ m{
-			^\s* (\S+) \s+ (attribute|boilerplate|method) \s+ (\S+) \s*$
+			^\s* (\S+) \s+ ([a-z\d]+) \s+ (\S+) \s*$
 		}x
 	) {
 		($module_name, $referent_type, $referent_name) = (
 			$1, "Pod::Plexus::Matter::$2", $3
 		);
 	}
-	elsif ($content =~ m/^\s* (attribute|boilerplate|method) \s+ (\S+) \s*$/x) {
+	elsif ($content =~ m/^\s* ([a-z\d]+) \s+ (\S+) \s*$/x) {
 		($module_name, $referent_type, $referent_name) = (
 			$self->module_package(), "Pod::Plexus::Matter::$1", $2
 		);
