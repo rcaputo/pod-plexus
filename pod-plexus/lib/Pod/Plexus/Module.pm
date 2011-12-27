@@ -239,10 +239,10 @@ sub cache_structure {
 	# entirely sure this step's needed so far, but it remains as a
 	# reminder.
 
-	#return @errors if push @errors, (
-	#	$self->docs()->validate_code(),
-	#	$self->code()->validate_docs()
-	#);
+	return @errors if push @errors, (
+		$self->docs()->validate(),
+		$self->code()->validate()
+	);
 
 	# We succeeded if we got this far.
 

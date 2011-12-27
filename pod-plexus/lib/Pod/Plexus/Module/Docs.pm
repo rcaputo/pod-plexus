@@ -461,7 +461,7 @@ sub _cache_matter_section {
 }
 
 
-=method validate_code
+=method validate
 
 [% s.name %]() is a stub method for the future.  It's the point where
 Pod::Plexus verifies that all documentation corresponds to something
@@ -469,12 +469,31 @@ significant in the distribution.
 
 =cut
 
-sub validate_code {
+sub validate {
 	my $self = shift();
 
-	warn "  TODO - validate_code()" if $self->verbose();
+	my @errors;
 
-	return;
+	# Module must have an abstract.
+	# TODO - This isn't quite right because abstract() will confess
+	my $abstract = $self->abstract();
+	unless (defined $abstract and length $abstract) {
+		push @errors,  $self->package() . ' needs an =abstract';
+	}
+
+	my $synopsis = $self->get_matter('head1', 'SYNOPSIS');
+	unless (defined $synopsis and length $synopsis) {
+		push @errors,  $self->package() . ' needs =head1 SYNOPSIS';
+	}
+
+	my $description = $self->get_matter('head1', 'DESCRIPTION');
+	unless (defined $description and length $description) {
+		push @errors, $self->package() . ' needs =head1 DESCRIPTION';
+	}
+
+	# TODO - Do all =attribute and =method have code?
+
+	return @errors;
 }
 
 

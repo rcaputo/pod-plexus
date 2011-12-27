@@ -277,6 +277,17 @@ sub find_matter {
 }
 
 
+sub validate {
+	my $self = shift();
+
+	# Do all attributes and methods have docs?
+
+	warn "  TODO - validate()" if $self->verbose();
+
+	return;
+}
+
+
 has _UNUSED_attributes => (
 	is      => 'rw',
 	isa     => 'HashRef[Pod::Plexus::Code::Attribute]',
