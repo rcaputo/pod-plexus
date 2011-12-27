@@ -2,9 +2,31 @@ package Pod::Plexus::Matter::toc;
 
 # TODO - Edit pass 0 done.
 
+
 =abstract Generate a table of contents for modules that match a regexp.
 
 =cut
+
+
+=inherits Pod::Plexus::Matter head1 SYNOPSIS
+
+=cut
+
+
+=head1 DESCRIPTION
+
+[% m.package %] generates a table of contents outline for modules that
+match a regular expression.  L<Pod::Plexus::Matter/SUBCLASSES> lists
+all its subclasses in three lines of POD:
+
+	=head1 SUBCLASSES
+
+	=toc ^Pod::Plexus::Matter::
+
+	=cut
+
+=cut
+
 
 use Moose;
 extends 'Pod::Plexus::Matter';

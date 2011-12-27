@@ -6,6 +6,22 @@ package Pod::Plexus::Util::PodElemental;
 
 =cut
 
+=head1 SYNOPSIS
+
+This is a library of mostly unrelated functions.  There is no single
+synopsis for the entire library.  Please see examples for each
+function.
+
+=cut
+
+=head1 DESCRIPTION
+
+[% m.package %] is a library of functions that perform common
+Pod::Elemental tasks.  For example, it includes a function that builds
+a standard '=head#' paragraph from basic parameters.
+
+=cut
+
 use warnings;
 use strict;
 

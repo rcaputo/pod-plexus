@@ -12,6 +12,20 @@ use Storable qw(dclone);
 =cut
 
 
+=head1 SYNOPSIS
+
+Instantiation.
+
+=example Pod::Plexus::Module::Docs method _create_matter_object
+
+Rendering as POD.
+
+	my $pod = $matter_object->as_pod_string($matter_object);
+	print $pod;
+
+=cut
+
+
 =head1 SUBCLASSES
 
 =toc ^Pod::Plexus::Matter::

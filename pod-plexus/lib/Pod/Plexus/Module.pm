@@ -11,6 +11,35 @@ use Pod::Plexus::Module::Docs;
 =cut
 
 
+=head1 SYNOPSIS
+
+Instantiation.
+
+=example Pod::Plexus::Distribution method add_file
+
+Usage.
+
+	my @errors = $module->cache_structure();
+	if (@errors) {
+		warn $_ foreach @errors;
+		exit 1;
+	}
+
+	my $rendered_pod = $module->render_as_pod();
+
+=cut
+
+
+=head1 DESCRIPTION
+
+[% m.package %] does most of the work in Pod::Plexus.  It parses
+module POD and code.  It caches the information for reuse.  It
+validates documentation, and it renders POD when everything else is
+done.
+
+=cut
+
+
 =attribute docs
 
 The "[% s.name %]" attribute contains a Pod::Plexus::Module::Docs

@@ -19,6 +19,30 @@ use Pod::Plexus::Code::Attribute;
 =cut
 
 
+=head1 SYNOPSIS
+
+Instantiation.
+
+=example Pod::Plexus::Module attribute code
+
+Usage is generally through Pod::Plexus::Module.
+
+=cut
+
+
+=head1 DESCRIPTION
+
+[% m.package %] provides Pod::Plexus with access to modules' source
+code.  For example, it extracts the code for attributes and methods
+for '=example' sections.
+
+[% m.package %] is tightly coupled to Pod::Plexus::Module.  For all
+intents and purposes, Pod::Plexus::Module embodies the public API that
+includes [% m.package %] features.
+
+=cut
+
+
 has '+module' => (
 	handles => [ qw( pathname ) ],
 );

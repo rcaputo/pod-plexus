@@ -25,6 +25,29 @@ use Pod::Plexus::Matter::include;
 =cut
 
 
+=head1 SYNOPSIS
+
+Instantiation.
+
+=example Pod::Plexus::Module attribute docs
+
+Usage is generally through Pod::Plexus::Module.
+
+=example Pod::Plexus::Module method cache_structure
+
+=cut
+
+
+=head1 DESCRIPTION
+
+[% m.package %] parses, manages and renders documentation matter on
+behalf of Pod::Plexus::Module, to which it's tightly coupled.  For all
+intents and purposes, Pod::Plexus::Module embodies the public API that
+includes [% m.package %] features.
+
+=cut
+
+
 has '+module' => (
 	handles  => {
 		package         => 'package',

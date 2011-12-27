@@ -6,7 +6,23 @@ package Pod::Plexus::Matter::abstract;
 
 =cut
 
+
+=inherits Pod::Plexus::Matter head1 SYNOPSIS
+
+=cut
+
+
+
+
+
 =head1 SYNOPSIS
+=cut
+
+=head1 DESCRIPTION
+
+[% m.package %] defines how Pod::Plexus will parse "=abstract"
+meta-POD and generate the resulting POD documentation.  Abstracts are
+rewritten in the POD standard style.  See the L</SYNOPSIS>.
 
 Pod::Plexus:
 
@@ -23,14 +39,6 @@ Renders as:
 	Reflex - Class library for flexible, reactive programming.
 
 	=cut
-
-=cut
-
-=head1 DESCRIPTION
-
-[% m.package %] defines how Pod::Plexus will parse "=abstract"
-meta-POD and generate the resulting POD documentation.  Abstracts are
-rewritten in the POD standard style.  See the L</SYNOPSIS>.
 
 =include boilerplate section_body_handler
 
