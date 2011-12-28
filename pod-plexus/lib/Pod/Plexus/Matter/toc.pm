@@ -8,7 +8,18 @@ package Pod::Plexus::Matter::toc;
 =cut
 
 
-=inherits Pod::Plexus::Matter head1 SYNOPSIS
+# TODO - Can't use '=inherits Pod::Plexus::Matter head1 SYNOPSIS' yet.
+# '=inherits' is not '=head1', so validation fails.
+
+=head1 SYNOPSIS
+
+	=head1 SUBCLASSES
+
+	=toc ^Pod::Plexus::Matter::
+
+	=cut
+
+=include Pod::Plexus::Matter head1 SYNOPSIS
 
 =cut
 
@@ -17,13 +28,7 @@ package Pod::Plexus::Matter::toc;
 
 [% m.package %] generates a table of contents outline for modules that
 match a regular expression.  L<Pod::Plexus::Matter/SUBCLASSES> lists
-all its subclasses in three lines of POD:
-
-	=head1 SUBCLASSES
-
-	=toc ^Pod::Plexus::Matter::
-
-	=cut
+all its subclasses in three lines of POD shown in the L</SYNOPSIS>.
 
 =cut
 

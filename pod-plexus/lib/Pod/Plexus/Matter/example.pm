@@ -23,6 +23,60 @@ use Carp qw(confess);
 =cut
 
 
+=head1 SYNOPSIS
+
+Include the implementation of an attribute, method or function within
+documentation.
+
+	=head1 SOME EXAMPLES
+
+	An example attribute:
+
+	=example Module attribute foo
+
+	An example method:
+
+	=example Module method foo
+
+	An example function:
+
+	=example Module function foo
+
+	=cut
+
+Entire modules can also be used as examples.  It's best if they're
+really short.
+
+	=head1 A MODULE EXAMPLE
+
+	A module example:
+
+	=example module Module
+
+	=cut
+
+=cut
+
+
+=head1 DESCRIPTION
+
+"=example" describes some source code within the distribution.
+Pod::Plexus will locate that code, format it as an example, and
+replace the "=example" command with it.
+
+
+[% m.package %] delegates the actual semantics and POD rendering to
+subclasses:
+
+=over 4
+
+=toc ^Pod::Plexus::Matter::example::
+
+=back
+
+=cut
+
+
 =attribute referent_name
 
 "[% s.name %]" contains the name of the subroutine, method, attribute

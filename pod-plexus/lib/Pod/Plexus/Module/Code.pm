@@ -10,8 +10,8 @@ use Scalar::Util qw(weaken);
 use PPI::Lexer;
 $PPI::Lexer::STATEMENT_CLASSES{with} = 'PPI::Statement::Include';
 
-use Pod::Plexus::Code::Method;
-use Pod::Plexus::Code::Attribute;
+#use Pod::Plexus::Code::Method;
+#use Pod::Plexus::Code::Attribute;
 
 
 =abstract Represent and process the code portion of a Perl module.

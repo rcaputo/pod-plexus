@@ -12,7 +12,7 @@ extends 'Pod::Plexus::Matter';
 sub is_top_level { 1 }
 
 
-=after as_pod_elementals
+=after method as_pod_elementals
 
 Pod::Plexus directives don't render as POD, so [% s.name %]() always
 returns an empty list.

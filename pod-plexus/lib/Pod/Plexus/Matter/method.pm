@@ -6,6 +6,50 @@ package Pod::Plexus::Matter::method;
 
 =cut
 
+
+=head1 SYNOPSIS
+
+	=method new_from_element
+
+	Prose documenting the method.
+
+	=cut
+
+=cut
+
+
+=head1 DESCRIPTION
+
+"=method" is a Pod::Weaver directive.  Pod::Plexus::Matter::method
+remembers method documentation and allows Pod::Plexus to manipulate
+them as well.
+
+Method documentation can be imported into other places using
+"=inherits", "=before", "=after" and "=include".
+
+=over 4
+
+=xref method Pod::Plexus::Matter::after
+
+=xref method Pod::Plexus::Matter::before
+
+=xref method Pod::Plexus::Matter::include
+
+=xref method Pod::Plexus::Matter::inherits
+
+=back
+
+Method documentation can be referenced using "=xref".
+
+=over 4
+
+=xref method Pod::Plexus::Matter::xref
+
+=back
+
+=cut
+
+
 use Moose;
 extends 'Pod::Plexus::Matter::Code';
 

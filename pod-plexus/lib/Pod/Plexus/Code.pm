@@ -16,7 +16,6 @@ use Carp qw(confess);
 
 =cut
 
-
 =attribute name
 
 [% SWITCH m.package %]

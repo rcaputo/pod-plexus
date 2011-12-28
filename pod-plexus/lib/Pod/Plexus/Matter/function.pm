@@ -6,6 +6,29 @@ package Pod::Plexus::Matter::function;
 
 =cut
 
+
+=head1 SYNOPSIS
+
+	=function blank_line
+
+	Prose describing the blank_line() function.
+
+	=cut
+
+=cut
+
+
+=head1 DESCRIPTION
+
+"=function" describes a function in the current package.  It behaves
+almost exactly like "=method", but its symbols exist within a
+different namespace.  Pod::Weaver to gather functions into a different
+section than methods, and Pod::Plexus can tell the difference between
+functions and methods.
+
+=cut
+
+
 use Moose;
 extends 'Pod::Plexus::Matter::Code';
 

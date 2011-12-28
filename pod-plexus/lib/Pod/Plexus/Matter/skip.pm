@@ -16,6 +16,42 @@ use Carp qw(croak);
 =cut
 
 
+=head1 SYNOPSIS
+
+	=skip method BUILD
+
+	=skip attribute verbose
+
+	=cut
+
+=cut
+
+
+=boilerplate skip_purpose
+
+Often a class may implement or inherit private methods that look
+public because their names don't begin with underscores.  "=skip"
+directives can eliminate these inadvertently public from the resulting
+documentation.
+
+=cut
+
+
+=head1 DESCRIPTION
+
+[% m.package %] implements the "=skip" directive, which tells
+Pod::Plexus which symbols to skip when compiling and validating a
+module's documentation.
+
+=include boilerplate skip_purpose
+
+=head2 Variants
+
+=toc Pod::Plexus::Matter::skip::
+
+=cut
+
+
 =boilerplate new_from_element
 
 [% s.name %]() creates a new [% m.package %]::attribute or
@@ -23,6 +59,7 @@ use Carp qw(croak);
 syntax.
 
 =cut
+
 
 sub new_from_element {
 	my ($class, %args) = @_;

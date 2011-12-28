@@ -6,6 +6,33 @@ package Pod::Plexus::Matter::head1;
 
 =cut
 
+
+=head1 SYNOPSIS
+
+	=head1 SYNOPSIS
+
+		=head1 SYNOPSIS
+
+			...
+
+		=cut
+
+	=cut
+
+=cut
+
+
+=head1 DESCRIPTION
+
+POD "=head1" sections tend to be important.  [% m.package %] parses
+them so Pod::Plexus can analyze and validate them.  For example,
+Pod::Plexus expects every module to include a "=head1 SYNOPSIS" and
+"=head1 DESCRIPTION".  It couldn't verify their presence without this
+module.
+
+=cut
+
+
 use Moose;
 extends 'Pod::Plexus::Matter::Pod';
 with 'Pod::Plexus::Matter::Role::AbsorbedBody';

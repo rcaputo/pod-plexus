@@ -6,6 +6,33 @@ package Pod::Plexus::Matter::example::function;
 
 =cut
 
+
+=head1 SYNOPSIS
+
+	=head1 SOME EXAMPLES
+
+	An example coming from the current package:
+
+	=example function in_this_package
+
+	An example coming from some other package:
+
+	=example Some::Other::Package function in_another_package
+
+	=cut
+
+=cut
+
+
+=head1 DESCRIPTION
+
+[% m.package %] determines how the "function" variant of "=example"
+commands are interpreted and their resulting documentation is
+rendered.
+
+=cut
+
+
 use Moose;
 extends 'Pod::Plexus::Matter::example';
 

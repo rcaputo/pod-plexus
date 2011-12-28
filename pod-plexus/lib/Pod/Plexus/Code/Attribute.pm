@@ -15,6 +15,32 @@ class_type('Moose::Meta::Role::Attribute');
 =cut
 
 
+=head1 SYNOPSIS
+
+	=head1 SOME EXAMPLES
+
+	An example coming from the current package:
+
+	=example attribute in_this_package
+
+	An example coming from some other package:
+
+	=example Some::Other::Package attribute in_another_package
+
+	=cut
+
+=cut
+
+
+=head1 DESCRIPTION
+
+[% m.package %] determines how the "attribute" variant of "=example"
+commands are interpreted and their resulting documentation is
+rendered.
+
+=cut
+
+
 has '+meta_entity' => (
 	isa => 'Class::MOP::Attribute | Moose::Meta::Role::Attribute',
 );

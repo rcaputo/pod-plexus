@@ -6,6 +6,19 @@ package Pod::Plexus::Matter::boilerplate;
 
 =cut
 
+
+=head1 SYNOPSIS
+
+	=boilerplate section_body_handler
+
+	[Z<>% SET command = c.match('::([a-z]+)').0 %]
+	The POD associated with the "=[Z<>% command %]" command will be
+	extracted and used as the body of any generated POD section.
+
+	=cut
+
+=cut
+
 =head1 DESCRIPTION
 
 [% m.package %] defines how Pod::Plexus will parse "=boilerplate"

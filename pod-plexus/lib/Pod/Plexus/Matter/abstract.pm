@@ -12,10 +12,14 @@ package Pod::Plexus::Matter::abstract;
 =cut
 
 
-
-
-
 =head1 SYNOPSIS
+
+	package Reflex;
+
+	=abstract Class library for flexible, reactive programming.
+
+	=cut
+
 =cut
 
 =head1 DESCRIPTION
@@ -24,15 +28,7 @@ package Pod::Plexus::Matter::abstract;
 meta-POD and generate the resulting POD documentation.  Abstracts are
 rewritten in the POD standard style.  See the L</SYNOPSIS>.
 
-Pod::Plexus:
-
-	package Reflex;
-
-	=abstract Class library for flexible, reactive programming.
-
-	=cut
-
-Renders as:
+Abstracts typically render similar to this:
 
 	=head1 NAME
 
