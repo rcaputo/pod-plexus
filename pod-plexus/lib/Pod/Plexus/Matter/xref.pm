@@ -5,6 +5,7 @@ package Pod::Plexus::Matter::xref;
 
 =cut
 
+
 =head1 SYNOPSIS
 
 To reference a module:
@@ -49,6 +50,7 @@ Local methods may also be linked.
 	=xref method get_referent_module
 
 =cut
+
 
 =head1 DESCRIPTION
 

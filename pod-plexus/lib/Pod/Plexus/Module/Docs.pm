@@ -505,12 +505,12 @@ sub validate {
 	}
 
 	my $synopsis = $self->get_matter('head1', 'SYNOPSIS');
-	unless (defined $synopsis and length $synopsis) {
+	unless (defined $synopsis and $synopsis =~ /\S/) {
 		push @errors,  $self->package() . ' needs =head1 SYNOPSIS';
 	}
 
 	my $description = $self->get_matter('head1', 'DESCRIPTION');
-	unless (defined $description and length $description) {
+	unless (defined $description and $description =~ /\S/) {
 		push @errors, $self->package() . ' needs =head1 DESCRIPTION';
 	}
 

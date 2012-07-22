@@ -228,14 +228,17 @@ sub cache_structure {
 				$dependency_class_name
 			);
 			next unless $dependency_module;
+			#warn "   extends $dependency_class_name\n";
 			$dependency_module->cache_structure();
 		}
 	}
 
 	if ($meta_module->can('calculate_all_roles')) {
-		foreach my $dependency_role_name ($meta_module->calculate_all_roles()) {
+		#warn "   ??? $meta_module\n";
+		foreach my $dependency_role ($meta_module->calculate_all_roles()) {
+			#warn "   consumes ", $dependency_role->name(), "\n";
 			my $dependency_module = $self->distribution()->get_module(
-				$dependency_role_name
+				$dependency_role->name()
 			);
 			next unless $dependency_module;
 			$dependency_module->cache_structure();

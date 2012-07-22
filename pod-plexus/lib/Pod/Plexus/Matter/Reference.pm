@@ -82,6 +82,7 @@ sub get_referent_matter {
 		my $element = $self->element();
 		chomp(my $content = $element->content());
 		die [
+			"((( $cache_name )))",
 			"Can't find matter referred to" .
 			" in '=" . $element->command() . " $content'" .
 			" at " . $self->module_pathname() .

@@ -2,9 +2,32 @@ package Pod::Plexus::Matter::example::attribute;
 
 # TODO - Edit pass 0 done.
 
+
 =abstract Render an attribute implementation as a code example.
 
 =cut
+
+
+=head1 SYNOPSIS
+
+Include an example from an attribute in the current package:
+
+	=example attribute attribute_name
+
+Include an attribute from another package as an example here:
+
+	=example AnotherPackage attribute attribute_name
+
+=cut
+
+
+=head1 DESCRIPTION
+
+[% m.package %] objects manage, represent, and render code examples
+from actual code.
+
+=cut
+
 
 use Moose;
 extends 'Pod::Plexus::Matter::example';

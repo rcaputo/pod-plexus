@@ -10,6 +10,32 @@ extends 'Pod::Plexus::Code';
 =cut
 
 
+=head1 SYNOPSIS
+
+	=head1 SOME EXAMPLES
+
+	An example coming from the current package.
+
+	=example method in_this_package
+
+	An example coming from some other package:
+
+	=example Some::Other::Package method in_another_package
+
+	=cut
+
+=cut
+
+
+=head1 DESCRIPTION
+
+[% m.pacakge %] determines how the "method" variant of "=example"
+commands are interpreted and their resulting documentation is
+rendered.
+
+=cut
+
+
 =attribute meta_entity
 
 =include Pod::Plexus::Code attribute meta_entity

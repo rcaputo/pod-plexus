@@ -13,6 +13,20 @@ use Pod::Plexus::Util::PodElemental qw(blank_line cut_paragraph);
 =cut
 
 
+=head1 SYNOPSIS
+
+TODO
+
+=cut
+
+
+=head1 DESCRIPTION
+
+TODO
+
+=cut
+
+
 has name => (
 	is      => 'ro',
 	isa     => 'Str',

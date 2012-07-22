@@ -10,6 +10,34 @@ use Carp qw(confess);
 =cut
 
 
+=head1 SYNOPSIS
+
+=xref module Pod::Plexus::Code::Attribute
+
+=xref module Pod::Plexus::Code::Method
+
+=cut
+
+
+=head1 DESCRIPTION
+
+[% m.name %] is a base class for objects that represent code within a
+distribution.  Code objects are used to validate documentation:
+
+=over 4
+
+=item * Is everything documented?
+
+=item * Does all documentation refer to something in the code?
+
+=back
+
+Code objects are also used to include code examples in the
+documentation.
+
+=cut
+
+
 =method new
 
 =include Pod::Plexus boilerplate new

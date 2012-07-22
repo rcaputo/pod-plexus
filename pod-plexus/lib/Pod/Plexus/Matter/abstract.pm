@@ -7,11 +7,6 @@ package Pod::Plexus::Matter::abstract;
 =cut
 
 
-=inherits Pod::Plexus::Matter head1 SYNOPSIS
-
-=cut
-
-
 =head1 SYNOPSIS
 
 	package Reflex;
@@ -21,6 +16,7 @@ package Pod::Plexus::Matter::abstract;
 	=cut
 
 =cut
+
 
 =head1 DESCRIPTION
 
@@ -41,6 +37,7 @@ Abstracts typically render similar to this:
 =include Pod::Plexus::Matter boilerplate please_report_questions
 
 =cut
+
 
 use Moose;
 extends 'Pod::Plexus::Matter';

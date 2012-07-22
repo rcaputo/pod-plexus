@@ -15,6 +15,24 @@ use Template::Stash;
 =cut
 
 
+=head1 SYNOPSIS
+
+=example Pod::Plexus::Cli attribute _distribution
+
+=cut
+
+
+=head1 DESCRIPTION
+
+[% m.name %] represents an entire code distribution.  It contains zero
+or more modules, each of which must contain documentation and code.
+
+[% m.name %] provides attributes and methods to access and manipulate
+modules and their documentation.
+
+=cut
+
+
 $Template::Stash::SCALAR_OPS->{call} = sub {
 	my ($class, $method, @parameters) = @_;
 	return $class->$method(@parameters);
